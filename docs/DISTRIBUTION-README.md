@@ -1,3 +1,12 @@
+
+**Other platforms.** The GitHub repository builds the same application for Linux x64 and for
+macOS on Intel and on Apple silicon, as single self-contained executables named
+`RetroTerm-linux-x64`, `RetroTerm-osx-x64` and `RetroTerm-osx-arm64`, attached to each release
+at `https://github.com/RetroCoreLabs/RetroTerm/releases`. They are built and unit-tested on
+those systems but nobody has yet watched them draw a screen there. The macOS ones are unsigned:
+after downloading, `xattr -d com.apple.quarantine <file>` and `chmod +x <file>`, then run it.
+Everything below about settings and MCP applies to them the same way, with `~/.config/RetroTerm`
+in place of `%APPDATA%RetroTerm` - not verified on a real Linux or macOS machine.
 # RetroTerm
 
 RetroTerm is a terminal emulator for the Norsk Data world and the DEC world: the Tandberg

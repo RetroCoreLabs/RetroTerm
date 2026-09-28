@@ -143,7 +143,7 @@ empty until the first `v*` tag.
 | # | Requirement | Needed for | How to check |
 |---|---|---|---|
 | P1 | The .NET SDK. The projects target .NET 10; the build here runs on SDK 10.0.401 | Everything | `dotnet --info` |
-| P2 | A Windows desktop session | The application is Avalonia; the UI tests target `net10.0-windows` | Not usable over a plain SSH session |
+| P2 | A Windows desktop session for the tests | The UI tests target `net10.0-windows`; the application itself also publishes for Linux and macOS, see Current limitations | Not usable over a plain SSH session |
 | P3 | Something to connect to | Anything useful | `tests/RetroTerm.TestServer` is included for exactly this |
 
 ## Quick start
@@ -215,8 +215,11 @@ build-release.bat
   because they are not built. The DA replies say so.
 - **Tektronix 4014 character sizes and the alternate-column text wrap** are not implemented.
 - **TDV2200 graphics**: six `ESC "` modes are implemented; the rest are counted, not guessed at.
-- **Windows only** for now. The core is `netstandard2.1` and the UI is Avalonia, so Linux and
-  macOS are possible; they have not been built or tested.
+- **Tested on Windows only.** The workflow builds a self-contained binary for Linux x64 and for
+  macOS on Intel and on Apple silicon on each platform's own runner, and runs the one test suite
+  with no Windows dependency there, the Kermit suite. The headless UI suite targets
+  `net10.0-windows`, so nobody has yet watched RetroTerm draw a screen on Linux or macOS. The
+  macOS binaries are unsigned bare executables, not `.app` bundles.
 
 ## About the TDV and VT terminals
 

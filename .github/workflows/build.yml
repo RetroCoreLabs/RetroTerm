@@ -23,6 +23,10 @@
 # SDK 10.x, pinned by global.json, because that is what the repository is actually built with
 # on the development machine (10.0.401); the projects target net10.0 since 28 September 2026.
 #
+# macOS x64 runs on macos-15-intel: the macos-13 image the first version of this named had been
+# retired, and the job sat queued with no runner until that was noticed on 28 September 2026.
+# The list of live images is the README of github.com/actions/runner-images.
+#
 # The macOS binaries are bare Mach-O executables, not .app bundles, and none of the binaries
 # is code-signed or notarised. macOS Gatekeeper will refuse an unsigned download until the
 # quarantine attribute is removed; the release notes say so.
@@ -60,7 +64,7 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             binary: RetroTerm.Desktop
-          - os: macos-13
+          - os: macos-15-intel
             rid: osx-x64
             binary: RetroTerm.Desktop
           - os: macos-latest
