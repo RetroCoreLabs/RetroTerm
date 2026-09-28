@@ -72,7 +72,14 @@ public class SixelExitCursorTests
         // the cursor exactly as they should. Asserting row 0 would be asserting something about
         // the file's formatting rather than about the image.
         string path = Path.Combine(FixtureDirectory, "extremeratio.six");
-        Assert.True(File.Exists(path), "could not find " + path);
+        if (!File.Exists(path))
+        {
+            // The corpus is fetched on demand and never committed, and every other test on this
+            // corpus steps aside when it is absent. This one asserted the file instead, which is
+            // how the first GitHub build run went red on 28 September 2026 before the workflow
+            // fetched the corpora. The fetch is in build.yml now; this keeps a clean clone green.
+            return;
+        }
 
         string text = File.ReadAllText(path);
 

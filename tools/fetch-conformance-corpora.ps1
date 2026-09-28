@@ -35,6 +35,15 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $conformance = Join-Path $repoRoot 'tests\RetroTerm.Tests\Conformance'
 
+# The directory listings go through the GitHub API, which allows sixty unauthenticated calls an
+# hour per address. That is plenty on a developer's machine and not reliable on a shared CI
+# runner, so build.yml passes the workflow's own token and it is sent when present. It changes
+# nothing about what is fetched; it only raises the rate limit.
+$headers = @{ 'User-Agent' = 'RetroTerm-corpus-fetch' }
+if ($env:GITHUB_TOKEN) {
+    $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)"
+}
+
 function Save-File {
     param([string]$Url, [string]$Path)
 
@@ -52,7 +61,7 @@ New-Item -ItemType Directory -Force $xtermDir | Out-Null
 
 Write-Host 'Fetching xterm.js escape-sequence fixtures...'
 $api = 'https://api.github.com/repos/xtermjs/xterm.js/contents/test/fixtures/escape_sequence_files'
-$listing = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'RetroTerm-corpus-fetch' } -TimeoutSec 120
+$listing = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 120
 
 $fetched = 0
 foreach ($entry in $listing) {
@@ -74,7 +83,7 @@ New-Item -ItemType Directory -Force $vtermDir | Out-Null
 
 Write-Host 'Fetching libvterm test scripts...'
 $api = 'https://api.github.com/repos/neovim/libvterm/contents/t'
-$listing = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'RetroTerm-corpus-fetch' } -TimeoutSec 120
+$listing = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 120
 
 $fetched = 0
 foreach ($entry in $listing) {
@@ -106,7 +115,7 @@ New-Item -ItemType Directory -Force $sixelDir | Out-Null
 
 Write-Host 'Fetching vt340test Sixel fixtures...'
 $api = 'https://api.github.com/repos/hackerb9/vt340test/contents/sixeltests'
-$listing = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'RetroTerm-corpus-fetch' } -TimeoutSec 120
+$listing = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 120
 
 $fetched = 0
 foreach ($entry in $listing) {
@@ -139,7 +148,7 @@ $api = 'https://api.github.com/repos/hackerb9/vt340test/contents/regis'
 $regisFetched = 0
 
 try {
-    $listing = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'RetroTerm-corpus-fetch' } -TimeoutSec 120
+    $listing = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 120
 
     foreach ($entry in $listing) {
         if ($entry.type -ne 'file') { continue }

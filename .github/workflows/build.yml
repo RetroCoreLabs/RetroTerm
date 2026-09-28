@@ -7,7 +7,7 @@
 name: build
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
 jobs:
   build:
@@ -17,6 +17,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      # The outside conformance corpora are fetched, never committed, and 160-odd tests plus
+      # every corpus-driven theory case only exist when they are present. Without this step the
+      # first run on GitHub counted 6,746 tests where the development machine counts 6,906.
+      # The token only raises the GitHub API rate limit for the directory listings.
+      - run: pwsh tools/fetch-conformance-corpora.ps1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: dotnet restore RetroTerm.sln
       - run: dotnet build RetroTerm.sln -c Release --no-restore -nodeReuse:false
       # The main suite takes about two and a half minutes locally.
