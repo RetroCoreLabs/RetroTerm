@@ -14,6 +14,7 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using RetroTerm.Core;
 using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Logging;
 using RetroTerm.Core.Protocols;
@@ -1739,7 +1740,25 @@ public partial class MainWindow : Window
 
     private void ShowWelcomeMessage(TabSession tab)
     {
-        var welcome = @"
+        tab.Session.WriteToTerminal(WelcomeText());
+    }
+
+    /// <summary>
+    /// The welcome screen a new tab shows: the logo, what this program emulates and speaks, and
+    /// which build this is, read from the assembly stamp so it cannot drift from Help, About.
+    /// </summary>
+    /// <remarks>
+    /// Until 28 September 2026 this named four terminals of the fourteen, promised TN3270 "coming
+    /// soon" (it is not started, and the README says why), and printed a hand-typed
+    /// "1.0.0-alpha (Phase 4 - Canvas Rendering)" beside a hand-typed copyright year. Pinned by
+    /// WelcomeScreenTests.
+    /// </remarks>
+    /// <returns>
+    /// The whole screen as one string, carriage returns and line feeds included.
+    /// </returns>
+    internal static string WelcomeText()
+    {
+        return @"
 
  ██████╗ ███████╗████████╗██████╗  ██████╗ ████████╗███████╗██████╗ ███╗   ███╗
  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██╔══██╗████╗ ████║
@@ -1751,18 +1770,19 @@ public partial class MainWindow : Window
  A modern terminal emulator with vintage soul
  ──────────────────────────────────────────────────────────────────────────────
 
- Terminal Emulation:  VT100, VT220, ANSI, xterm (256-color)
- Protocols:           Telnet (SSH, Serial, TN3270 coming soon)
- Graphics:            Full color support, character attributes
- Features:            Cursor styles, scrollback, authentic CRT colors
+ Terminal Emulation:  TDV2200, TDV2215, TDV1200, VT52, VT100, VT102, VT220, VT240,
+                      VT320, VT340, VT420, xterm, xterm-256color, Tektronix 4014
+ Protocols:           Telnet, SSH, serial, ND-100 gateway
+ Graphics:            Sixel, ReGIS, Tektronix vectors, TDV2200 graphics planes
+ Features:            Virtual TDV keyboard, scripts, an MCP server for an LLM,
+                      Kermit file transfer, scrollback, authentic CRT colours
 
- RetroTerm " + BuildInfo.Version + @" (" + BuildInfo.Phase + @")
+ RetroTerm " + BuildInfo.Version + ", commit " + BuildIdentity.Commit + (BuildIdentity.IsDirty ? " (uncommitted changes)" : "") + @"
  Build: " + BuildInfo.BuildDateTimeString + @"
- " + '\u00A9' + @" 2025 RetroCore Labs
+ " + BuildInfo.Copyright + @"
 
 
 ";
-        tab.Session.WriteToTerminal(welcome);
     }
 
     // ───────────────────────────────────────────────────────────────────

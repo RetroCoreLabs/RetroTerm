@@ -108,6 +108,48 @@ public static class BuildIdentity
     public static string Version { get; } = ReadVersion();
 
     /// <summary>
+    /// The copyright line, as set in Directory.Build.props.
+    /// </summary>
+    /// <remarks>
+    /// Read from the stamped assembly for the same reason the version is: until 28 September 2026
+    /// the welcome screen carried its own copy, "2025 RetroCore Labs", beside a version of its own,
+    /// "1.0.0-alpha", and both had drifted from the build. One source, read at run time.
+    /// </remarks>
+    public static string Copyright { get; } = ReadAttribute<AssemblyCopyrightAttribute>(a => a.Copyright);
+
+    /// <summary>
+    /// The company, as set in Directory.Build.props.
+    /// </summary>
+    public static string Company { get; } = ReadAttribute<AssemblyCompanyAttribute>(a => a.Company);
+
+    /// <summary>
+    /// Reads one string-valued attribute off the stamped assembly.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The attribute type.
+    /// </typeparam>
+    /// <param name="read">
+    /// Picks the string out of the attribute.
+    /// </param>
+    /// <returns>
+    /// The value, or "unknown" when the attribute is absent or empty.
+    /// </returns>
+    private static string ReadAttribute<T>(Func<T, string?> read) where T : Attribute
+    {
+        try
+        {
+            var attribute = Stamped.GetCustomAttribute<T>();
+            if (attribute == null) return Unknown;
+            var value = read(attribute);
+            return string.IsNullOrEmpty(value) ? Unknown : value!;
+        }
+        catch
+        {
+            return Unknown;
+        }
+    }
+
+    /// <summary>
     /// The short git commit the build came from, or "unknown".
     /// </summary>
     public static string Commit { get; } = ReadMetadata("GitCommit");
