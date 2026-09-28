@@ -70,8 +70,9 @@ public class TerminalSessionSendReceiveTests
         await session.ConnectAsync(connection);
         connection.SimulateReceive(Encoding.UTF8.GetBytes("Hello"));
 
-        // Give async processing time
-        await Task.Delay(50);
+        // FlushAsync completes when the pump has run every chunk posted before it, and the
+        // reply goes out synchronously on the pump thread through the in-memory connection.
+        await session.FlushAsync();
 
         // Assert - Data should have been routed to emulator
         // We can verify by checking buffer contents
@@ -95,8 +96,9 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
 
-        // Give async processing time
-        await Task.Delay(100);
+        // FlushAsync completes when the pump has run every chunk posted before it, and the
+        // reply goes out synchronously on the pump thread through the in-memory connection.
+        await session.FlushAsync();
 
         // Assert - Response should have been sent through connection
         var sentData = connection.GetSentData();
@@ -125,8 +127,9 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 }; // ESC [ > c
         connection.SimulateReceive(query);
 
-        // Give async processing time
-        await Task.Delay(100);
+        // FlushAsync completes when the pump has run every chunk posted before it, and the
+        // reply goes out synchronously on the pump thread through the in-memory connection.
+        await session.FlushAsync();
 
         // Assert - Secondary DA response should have been sent
         var sentData = connection.GetSentData();
@@ -154,7 +157,7 @@ public class TerminalSessionSendReceiveTests
         // Move cursor to specific position
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 }; // ESC [ 5 ; 10 H
         connection.SimulateReceive(moveCursor);
-        await Task.Delay(50);
+        await session.FlushAsync();
 
         connection.ClearSentData();
 
@@ -162,8 +165,9 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x36, 0x6E }; // ESC [ 6 n
         connection.SimulateReceive(query);
 
-        // Give async processing time
-        await Task.Delay(100);
+        // FlushAsync completes when the pump has run every chunk posted before it, and the
+        // reply goes out synchronously on the pump thread through the in-memory connection.
+        await session.FlushAsync();
 
         // Assert - CPR response should have been sent
         var sentData = connection.GetSentData();
@@ -194,8 +198,9 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x35, 0x6E }; // ESC [ 5 n
         connection.SimulateReceive(query);
 
-        // Give async processing time
-        await Task.Delay(100);
+        // FlushAsync completes when the pump has run every chunk posted before it, and the
+        // reply goes out synchronously on the pump thread through the in-memory connection.
+        await session.FlushAsync();
 
         // Assert - DSR response should have been sent
         var sentData = connection.GetSentData();
@@ -230,7 +235,7 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         emulator.ProcessData(query);
 
-        await Task.Delay(50);
+        await session.FlushAsync();
 
         // Assert - Response event should fire, but connection should not send
         Assert.Single(responses); // Event fired
@@ -257,10 +262,10 @@ public class TerminalSessionSendReceiveTests
         var cprQuery = new byte[] { 0x1B, 0x5B, 0x36, 0x6E }; // ESC [ 6 n
 
         connection.SimulateReceive(daQuery);
-        await Task.Delay(50);
+        await session.FlushAsync();
 
         connection.SimulateReceive(cprQuery);
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - Both responses should have been sent
         var sentData = connection.GetSentData();
@@ -292,7 +297,7 @@ public class TerminalSessionSendReceiveTests
         // Act - Simulate connection error
         connection.SimulateError(new Exception("Test error"));
 
-        await Task.Delay(50);
+        await session.FlushAsync();
 
         // Assert - Error event should have been raised
         Assert.True(errorOccurred);
@@ -319,7 +324,7 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection2.SimulateReceive(query);
 
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - Response should be sent through second connection
         var sentData = connection2.GetSentData();
@@ -341,7 +346,7 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 }; // ESC [ > c
         connection.SimulateReceive(query);
 
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - TDV1200 should respond with firmware ID 120
         var sentData = connection.GetSentData();
@@ -366,7 +371,7 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 }; // ESC [ > c
         connection.SimulateReceive(query);
 
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - TDV2215 should respond with firmware ID 115
         var sentData = connection.GetSentData();
@@ -392,10 +397,10 @@ public class TerminalSessionSendReceiveTests
         foreach (var b in query)
         {
             connection.SimulateReceive(new[] { b });
-            await Task.Delay(10);
+            await session.FlushAsync();
         }
 
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - Response should still be sent
         var sentData = connection.GetSentData();
@@ -417,7 +422,7 @@ public class TerminalSessionSendReceiveTests
         var query = new byte[] { 0x1B, 0x5A }; // ESC Z
         connection.SimulateReceive(query);
 
-        await Task.Delay(100);
+        await session.FlushAsync();
 
         // Assert - Terminal ID response should have been sent
         var sentData = connection.GetSentData();
