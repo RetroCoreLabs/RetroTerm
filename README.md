@@ -123,7 +123,7 @@ dependency, not preference, so each one reuses what the ones above it forced int
 
 ## Status
 
-Version `1.0.26.2`. No tagged GitHub release yet, so the release and download badges above stay
+Version `1.10.26.9`. No tagged GitHub release yet, so the release and download badges above stay
 empty until the first `v*` tag.
 
 - **The whole solution builds in Release with no errors**, and the test suites pass:
@@ -142,15 +142,15 @@ empty until the first `v*` tag.
 
 | # | Requirement | Needed for | How to check |
 |---|---|---|---|
-| P1 | The .NET SDK. The projects target .NET 9; the build here runs on SDK 10.0.401 | Everything | `dotnet --info` |
-| P2 | A Windows desktop session | The application is Avalonia; the UI tests target `net9.0-windows` | Not usable over a plain SSH session |
+| P1 | The .NET SDK. The projects target .NET 10; the build here runs on SDK 10.0.401 | Everything | `dotnet --info` |
+| P2 | A Windows desktop session | The application is Avalonia; the UI tests target `net10.0-windows` | Not usable over a plain SSH session |
 | P3 | Something to connect to | Anything useful | `tests/RetroTerm.TestServer` is included for exactly this |
 
 ## Quick start
 
 ```powershell
 # from the repository root
-dotnet build RetroTerm.sln -nodeReuse:false
+dotnet build src\RetroTerm.slnx -nodeReuse:false
 dotnet run --project src\RetroTerm.Desktop\RetroTerm.Desktop.csproj
 ```
 
@@ -172,8 +172,8 @@ still running. What ships with the exe, and how to point an MCP client at it, is
 
 ```powershell
 # build, then run every test
-dotnet build RetroTerm.sln -nodeReuse:false
-dotnet test  RetroTerm.sln -nodeReuse:false
+dotnet build src\RetroTerm.slnx -nodeReuse:false
+dotnet test  src\RetroTerm.slnx -nodeReuse:false
 
 # one test category
 dotnet test --filter "FullyQualifiedName~TDV2200"
@@ -192,9 +192,9 @@ build-release.bat
 
 ```
 +-------------------------------------------+
-|  Desktop UI (Avalonia)                    |  src\RetroTerm.Desktop (net9.0)
+|  Desktop UI (Avalonia)                    |  src\RetroTerm.Desktop (net10.0)
 +-------------------------------------------+
-|  Protocol Layer (Telnet, SSH, serial,     |  src\RetroTerm.Core.Protocols.* (netstandard2.1 / net9.0)
+|  Protocol Layer (Telnet, SSH, serial,     |  src\RetroTerm.Core.Protocols.* (netstandard2.1 / net10.0)
 |  Kermit, WebSocket, telnet server)        |
 +-------------------------------------------+
 |  Core Emulation Layer                     |  src\RetroTerm.Core (netstandard2.1)

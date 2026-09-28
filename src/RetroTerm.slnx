@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="RetroTerm.Core.Protocols.Kermit/RetroTerm.Core.Protocols.Kermit.csproj" />
+    <Project Path="RetroTerm.Core.Protocols.Net/RetroTerm.Core.Protocols.Net.csproj" />
+    <Project Path="RetroTerm.Core.Protocols.TelnetServer/RetroTerm.Core.Protocols.TelnetServer.csproj" />
+    <Project Path="RetroTerm.Core.Protocols.WebSocket/RetroTerm.Core.Protocols.WebSocket.csproj" />
+    <Project Path="RetroTerm.Core.Protocols/RetroTerm.Core.Protocols.csproj" />
+    <Project Path="RetroTerm.Core/RetroTerm.Core.csproj" />
+    <Project Path="RetroTerm.Desktop/RetroTerm.Desktop.csproj" />
+    <Project Path="RetroTerm.Mcp/RetroTerm.Mcp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="../tests/RetroTerm.Core.Protocols.Kermit.Tests/RetroTerm.Core.Protocols.Kermit.Tests.csproj" />
+    <Project Path="../tests/RetroTerm.Tests/RetroTerm.Tests.csproj" />
+    <Project Path="../tests/RetroTerm.TestServer/RetroTerm.TestServer.csproj" />
+  </Folder>
+</Solution>

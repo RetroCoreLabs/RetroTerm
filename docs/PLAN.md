@@ -27,7 +27,7 @@ listed here — it is in the git history, and the evidence is in the M1–M8 doc
 `docs\manual-tests\INDEX.md`. The order and who-does-what for by-hand work is in
 `docs\manual-tests\RUN-SHEET.md`.
 
-**State:** full `dotnet test RetroTerm.sln` - 6867 passing, 1 skipped, 0 failed, plus 123 in the
+**State:** full `dotnet test src\RetroTerm.slnx` - 6867 passing, 1 skipped, 0 failed, plus 123 in the
 Kermit project. Published `1.0.26.2-1`. Working tree clean, in sync with the remote.
 One branch only: `master`. `linux-build` is merged; the `backup/pre-rebase-logging` snapshot was
 deleted after checking every one of its commits was already in master.

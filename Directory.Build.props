@@ -16,10 +16,10 @@
     <Product>RetroTerm</Product>
     <Company>Retro Family</Company>
     <Copyright>Copyright © 2024-2026 Ronny Hansen</Copyright>
-    <Version>1.0.26.2</Version>
-    <AssemblyVersion>1.0.26.2</AssemblyVersion>
-    <FileVersion>1.0.26.2</FileVersion>
-    <InformationalVersion>1.0.26.2</InformationalVersion>
+    <Version>1.10.26.9</Version>
+    <AssemblyVersion>1.10.26.9</AssemblyVersion>
+    <FileVersion>1.10.26.9</FileVersion>
+    <InformationalVersion>1.10.26.9</InformationalVersion>
     
     <!-- Enable long paths on Windows -->
     <LongPathsEnabled>true</LongPathsEnabled>

@@ -10,15 +10,15 @@ like, and what will get a change sent back.
 | # | Requirement | How to check |
 |---|---|---|
 | 1 | The .NET SDK. The projects target .NET 9; the repository is built with SDK 10.0.302 | `dotnet --info` |
-| 2 | A Windows desktop session - the UI is Avalonia and `RetroTerm.Tests` targets `net9.0-windows` | not usable over a plain SSH session |
+| 2 | A Windows desktop session - the UI is Avalonia and `RetroTerm.Tests` targets `net10.0-windows` | not usable over a plain SSH session |
 
 Everything RetroTerm depends on comes from nuget.org. There is no private feed and no sibling
 repository to set up: a fresh clone restores on its own.
 
 ```powershell
 # from the repository root
-dotnet build RetroTerm.sln -nodeReuse:false
-dotnet test  RetroTerm.sln -nodeReuse:false
+dotnet build src\RetroTerm.slnx -nodeReuse:false
+dotnet test  src\RetroTerm.slnx -nodeReuse:false
 ```
 
 The main suite is large - 6,906 tests, about two minutes - so `--filter` while you

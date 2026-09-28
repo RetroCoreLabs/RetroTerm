@@ -12,26 +12,26 @@
 Both RetroTerm and the Test Server are available as self-contained executables that run without any .NET installation.
 
 #### RetroTerm Terminal Emulator
-**Location:** `src\RetroTerm.Desktop\bin\Release\net9.0\win-x64\publish\RetroTerm.Desktop.exe`  
+**Location:** `src\RetroTerm.Desktop\bin\Release\net10.0\win-x64\publish\RetroTerm.Desktop.exe`  
 **Size:** ~82 MB  
 **Requirements:** Windows 10/11 (64-bit)
 
 ```powershell
 # Run RetroTerm
-.\src\RetroTerm.Desktop\bin\Release\net9.0\win-x64\publish\RetroTerm.Desktop.exe
+.\src\RetroTerm.Desktop\bin\Release\net10.0\win-x64\publish\RetroTerm.Desktop.exe
 ```
 
 #### RetroTerm Test Server
-**Location:** `tests\RetroTerm.TestServer\bin\Release\net9.0\win-x64\publish\RetroTerm.TestServer.exe`  
+**Location:** `tests\RetroTerm.TestServer\bin\Release\net10.0\win-x64\publish\RetroTerm.TestServer.exe`  
 **Size:** ~71 MB  
 **Requirements:** Windows 10/11 (64-bit)
 
 ```powershell
 # Run Test Server on port 2323 (default)
-.\tests\RetroTerm.TestServer\bin\Release\net9.0\win-x64\publish\RetroTerm.TestServer.exe
+.\tests\RetroTerm.TestServer\bin\Release\net10.0\win-x64\publish\RetroTerm.TestServer.exe
 
 # Run Test Server on custom port
-.\tests\RetroTerm.TestServer\bin\Release\net9.0\win-x64\publish\RetroTerm.TestServer.exe 3000
+.\tests\RetroTerm.TestServer\bin\Release\net10.0\win-x64\publish\RetroTerm.TestServer.exe 3000
 ```
 
 ---
@@ -42,7 +42,7 @@ Both RetroTerm and the Test Server are available as self-contained executables t
 Open PowerShell:
 ```powershell
 # from the repository root
-.\tests\RetroTerm.TestServer\bin\Release\net9.0\win-x64\publish\RetroTerm.TestServer.exe 2323
+.\tests\RetroTerm.TestServer\bin\Release\net10.0\win-x64\publish\RetroTerm.TestServer.exe 2323
 ```
 
 You should see:
@@ -55,7 +55,7 @@ Waiting for connections...
 Open another PowerShell window:
 ```powershell
 # from the repository root
-.\src\RetroTerm.Desktop\bin\Release\net9.0\win-x64\publish\RetroTerm.Desktop.exe
+.\src\RetroTerm.Desktop\bin\Release\net10.0\win-x64\publish\RetroTerm.Desktop.exe
 ```
 
 ### Step 3: Connect
@@ -120,10 +120,10 @@ Q. Quit
 
 ```
 RetroTerm/
-├── src/RetroTerm.Desktop/bin/Release/net9.0/win-x64/publish/
+├── src/RetroTerm.Desktop/bin/Release/net10.0/win-x64/publish/
 │   └── RetroTerm.Desktop.exe         (~82 MB, standalone)
 │
-├── tests/RetroTerm.TestServer/bin/Release/net9.0/win-x64/publish/
+├── tests/RetroTerm.TestServer/bin/Release/net10.0/win-x64/publish/
 │   └── RetroTerm.TestServer.exe      (~71 MB, standalone)
 │
 ├── docs/

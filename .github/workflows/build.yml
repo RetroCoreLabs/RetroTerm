@@ -1,9 +1,9 @@
 # Build and test on every push and pull request. This is what the build badge in README.md
 # reports, so the badge can go red - a badge that cannot is decoration.
 #
-# windows-latest because RetroTerm.Tests targets net9.0-windows and the UI is Avalonia on
-# Windows. SDK 10.x rather than 9.x because that is what the repository is actually built
-# with on the development machine (10.0.401); SDK 10 builds net9.0 targets.
+# windows-latest because RetroTerm.Tests targets net10.0-windows and the UI is Avalonia on
+# Windows. SDK 10.x, pinned by global.json, because that is what the repository is actually built
+# with on the development machine (10.0.401); the projects target net10.0 since 28 September 2026.
 name: build
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - run: pwsh tools/fetch-conformance-corpora.ps1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - run: dotnet restore RetroTerm.sln
-      - run: dotnet build RetroTerm.sln -c Release --no-restore -nodeReuse:false
+      - run: dotnet restore src/RetroTerm.slnx
+      - run: dotnet build src/RetroTerm.slnx -c Release --no-restore -nodeReuse:false
       # The main suite takes about two and a half minutes locally.
-      - run: dotnet test RetroTerm.sln -c Release --no-build -nodeReuse:false --logger "console;verbosity=minimal"
+      - run: dotnet test src/RetroTerm.slnx -c Release --no-build -nodeReuse:false --logger "console;verbosity=minimal"

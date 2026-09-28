@@ -23,7 +23,7 @@ APPDIR      := $(LIBDIR)/retroterm
 CONFIG      ?= Release
 RID         ?= linux-x64
 PROJECT     := src/RetroTerm.Desktop/RetroTerm.Desktop.csproj
-PUBLISH_DIR := src/RetroTerm.Desktop/bin/$(CONFIG)/net9.0/$(RID)/publish
+PUBLISH_DIR := src/RetroTerm.Desktop/bin/$(CONFIG)/net10.0/$(RID)/publish
 APP_BIN     := RetroTerm.Desktop
 
 DOTNET      ?= dotnet

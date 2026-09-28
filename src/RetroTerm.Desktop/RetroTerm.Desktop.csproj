@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 
@@ -59,6 +59,13 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.11" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
+    <!-- Avalonia 11.3.11 pulls Tmds.DBus.Protocol 0.21.2 in for its Linux D-Bus support, and that
+         version carries GHSA-xrw6-gwf8-vvr9 (signal spoofing and file-descriptor exhaustion by
+         a hostile D-Bus peer). The .NET 10 SDK audits transitive packages and, with warnings
+         as errors, refuses to build. 0.21.3 is the patched release of the same line, so this
+         pins it without changing anything Avalonia relies on. Found 28 September 2026 on the
+         move to net10.0. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
     <!--
