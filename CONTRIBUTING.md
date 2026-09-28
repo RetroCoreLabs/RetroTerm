@@ -97,7 +97,7 @@ build-from-source, every application in a table linking its own README, licence 
 
 ## Submitting a change
 
- 1. Branch off `master`. Do not commit to `master` directly.
+ 1. Branch off `main`. Do not commit to `main` directly.
  2. One logical change per commit. A commit message says **what changed and why**, in plain
     words - the subject line in the imperative, then a blank line, then the reasoning. If you
     measured something, put the number in the message.
