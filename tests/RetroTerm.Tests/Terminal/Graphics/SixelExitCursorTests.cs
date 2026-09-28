@@ -71,15 +71,14 @@ public class SixelExitCursorTests
         // with real newlines between its title, comment and URL blocks, and those newlines move
         // the cursor exactly as they should. Asserting row 0 would be asserting something about
         // the file's formatting rather than about the image.
+        // Fails loudly when the corpus has not been fetched - Ronny's choice, 28 September 2026,
+        // over stepping aside the way the other tests on this corpus do. The corpus is fetched by
+        // tools\fetch-conformance-corpora.ps1 and never committed; build.yml runs that script
+        // before the build, so on CI this file is always there, and on a clone that skipped the
+        // script this is the one test that says so by name instead of silently proving nothing.
         string path = Path.Combine(FixtureDirectory, "extremeratio.six");
-        if (!File.Exists(path))
-        {
-            // The corpus is fetched on demand and never committed, and every other test on this
-            // corpus steps aside when it is absent. This one asserted the file instead, which is
-            // how the first GitHub build run went red on 28 September 2026 before the workflow
-            // fetched the corpora. The fetch is in build.yml now; this keeps a clean clone green.
-            return;
-        }
+        Assert.True(File.Exists(path), "could not find " + path
+            + " - run tools\\fetch-conformance-corpora.ps1 to fetch the vt340test corpus");
 
         string text = File.ReadAllText(path);
 
