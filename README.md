@@ -20,6 +20,8 @@ did, and let a script or an LLM do the typing when you would rather not.**
 ![RetroTerm connected to a SINTRAN III system over telnet, the TDV2200 screen drawing a directory listing.](docs/images/readme/demo.gif)
 -->
 
+![RetroTerm on Windows showing its welcome screen: the RETROTERM banner in green block letters, the list of emulated terminals, protocols, graphics and features, and the build stamp.](docs/images/welcome-screen.png)
+
 ## Why it exists
 
 A Norsk Data ND-100 or ND-500 does not talk to a PC. It talks to a **Tandberg TDV terminal** -
