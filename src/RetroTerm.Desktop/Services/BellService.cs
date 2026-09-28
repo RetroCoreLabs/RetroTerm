@@ -166,10 +166,18 @@ public static class BellService
     }
 
     /// <summary>
-    /// True when this platform has a usable audio backend at all. False on non-Windows,
+    /// True when this machine can actually play the bell: Windows, with at least one waveform
+    /// output device. False on non-Windows and on a Windows machine with no sound hardware,
     /// where the bell degrades to the console BEL character.
     /// </summary>
-    public static bool IsAudioAvailable => WinMmWaveOut.IsSupported;
+    /// <remarks>
+    /// Until 28 September 2026 this only asked whether the platform was Windows, so on a hosted
+    /// CI runner it said true while the device could not be opened, and the test that holds
+    /// "either the device is ready or audio is unavailable" failed with "Audio device could not
+    /// be prepared". The answer now comes from the device count, which is the fact the test
+    /// and the fallback both need.
+    /// </remarks>
+    public static bool IsAudioAvailable => WinMmWaveOut.HasOutputDevice;
 
     /// <summary>
     /// Synthesizes the tone and opens the audio device SYNCHRONOUSLY, without making a

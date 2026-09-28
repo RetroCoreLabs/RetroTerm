@@ -123,6 +123,13 @@ internal static class WinMmWaveOut
     [DllImport("winmm.dll", ExactSpelling = true)]
     private static extern uint waveOutClose(IntPtr hwo);
 
+    /// <summary>
+    /// How many waveform output devices the system has. Zero on a machine with no sound
+    /// hardware, which is what a hosted CI runner is.
+    /// </summary>
+    [DllImport("winmm.dll", ExactSpelling = true)]
+    private static extern uint waveOutGetNumDevs();
+
     // ---- state ------------------------------------------------------------
 
     /// <summary>
@@ -164,6 +171,18 @@ internal static class WinMmWaveOut
     /// True when the winmm API can be used at all (i.e. we are on Windows).
     /// </summary>
     public static bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    /// <summary>
+    /// True when Windows reports at least one waveform output device, which is the thing
+    /// <see cref="Prepare"/> needs to succeed.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IsSupported"/> only says "this is Windows". The first GitHub build run,
+    /// 28 September 2026, ran on a Windows machine with no sound hardware at all: the API was
+    /// there, waveOutOpen failed, and BellService.IsAudioAvailable still said true because it
+    /// was this flag under another name. The device count is what separates the two.
+    /// </remarks>
+    public static bool HasOutputDevice => IsSupported && waveOutGetNumDevs() > 0;
 
     /// <summary>
     /// Last error text from a failed open/write, for diagnostics. Null when healthy.
