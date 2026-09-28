@@ -1,0 +1,147 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- Publish settings: ONE self-contained executable, no loose files beside it.
+         The native libraries (libSkiaSharp, libHarfBuzzSharp, av_libglesv2) ARE bundled.
+         An earlier comment here claimed they "CANNOT be bundled into single-file" - that
+         was untrue and was verified as untrue on 2026-08-08: with the flag below the
+         published app is a single .exe that starts cleanly, loads all three natives and
+         serves MCP. They are extracted on first run to
+         %TEMP%\.net\RetroTerm.Desktop\<hash>\ and loaded from there, so a writable temp
+         directory is required.
+         Compression (EnableCompressionInSingleFile) is deliberately NOT enabled: it takes
+         the file from ~166 MB to ~60 MB but costs decompression time on every cold start,
+         and launch speed was preferred. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- Default RID only when not provided AND host is Windows.
+         Linux/macOS builds must pass -r linux-x64 / osx-x64 / etc. on the command line. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' AND '$(OS)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
+
+    <!-- IsWindowsTarget: true when this build targets Windows. -->
+    <IsWindowsTarget>false</IsWindowsTarget>
+    <IsWindowsTarget Condition="$([MSBuild]::ValueOrDefault('$(RuntimeIdentifier)','').StartsWith('win'))">true</IsWindowsTarget>
+
+    <!-- Windows-only properties -->
+    <BuiltInComInteropSupport Condition="'$(IsWindowsTarget)' == 'true'">true</BuiltInComInteropSupport>
+    <ApplicationManifest Condition="'$(IsWindowsTarget)' == 'true'">app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="'$(IsWindowsTarget)' == 'true'">Assets\RetroTerm.ico</ApplicationIcon>
+
+    <!-- Define WINDOWS_TARGET so platform-specific code can compile-out on non-Windows. -->
+    <DefineConstants Condition="'$(IsWindowsTarget)' == 'true'">$(DefineConstants);WINDOWS_TARGET</DefineConstants>
+
+    <!-- AVLN3001: "XAML resource won't be reachable via runtime loader, as no public
+         constructor was found". The gateway/file-transfer windows deliberately take
+         their dependencies (GatewayListener, TerminalSession, ...) as constructor
+         arguments and are only ever created in code. They must NOT be constructible
+         by the runtime XAML loader, which would produce a window with no listener or
+         session. Adding a parameterless constructor just to silence this would create
+         exactly the broken instance the design avoids. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>RetroTerm.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
+    <!--
+      REQUIRED BY Styles\FluentTheme.axaml, which styles DataGrid. Without it a Release
+      PUBLISH fails with six AVLN2000 "Unable to resolve type DataGrid" errors while an
+      ordinary Debug build succeeds, so nothing goes red until somebody tries to ship.
+      Measured 29 August 2026: that is why the running app was a day-old binary built from
+      a dirty tree - no new one could be produced.
+
+      The app itself has no DataGrid. The package is here because FluentTheme.axaml is copied
+      verbatim from RetroCommander and its own header says the copies are meant to stay
+      identical across the suite; deleting the styles would break that instead.
+    -->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.11">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- NO FrameworkReference to Microsoft.WindowsDesktop.App.WindowsForms.
+       It was here only so Program.ShowErrorDialog could call
+       System.Windows.Forms.MessageBox, and it added ~23 MB of WinForms assemblies
+       (System.Windows.Forms 13 MB + .Design 5.8 MB + .Primitives 3.8 MB) to every
+       published build. That dialog is now a direct user32.dll MessageBoxW P/Invoke,
+       which needs no framework at all. -->
+
+  <!-- aspnetcorev2_inprocess.dll ships with the ASP.NET Core runtime pack (pulled in by
+       RetroTerm.Mcp for Kestrel). It is the IIS in-process hosting shim and is only ever
+       loaded when the app is hosted inside IIS. Verified on 2026-08-08 by listing the
+       loaded modules of a running RetroTerm: it is NOT among them, while libSkiaSharp,
+       libHarfBuzzSharp and av_libglesv2 are. Dropping it removes a file that can never be
+       used by a desktop app. -->
+  <Target Name="RemoveIisInProcessShim" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(Filename)%(Extension)' == 'aspnetcorev2_inprocess.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Drop the ASP.NET web-app feature areas the MCP server never touches: MVC, Razor,
+       Blazor components, SignalR, Identity, CORS, localization and antiforgery. They are
+       published only because a self-contained build with a FrameworkReference to
+       Microsoft.AspNetCore.App ships the ENTIRE shared framework, used or not; the app
+       itself only calls AddMcpServer().WithHttpTransport() + MapMcp() over Kestrel.
+       Worth 9.7 MB across 35 assemblies.
+
+       VERIFIED, not assumed (2026-08-08): published without these, started the app, and
+       POSTed a real MCP "initialize" JSON-RPC request to the endpoint - HTTP 200 with a
+       correct MCP response. Repeated to confirm.
+
+       DO NOT WIDEN THIS LIST WITHOUT RE-RUNNING THAT TEST. Removing more was tried and
+       broke the server: taking out Server.IIS / Server.HttpSys / the Quic and NamedPipes
+       transports stops Kestrel starting, because ASP.NET probes for IIS hosting during
+       startup. The failure mode is nasty - the app still launches normally and only the
+       MCP endpoint is silently missing, because InitializeMcpServerAsync catches and logs
+       the exception rather than crashing. -->
+  <Target Name="RemoveUnusedAspNetFeatureAreas" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.String]::Copy('%(Filename)').Contains('Mvc'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Razor'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Components'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Blazor'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('JSInterop'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Antiforgery'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Localization'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('ApiExplorer'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Cors'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('Identity'))
+                                     Or $([System.String]::Copy('%(Filename)').Contains('SignalR'))" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols.Net\RetroTerm.Core.Protocols.Net.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols.WebSocket\RetroTerm.Core.Protocols.WebSocket.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols.Kermit\RetroTerm.Core.Protocols.Kermit.csproj" />
+    <!-- MCP server hosted inside the app (localhost only) — an LLM drives the same tabs. -->
+    <ProjectReference Include="..\RetroTerm.Mcp\RetroTerm.Mcp.csproj" />
+  </ItemGroup>
+</Project>
+

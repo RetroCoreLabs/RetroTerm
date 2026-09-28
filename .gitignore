@@ -1,0 +1,187 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.cache
+*.vs/
+.vs/
+*.pdb
+*.exe
+*.dll
+publish/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific files
+*.userprefs
+
+# Mono auto generated files
+mono_crash.*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Generated test screenshot images (visual inspection only, regenerated each run)
+tests/RetroTerm.Tests/Avalonia/images/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# Backup & report files
+_UpgradeReport_Files/
+Backup*/
+UpgradeLog*.XML
+UpgradeLog*.htm
+ServiceFabricBackup/
+*.rptproj.bak
+
+# SQL Server files
+*.mdf
+*.ldf
+*.ndf
+
+# Business Intelligence projects
+*.rdl.data
+*.bim.layout
+*.bim_*.settings
+*.rptproj.rsuser
+
+# Microsoft Fakes
+FakesAssemblies/
+
+# Node.js (for Blazor if needed)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*~
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# User-specific configuration
+appsettings.Development.json
+appsettings.Local.json
+launchSettings.json
+
+# Coverage reports
+coverage/
+*.coverage
+*.coveragexml
+
+# Benchmark results
+BenchmarkDotNet.Artifacts/
+
+# Local History for Visual Studio
+.localhistory/
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+
+# Retired documentation - kept locally, not tracked
+garbage/
+
+# Runtime capture artifacts written into the repo root by the app itself.
+# *.log above already covers session.log / retroterm_console.log; the transcript
+# logger writes .txt for DecodedText format, which nothing else caught.
+session.txt
+
+# Standalone Console programs are NOT how this repo tests anything - xUnit only.
+# Two of these ("test-tdv-basic.cs", "test-tdv-keys-comprehensive.cs") sat untracked
+# in the root for nine months, referenced by no .csproj, printing values and asserting
+# nothing, while the same behaviour was already covered by real tests in
+# tests\RetroTerm.Tests\TDV\. They were bait for anyone grepping for TDV key tests.
+# If a scratch program is ever genuinely needed, it does not live here.
+/test-*.cs
+
+# Outside conformance corpora. These belong to other projects and are NOT committed here:
+# nothing from another codebase lives in this repository. Fetch them when you want to run
+# them with tools\fetch-conformance-corpora.ps1; the tests skip themselves when absent.
+tests/RetroTerm.Tests/Conformance/xtermjs/
+tests/RetroTerm.Tests/Conformance/libvterm/
+tests/RetroTerm.Tests/Conformance/vt340test/
+tests/RetroTerm.Tests/Conformance/vt340regis/
+
+# Scaffold written by repo-standards\tools\apply-standards.ps1. Copy from it, then delete it.
+README.template.md
+
+# Instructions to the AI assistant working on this machine. Kept locally, not published.
+CLAUDE.md

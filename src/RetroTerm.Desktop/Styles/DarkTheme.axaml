@@ -1,0 +1,516 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- RetroTerm Control Styles -->
+    <!-- Color resources are provided by ThemeManager at runtime -->
+
+    <!--
+      Design tokens, aligned with RetroCommanderUI\Styles\FluentTheme.axaml so the two apps in
+      the suite share one typographic scale, one corner radius and one motion timing. The COLOURS
+      still come from RetroTerm's own ThemeManager (it carries 29 colours against RetroCommander's
+      19 - the extra ones are the code-syntax and section-header colours RetroTerm needs), so only
+      the non-colour tokens are copied here. Keep the values identical to RetroCommander's; if one
+      changes there, change it here too.
+    -->
+    <Styles.Resources>
+        <!-- Typography: ONE font for the whole window chrome. Monospace areas (log viewers, the
+             register panels in OpcomDebugWindow, the script editor) set their own family and are
+             deliberately untouched. -->
+        <FontFamily x:Key="FluentFontFamily">Segoe UI, Inter, system-ui, sans-serif</FontFamily>
+        <x:Double x:Key="FluentFontSize">12</x:Double>
+        <x:Double x:Key="FluentFontSizeSmall">10.5</x:Double>
+        <x:Double x:Key="FluentFontSizeLarge">13.5</x:Double>
+
+        <!-- Corner radius: tightened for the flatter, more modern look -->
+        <CornerRadius x:Key="FluentCornerRadius">4</CornerRadius>
+        <CornerRadius x:Key="FluentCornerRadiusSmall">3</CornerRadius>
+        <CornerRadius x:Key="FluentCornerRadiusLarge">6</CornerRadius>
+
+        <BoxShadows x:Key="FluentDropShadow">0 2 8 0 #1A000000</BoxShadows>
+        <x:TimeSpan x:Key="FluentTransitionDuration">00:00:00.150</x:TimeSpan>
+    </Styles.Resources>
+
+    <!-- ============================================================================
+         Window chrome: menu bar, tab bar, status bar.
+         These used to be set inline in MainWindow.axaml with three different font
+         sizes (13 on the menu, 13 on the tabs, 11 in the status bar) and per-item
+         padding repeated on every single MenuItem. One place now owns all of it.
+         ============================================================================ -->
+
+    <!-- Every window inherits the chrome font, so nothing has to repeat it. -->
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    </Style>
+
+    <!-- Menu bar -->
+    <Style Selector="Menu">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+        <Setter Property="Padding" Value="4,1"/>
+        <Setter Property="MinHeight" Value="26"/>
+    </Style>
+
+    <!-- Submenu rows. Padding here replaces the "Padding=8,6" that was repeated on
+         roughly fifty MenuItem elements in MainWindow.axaml. -->
+    <Style Selector="MenuItem">
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="MinHeight" Value="26"/>
+    </Style>
+
+    <!-- Top-level menu headers (File, Edit, View, ...) sit tighter than submenu rows. -->
+    <Style Selector="Menu &gt; MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+        <Setter Property="Padding" Value="9,4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    </Style>
+
+    <!-- Status bar. Give the Border the StatusBar class and everything inside it picks
+         up the small size and the one font - no per-TextBlock FontSize. -->
+    <Style Selector="Border.StatusBar">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,1,0,0"/>
+        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="MinHeight" Value="24"/>
+    </Style>
+
+    <Style Selector="Border.StatusBar TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeSmall}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Border.StatusBar ComboBox">
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeSmall}"/>
+        <Setter Property="Padding" Value="6,1"/>
+        <Setter Property="MinHeight" Value="20"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    </Style>
+
+    <!-- TabControl Styles -->
+    <Style Selector="TabControl">
+        <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style Selector="TabItem">
+        <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="TabItem:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+    </Style>
+
+    <Style Selector="TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- Button Styles
+
+         EVERY filled button class here needs its hover and pressed fill set on
+         /template/ ContentPresenter#PART_ContentPresenter, not only on the Button. The Fluent
+         Button template paints the fill on that presenter, and Fluent's own :pointerover style
+         sets the presenter's Background to its stock hover grey (#343434 measured, 27 September
+         2026). A class that only sets Background on the Button never reaches the presenter, so
+         under the mouse the stock grey wins and on a dark window the button seems to vanish.
+         Measured that day with ThemeButtonsKeepTheirFillUnderTheMouseTests: Primary went from
+         its accent blue to #343434 and Danger from its red to #343434 with the pointer over
+         them - the "button disappears when I hover" Ronny reported on the Close RetroTerm
+         dialog, present in 57 dialog buttons through these classes. FluentTheme.axaml's dialog
+         classes had the presenter rule all along; these did not. -->
+    <Style Selector="Button.Primary">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="20,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.Primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+    </Style>
+    <Style Selector="Button.Primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.Primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="Button.Secondary">
+        <Setter Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SecondaryButtonBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="20,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.Secondary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+    </Style>
+    <Style Selector="Button.Secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SecondaryButtonBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.Secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SecondaryButtonBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.Danger">
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="20,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.Danger:pointerover">
+        <Setter Property="Opacity" Value="0.90"/>
+    </Style>
+    <Style Selector="Button.Danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.Danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- "+ Add something" buttons, the green ones in the gateway disk window.
+
+         WHY THIS IS ITS OWN CLASS AND NOT Primary: adding a drive image is not the main action of
+         that window - Apply is - so it must not compete with it, and a green "+" reads as "this
+         makes a new row" in a way the accent blue does not. The two greens were hard-coded hex on
+         both buttons before 9 September 2026; they are the same colours, in one place. -->
+    <Style Selector="Button.AddAction">
+        <Setter Property="Background" Value="#2D5F2D"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="#3C7C3C"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="20,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.AddAction:pointerover">
+        <Setter Property="Background" Value="#3C7C3C"/>
+    </Style>
+    <Style Selector="Button.AddAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#3C7C3C"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.AddAction:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#2D5F2D"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <!-- TextBox Styles -->
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+    </Style>
+
+    <Style Selector="TextBox:focus">
+        <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+    </Style>
+
+    <!--
+      ComboBox. There was NO ComboBox style in this file, so every ComboBox fell back to
+      Avalonia's stock Fluent colours and rendered as a LIGHT control on a dark window.
+      Dialogs worked around it by setting Background/Foreground/BorderBrush by hand on each
+      one; the status bar's zoom selector did not, and rendered white - visible in
+      tests\RetroTerm.Tests\Avalonia\imagesendered\window-chrome-dark.png, invisible to
+      every assertion. Inline values still win, so the hand-set dialogs are unaffected.
+    -->
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    </Style>
+
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+    </Style>
+
+    <Style Selector="ComboBox:focus /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Padding" Value="10,5"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+    </Style>
+
+    <!-- ListBox Styles -->
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="12,8"/>
+    </Style>
+
+    <Style Selector="ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+    </Style>
+
+    <Style Selector="ListBoxItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+    </Style>
+
+    <!-- ScrollViewer Styles -->
+    <Style Selector="ScrollViewer">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
+    <!-- Custom Tab Bar — Tab Close Button -->
+    <Style Selector="Button.TabClose">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="MinWidth" Value="18"/>
+        <Setter Property="MinHeight" Value="18"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style Selector="Button.TabClose:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+    </Style>
+    <Style Selector="Button.TabClose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <!-- Custom Tab Bar — New Tab (+) Button -->
+    <Style Selector="Button.NewTabButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+
+    <Style Selector="Button.NewTabButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.NewTabButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <!-- Border Styles -->
+    <Style Selector="Border.Panel">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="20,15"/>
+    </Style>
+
+    <Style Selector="Border.Section">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="15"/>
+    </Style>
+
+    <!-- Star Toggle Button (Favorites) -->
+    <Style Selector="Button.StarToggle">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="MinWidth" Value="28"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.StarToggle:pointerover">
+        <Setter Property="Foreground" Value="#FFD700"/>
+    </Style>
+    <Style Selector="Button.StarToggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#FFD700"/>
+    </Style>
+
+    <!-- Connection Tab Buttons (Manage Connections window) -->
+    <Style Selector="Button.ConnectionTab">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.ConnectionTab:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ConnectionTab:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ConnectionTab.active">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ConnectionTab.active:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ConnectionTab.active:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <!-- Save button (Manage Connections window).
+
+         WHY THIS EXISTS: Save used to carry SecondaryButtonBrush, the same dark grey as Cancel
+         standing right beside it, so becoming enabled changed almost nothing on screen and there
+         was no way to tell that a connection had unsaved edits. Avalonia's stock disabled state
+         only dims slightly, which was not enough to see.
+
+         So the two states are made deliberately far apart: SUCCESS GREEN with white bold text
+         when there is something to save, and a flat near-background grey with dim text when there
+         is not. Green rather than the accent blue because Connect is already blue and sits two
+         buttons away - three buttons in a row need three different answers.
+
+         The colours come from the theme rather than being written here, so a light theme gets its
+         own green and its own greys. -->
+    <Style Selector="Button.SaveAction">
+        <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <!-- The template selectors are what actually paint a Button in Avalonia: a Setter on the
+         control alone is overridden by the default template for these states. The ConnectionTab
+         styles above are written the same way for the same reason. -->
+    <Style Selector="Button.SaveAction /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="Button.SaveAction:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="Button.SaveAction:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- Nothing to save: flat, quiet, and obviously not a button worth pressing. -->
+    <Style Selector="Button.SaveAction:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SectionBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+    </Style>
+
+    <!-- OPCOM Debug Tab Buttons (compact variant) -->
+    <Style Selector="Button.OpcomTab">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.OpcomTab:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.OpcomTab:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.OpcomTab.active">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <Style Selector="Button.OpcomTab.active:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.OpcomTab.active:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <!-- Group Header Text -->
+    <Style Selector="TextBlock.GroupHeader">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+        <Setter Property="Padding" Value="12,8,12,4"/>
+    </Style>
+</Styles>

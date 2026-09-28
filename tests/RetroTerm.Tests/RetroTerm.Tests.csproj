@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <!-- Avalonia headless testing support -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Skia" Version="11.3.11" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Outside conformance corpora. These belong to other projects and are NOT committed to this
+         repository - fetch them with tools\fetch-conformance-corpora.ps1 when you want to run
+         them. The tests skip themselves when a corpus is absent.
+
+         EVERY ENTRY HERE IS A WILDCARD ON PURPOSE. A Content item naming an exact file fails the
+         BUILD when that file is missing, so naming NOTES or a licence directly would stop a clean
+         clone from compiling at all - which is exactly what happened the first time.
+
+           libvterm test scripts             MIT, Copyright (c) 2008 Paul Evans
+           xterm.js escape-sequence fixtures MIT, Copyright (c) the xterm.js authors -->
+    <Content Include="Conformance\libvterm\*.test" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Conformance\libvterm\LICENSE-*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Conformance\xtermjs\*.in" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Conformance\xtermjs\*.text" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Conformance\xtermjs\NOTES*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Conformance\xtermjs\LICENSE-*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.Net\RetroTerm.Core.Protocols.Net.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.WebSocket\RetroTerm.Core.Protocols.WebSocket.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Desktop\RetroTerm.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.TelnetServer\RetroTerm.Core.Protocols.TelnetServer.csproj" />
+    <ProjectReference Include="..\RetroTerm.TestServer\RetroTerm.TestServer.csproj" />
+    <ProjectReference Include="..\..\src\RetroTerm.Mcp\RetroTerm.Mcp.csproj" />
+  </ItemGroup>
+
+  <!-- The xUnit runner reads this from the output directory, so it has to be copied there.
+       It caps how many test collections run at once. See the file for why. -->
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

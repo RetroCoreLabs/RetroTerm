@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Top: double-shaft left arrow, shaft extended to 16px -->
+  <path d="M 8,1.5 L 24,1.5 M 8,5.5 L 24,5.5 M 24,1.5 L 24,5.5" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 9,-3 L 3,3.5 L 9,10" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Bottom: double-shaft up arrow, shaft 12px -->
+  <path d="M 10,20 L 10,32 M 14,20 L 14,32 M 10,32 L 14,32" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 6,20 L 12,15 L 18,20" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

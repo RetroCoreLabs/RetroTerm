@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Shaft: stops at arrowhead base -->
+  <path d="M12 0 L12 18" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+  <!-- Arrowhead: closed filled triangle -->
+  <path d="M9 18 L12 23 L15 18 Z" fill="#000" stroke="#000" stroke-width="2" stroke-linejoin="round"/>
+  <!-- 3 horizontal bars -->
+  <path d="M3 2 L21 2 M3 7 L21 7 M3 12 L21 12" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+</svg>

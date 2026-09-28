@@ -1,0 +1,257 @@
+TODO
+
+E:\Dev\Ronny\RetroTerm  <== claude --continue
+
+Keyboard advanceds:
+
+
+> Add a menu item "Keyboard keys" that opens a window and lists all the special TDV 2200 keys (the alt keys). This
+meny will be opening a window that explains the active terminal emulation keys. So it may have different information
+ for the tdv as the vt terminals. Also, when entering tdv 2115 compability mode add that information to the status
+bar (and remove it when you exit the mode). We will also need a menu item to configure all the programmable keys and
+ what text to send. ANalyse the tdv reference manual on how this text can be defined pr key and how to configure
+sending of ESC and HEX values if possible).
+
+
+The FUNC key seems important in combination with other keys, i dont know if its before or at the same time. The same
+  with HOME command. I really need these keys mapped. And be aware tha avalonia doesnt seem to allow ALT-key to be
+  sendt throgh the terminal emulator so this needs to be fixed. I also think I need to have a new menu in Keyboard to
+  open the visual keyboard of the TDV emulator and be able to push its keys. And maybe also be able to enter a series
+  of hex values to be mapped to be able to test what should be sent and how it is reacting.
+
+
+
+  Add keyboard layout with inyernal key values from term spec
+
+
+  ---
+
+
+  Research Summary
+
+  I've discovered the documentation is contradictory and describes multiple different operating modes. I've created
+  a comprehensive analysis document at:
+
+  E:\Dev\Ronny\RetroTerm\docs\TDV-ARROW-KEY-MODES-ANALYSIS.md
+
+  What We Found:
+
+  Three Different Modes Documented:
+
+  1. TDV 2115 Compatible Mode (C0 codes, no modifiers documented)
+    - Up=FS (0x1C), Down=VT (0x0B), Right=CAN (0x18), Left=BS (0x08)
+    - Source: TDV 2215 official spec
+  2. VT100 Emulation Mode (ESC sequences, no modifiers)
+    - Up=ESC[A, Down=ESC[B, Right=ESC[C, Left=ESC[D
+    - TDV-Keys.md says: "No support for ;2, ;5 modifier forms"
+  3. VT220 Extended Mode (ESC sequences WITH modifiers)
+    - Up=ESC[A, Shift+Up=ESC[1;2A, Ctrl+Up=ESC[1;5A
+    - TDV-Keys.md says TDV 2200: "Modifier extensions (;2, ;3, ;5, etc.)"
+
+  The Big Questions:
+
+  1. Does "TDV 2115 compatible mode" support modifiers? - NOT DOCUMENTED
+  2. Can C0 codes have modifiers? - NOT CLEAR (can you send "Shift+0x1C"?)
+  3. What mode does each TDV model default to? - UNCLEAR
+  4. What does SINTRAN actually expect? - We know C0 codes work for unmodified keys
+
+  Our Current Implementation:
+
+  Hybrid approach (not clearly documented anywhere):
+  - Unmodified arrow keys → C0 codes (0x1C, 0x0B, 0x18, 0x08)
+  - Modified arrow keys → ESC sequences (ESC[1;2A, ESC[1;5A)
+
+  This works with SINTRAN, and all 86 tests pass. But we don't know if it's "correct" according to real hardware
+  behavior.
+
+  Recommendation: We need to either:
+  1. Find more documentation about mode switching and modifier behavior
+  2. Test with actual TDV hardware if available
+  3. Keep current hybrid approach since it works with SINTRAN
+
+  ----
+
+
+   I've created a comprehensive session summary document:
+
+  E:\Dev\Ronny\RetroTerm\docs\TDV-KEYBOARD-SESSION-SUMMARY.md
+
+  Quick Overview:
+
+  ✅ What We Fixed
+
+  1. Arrow keys sending ESC codes → Now send C0 codes (0x1C, 0x0B, 0x18, 0x08)
+  2. ALT+letter not working → Now fully functional for all TDV models
+  3. 86/86 tests passing (100%)
+  4. Published working version
+
+  🔍 What We Discovered
+
+  The documentation describes 3 different modes:
+  - TDV 2115 Compatible: C0 codes, modifiers not documented
+  - VT100 Emulation: ESC sequences, no modifiers
+  - VT220 Extended: ESC sequences with modifiers
+
+  But they contradict each other! We don't know:
+  - Can C0 codes have modifiers?
+  - How do you switch modes?
+  - What's the default for each TDV model?
+
+  💡 What We Implemented
+
+  Hybrid approach (works with SINTRAN):
+  No modifiers  → C0 codes (0x1C, 0x0B, 0x18)
+  With modifiers → ESC sequences (ESC[1;2A, ESC[1;5A)
+
+  🎯 My Recommendation
+
+  Keep current implementation - it works and passes all tests. Document the hybrid approach and move forward. If you
+   get real TDV hardware or better docs later, we can implement proper mode switching.
+
+  ❓ Questions for You
+
+  1. Does SINTRAN use modified arrow keys (Shift+Up, Ctrl+Right)?
+  2. Do you have access to real TDV hardware for testing?
+  3. Should we prioritize mode switching research or move to other features?
+
+  Status: ✅ Ready for production use with SINTRAN!
+
+----
+
+TODO LATER - PDF Printer Emulation
+
+Implement a PDF generator to emulate the TDV2200 local printer port:
+
+1. START PRINT (Ctrl+SKRIV / CSI 0 i) - Screen dump to PDF
+   - Capture current screen buffer contents (printable chars 0x20-0x7E)
+   - Semigraphics → spaces, trailing spaces stripped, CRLF per line
+   - Generate a single-page PDF with monospace font matching terminal appearance
+   - Save to user-selected location or auto-named file
+
+2. Transparent/Relay print (CSI 5 i ... CSI 4 i) - Host-directed PDF
+   - When host sends CSI 5 i, start capturing all incoming data to a buffer
+   - Data goes to capture buffer instead of (or in addition to) screen
+   - When host sends CSI 4 i, finalize the captured data as a PDF document
+   - Render with monospace font, handle form feeds as page breaks
+
+3. LOG mode (optional) - Running transcript PDF
+   - Auto-capture each line as cursor advances
+   - Finalize PDF on disconnect or manual stop
+
+Notes:
+- Real TDV2200 only sent chars 0x20-0x7E to printer, double-width at double spacing
+- PFF switch controlled Form Feed placement (NONE/BEFORE/AFTER/BOTH)
+- Could use a lightweight PDF library (e.g. QuestPDF, PdfSharpCore)
+- STOP PRINT (Ctrl+FUNK / CSI 4 i) cancels/finalizes
+
+Also implement the control mode keys on the virtual keyboard:
+- BREAK (Ctrl+SLUTT) - Send Telnet BREAK via connection layer
+- CLEAR (Ctrl+F4) - Reset virtual keyboard LEDs (L1-L4, WAIT, CAR, ERROR)
+- SI (Ctrl+F2) - Send 0x0F to host
+- SO (Ctrl+F3) - Send 0x0E to host
+- Ctrl+End should map to Ctrl+SLUTT (BREAK)
+
+----
+
+TODO LATER - PUSH Key Programming (P1-P16)
+
+Implement full PUSH key support: 16 programmable keys that send user-configured
+strings to the host when pressed on the virtual keyboard.
+
+## What exists already
+
+- TDVPushKeys class (Core): basic Dict<int,string> storage with ProgramKey/GetKeySequence
+- TDV2200KeyRegistry: G1-G8 registered with IsProgrammable flag, GetSequence returns null
+- TDVDCSHandlerFeature: stub DCS handler (wrong format, parses "PUSH<digit><data>")
+- TDV2200KeyboardMapper.MapKey: PUSH key path sends DCS "ESC P N|S {n} ESC \"
+  (this is a query to the emulator, not the stored string — may need rethinking)
+- TDV2200KeyLayout: G1-G8 as KeyType.PushKey with VK=0
+- Virtual keyboard: PUSH keys are currently dead (no output on click)
+
+## Spec summary (TDV-2200/9 User Guide + TDV2215 spec)
+
+- 8 physical keys (G1-G8), 16 functions: P1-P8 (unshifted), P9-P16 (Shift+P1-P8)
+- Capacity: P1-P8 = 12 chars, P9-P12 = 32 chars, P13-P16 = 48 chars
+- Content: any bytes — ASCII text, ESC sequences, control codes
+- Forbidden codes: 0x00 (terminator), 0xA0-0xAF (PUSH codes), 0xF8-0xFF (system)
+- Storage: non-volatile on real hardware; we store in user settings (JSON)
+- When pressed: sends the stored string directly to host, no prefix/wrapper
+- Host can program via DCS: ESC P P XX <hex pairs> ESC \
+  (XX = 01-16, hex pairs = ASCII hex for each byte, e.g. "1B" for ESC)
+
+## Implementation plan
+
+### Phase 1: Make PUSH keys send their stored strings
+
+1. Virtual keyboard OnKeyPressed: when KeyType.PushKey, look up stored string
+   from a PushKeyStore (new singleton or part of TDVKeyBindingConfiguration)
+   - G1 unshifted → P1, G1 shifted → P9, etc.
+   - Grid position "G1"-"G8" + shift flag → key number 1-16
+   - If string is empty/not programmed, do nothing (or beep)
+   - If string exists, send it via InputReceived
+
+2. PushKeyStore: persistent JSON storage (%AppData%\RetroTerm\push-keys.json)
+   - Dict<int, string> where key = 1-16, value = stored string
+   - Load on startup, save on change
+   - Max lengths enforced: P1-P8=12, P9-P12=32, P13-P16=48
+
+3. Physical keyboard: Alt+1 through Alt+8 already bind to G1-G8 via
+   TDVKeyBindingConfiguration._defaultAltMap. These go through the mapper
+   which currently sends DCS. Change to: look up stored string and send directly.
+
+### Phase 2: PUSH Key Programming Window
+
+4. New window: PushKeyProgrammingWindow (Avalonia)
+   - Grid/table showing all 16 keys: P1-P16
+   - Columns: Key Number | Label | Max Length | Current Value | Hex View
+   - Each row editable:
+     a. Text input field for the string (shows printable chars, control codes as \xNN)
+     b. Hex input mode (type hex pairs directly, like "1B5B35697E" for ESC[5i~)
+     c. "Record" button: captures next N keystrokes as the string (like key capture mode)
+     d. Clear button per key
+   - "Clear All" button
+   - Save/Cancel buttons
+   - Show capacity used vs max (e.g. "5/12 chars")
+
+5. Menu entry: Keyboard menu → "Program PUSH Keys..." opens the window
+
+6. Virtual keyboard integration:
+   - Show programmed indicator on PUSH key buttons (e.g. green dot or "P" icon)
+   - Right-click PUSH key → opens programming window focused on that key
+   - Show stored string preview in tooltip
+
+### Phase 3: Host DCS Programming (receive from host)
+
+7. Fix TDVDCSHandlerFeature to parse the correct DCS format:
+   - DCS sequence: ESC P P XX <hex pairs> ST (where ST = ESC \)
+   - Parse XX as two-digit decimal (01-16)
+   - Parse remaining as pairs of ASCII hex digits → bytes
+   - Store via PushKeyStore (same storage as user programming)
+   - Reject forbidden codes: 0x00, 0xA0-0xAF, 0xF8-0xFF
+
+8. Wire DCS handler through emulator → PushKeyStore:
+   - TDVEmulatorBase.PushKeys already exists
+   - DCS handler calls PushKeys.ProgramKey(keyNumber, decodedString)
+   - Optionally: raise event so UI can update indicator
+
+### Phase 4: Polish
+
+9. PUSH key labels on virtual keyboard:
+   - When programmed, show abbreviated content as key label (first few chars)
+   - Or show "P1: DIR" if the string starts with "DIR"
+
+10. Import/Export: allow saving/loading PUSH key configurations
+    - JSON format compatible with PushKeyStore
+    - Useful for sharing configurations between machines
+
+## Files to create/modify
+
+| File | Action |
+|------|--------|
+| src\RetroTerm.Core\Terminal\Emulators\TDV\TDVPushKeys.cs | Extend: max lengths, validation, JSON persistence |
+| src\RetroTerm.Desktop\Controls\VirtualKeyboardPanel.axaml.cs | OnKeyPressed: handle PushKey type |
+| src\RetroTerm.Desktop\Views\PushKeyProgrammingWindow.axaml[.cs] | NEW: programming UI |
+| src\RetroTerm.Desktop\ViewModels\PushKeyProgrammingViewModel.cs | NEW: VM for programming UI |
+| src\RetroTerm.Core\Terminal\Emulators\TDV\Components\TDVDCSHandlerFeature.cs | Fix DCS format parsing |
+| src\RetroTerm.Core\Terminal\Input\KeyboardMapper.cs | Change PUSH key path to send stored string |
+| src\RetroTerm.Desktop\MainWindow.axaml.cs | Add menu item for PUSH key programming |

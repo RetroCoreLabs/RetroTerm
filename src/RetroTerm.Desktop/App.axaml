@@ -1,0 +1,14 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RetroTerm.Desktop.App"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Styles>
+        <FluentTheme />
+        <!-- The suite's shared look first (tokens + fluent-* vocabulary), then RetroTerm's
+             own control styles on top. Order matters: the later include wins. -->
+        <StyleInclude Source="avares://RetroTerm.Desktop/Styles/FluentTheme.axaml"/>
+        <StyleInclude Source="avares://RetroTerm.Desktop/Styles/DarkTheme.axaml"/>
+    </Application.Styles>
+</Application>

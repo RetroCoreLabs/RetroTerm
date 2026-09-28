@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RetroTerm.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="10.0.2" />
+    <!-- Single-writer session pump (SessionPump.cs): bounded channel between the
+         network receive thread and the one thread allowed to mutate the emulator. -->
+    <PackageReference Include="System.Threading.Channels" Version="10.0.2" />
+  </ItemGroup>
+
+</Project>

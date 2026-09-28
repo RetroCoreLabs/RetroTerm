@@ -1,0 +1,578 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Styles.Resources>
+    <!--
+      SHARED LOOK. This file is RetroCommander's Styles\FluentTheme.axaml, copied so every app
+      in the suite presents the same controls - same type scale, same corner radii, same 150ms
+      transitions, same panel/button/textbox/grid/status-bar vocabulary. If it changes in one
+      app, copy it to the others; they are meant to be identical.
+
+      Colour brushes are NOT defined here anymore. They are supplied PER THEME at runtime by
+      RetroCommanderUI.Themes.ThemeManager via Application.Resources.ThemeDictionaries
+      (Light / Dark / Solarized Dark / Nord / High Contrast). All XAML references them through
+      {DynamicResource FluentXxxBrush}, so changing the theme re-colours the whole UI live.
+
+      Brush keys provided by ThemeManager:
+        FluentBackgroundPrimaryBrush, FluentBackgroundSecondaryBrush, FluentSurfaceAltBrush,
+        FluentBorderLightBrush, FluentBorderDarkBrush, FluentAccentBlueBrush,
+        FluentTextPrimaryBrush, FluentTextSecondaryBrush, FluentSelectionHighlightBrush,
+        FluentHoverHighlightBrush, FluentSidebarBackgroundBrush, FluentSidebarSeparatorBrush,
+        FluentWarningBackgroundBrush, FluentWarningBorderBrush,
+        FluentSuccessBackgroundBrush, FluentSuccessBorderBrush
+    -->
+
+    <!-- Typography (theme-independent) — compact/modern scale -->
+    <FontFamily x:Key="FluentFontFamily">Segoe UI, Inter, system-ui, sans-serif</FontFamily>
+    <x:Double x:Key="FluentFontSize">12</x:Double>
+    <x:Double x:Key="FluentFontSizeSmall">10.5</x:Double>
+    <x:Double x:Key="FluentFontSizeLarge">13.5</x:Double>
+
+    <!-- Corner Radius — tightened for a flatter, more modern look -->
+    <CornerRadius x:Key="FluentCornerRadius">4</CornerRadius>
+    <CornerRadius x:Key="FluentCornerRadiusSmall">3</CornerRadius>
+    <CornerRadius x:Key="FluentCornerRadiusLarge">6</CornerRadius>
+
+    <!-- Box Shadows -->
+    <BoxShadows x:Key="FluentDropShadow">0 2 8 0 #1A000000</BoxShadows>
+
+    <!-- Transition Duration -->
+    <x:TimeSpan x:Key="FluentTransitionDuration">00:00:00.150</x:TimeSpan>
+  </Styles.Resources>
+
+  <!-- Panel Styles -->
+  <Style Selector="Border.panel-border">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadius}"/>
+  </Style>
+
+  <Style Selector="Border.panel-active">
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+
+  <Style Selector="Border.panel-inactive">
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+
+  <!-- Button Styles -->
+  <Style Selector="Button.fluent-button">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="9,3"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{DynamicResource FluentTransitionDuration}"/>
+        <BrushTransition Property="BorderBrush" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button.fluent-button:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="Button.fluent-button:pressed">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="Button.fluent-button-primary">
+    <Setter Property="Background" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+
+  <Style Selector="Button.fluent-button-primary:pointerover">
+    <Setter Property="Background" Value="#106EBE"/>
+  </Style>
+
+  <!-- TextBlock Styles -->
+  <Style Selector="TextBlock.fluent-text">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+  </Style>
+
+  <Style Selector="TextBlock.fluent-text-secondary">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextSecondaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeSmall}"/>
+  </Style>
+
+  <Style Selector="TextBlock.fluent-text-header">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeLarge}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <!-- DataGrid Styles -->
+  <Style Selector="DataGrid.fluent-datagrid">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadius}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+    <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="RowBackground" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="CanUserResizeColumns" Value="True"/>
+    <Setter Property="CanUserReorderColumns" Value="True"/>
+    <!-- Compact rows: more entries visible at a glance, matches a modern file manager -->
+    <Setter Property="RowHeight" Value="22"/>
+    <Setter Property="ColumnHeaderHeight" Value="26"/>
+  </Style>
+
+  <!-- Compact data cells. HorizontalContentAlignment=Stretch is REQUIRED so template-column
+       content (e.g. the right-aligned Size TextBlock) fills the cell width — without it the
+       cell sizes content to the left and TextAlignment="Right" has no effect. -->
+  <Style Selector="DataGrid.fluent-datagrid DataGridCell">
+    <Setter Property="Padding" Value="8,0"/>
+    <Setter Property="MinHeight" Value="22"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="DataGrid.fluent-datagrid DataGridColumnHeader">
+    <Setter Property="Background" Value="{DynamicResource FluentSurfaceAltBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <!-- NOTE: do NOT force a resize cursor on the whole header. The DataGrid's resize grip is a
+         thin strip at the column's right edge and shows the resize cursor on its own; forcing it
+         across the entire header hid where the real grip is and made resizing feel intermittent. -->
+  </Style>
+
+  <Style Selector="DataGrid.fluent-datagrid DataGridColumnHeader:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="DataGrid.fluent-datagrid DataGridColumnHeader:pointerpressed">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="DataGrid.fluent-datagrid DataGridRow:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="DataGrid.fluent-datagrid DataGridRow:selected">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+
+  <!-- TextBox Styles -->
+  <Style Selector="TextBox.fluent-textbox">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="7,4"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+  </Style>
+
+  <Style Selector="TextBox.fluent-textbox:focus">
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+
+  <!-- ComboBox Styles -->
+  <Style Selector="ComboBox.fluent-combobox">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="7,4"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+  </Style>
+
+  <!-- Status Bar Styles -->
+  <Style Selector="Border.status-bar">
+    <Setter Property="Background" Value="{DynamicResource FluentSurfaceAltBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+  </Style>
+
+  <Style Selector="Border.status-bar TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextSecondaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeSmall}"/>
+  </Style>
+
+  <!-- Warning/Success Banner Styles -->
+  <Style Selector="Border.warning-banner">
+    <Setter Property="Background" Value="{DynamicResource FluentWarningBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentWarningBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="Margin" Value="0,8"/>
+  </Style>
+
+  <Style Selector="Border.success-banner">
+    <Setter Property="Background" Value="{DynamicResource FluentSuccessBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentSuccessBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="Margin" Value="0,8"/>
+  </Style>
+
+  <!-- Sidebar Styles -->
+  <Style Selector="Border.sidebar-section">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentSidebarSeparatorBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Padding" Value="0,4"/>
+    <Setter Property="Margin" Value="0,2"/>
+  </Style>
+
+  <Style Selector="Border.sidebar-section-header">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Border.sidebar-section-header:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="Border.sidebar-item">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Border.sidebar-item:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <Style Selector="Border.sidebar-item.selected">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderThickness" Value="4,0,0,0"/>
+  </Style>
+
+  <!-- Quick Access Styles -->
+  <Style Selector="Border.quick-access-item">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Border.quick-access-item:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+
+  <!-- ============================================================
+       Standardized dialog chrome — reused by EVERY dialog so the
+       footer + action buttons look identical everywhere:
+         Border.dialog-footer   the bottom action bar
+         Button.dialog-primary  the confirm action (Mount / Create / OK)
+         Button.dialog-secondary the dismiss action (Cancel / Close)
+       ============================================================ -->
+
+  <!-- Bottom action bar that hosts the primary/secondary buttons -->
+  <Style Selector="Border.dialog-footer">
+    <Setter Property="Background" Value="{DynamicResource FluentSurfaceAltBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+    <Setter Property="Padding" Value="14,10"/>
+  </Style>
+
+  <!-- Canonical primary (accent) dialog button -->
+  <Style Selector="Button.dialog-primary">
+    <Setter Property="Background" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="18,7"/>
+    <Setter Property="MinWidth" Value="104"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- Keep the accent fill on hover/press. The Fluent Button theme swaps the ContentPresenter
+       background on these states, so we must target the ContentPresenter (not just the Button);
+       Opacity on the Button provides the themed interaction feedback. -->
+  <Style Selector="Button.dialog-primary:pointerover">
+    <Setter Property="Opacity" Value="0.90"/>
+  </Style>
+  <Style Selector="Button.dialog-primary:pressed">
+    <Setter Property="Opacity" Value="0.78"/>
+  </Style>
+  <Style Selector="Button.dialog-primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+  <Style Selector="Button.dialog-primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+
+  <!-- Canonical secondary (neutral) dialog button -->
+  <Style Selector="Button.dialog-secondary">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="18,7"/>
+    <Setter Property="MinWidth" Value="104"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.dialog-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+  <Style Selector="Button.dialog-secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+
+  <!-- Canonical destructive dialog button: "Close All", "Delete", "Discard". The theme's
+       ErrorBrush as the fill, pinned through hover and press the same way dialog-primary is.
+       Added 27 September 2026 when the Close RetroTerm dialog turned out to be a light-coloured
+       window with hand-set hex brushes whose buttons vanished under the mouse - see the note on
+       dialog-primary above for why a hand-set brush cannot survive :pointerover. -->
+  <Style Selector="Button.dialog-danger">
+    <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="18,7"/>
+    <Setter Property="MinWidth" Value="104"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource FluentTransitionDuration}"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.dialog-danger:pointerover">
+    <Setter Property="Opacity" Value="0.90"/>
+  </Style>
+  <Style Selector="Button.dialog-danger:pressed">
+    <Setter Property="Opacity" Value="0.78"/>
+  </Style>
+  <Style Selector="Button.dialog-danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+  </Style>
+  <Style Selector="Button.dialog-danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+  </Style>
+
+  <!-- ============================================================
+       Modern tabs (used by the Mount Disk Image dialog and any other
+       TabControl): compact, muted by default, accent text + a 2px
+       accent underline when selected. Replaces the heavy default look.
+       ============================================================ -->
+  <Style Selector="TabItem">
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextSecondaryBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="16,9"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_LayoutRoot"
+                Background="{TemplateBinding Background}"
+                TextElement.Foreground="{TemplateBinding Foreground}"
+                Padding="{TemplateBinding Padding}">
+          <Panel>
+            <ContentPresenter Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Header}"
+                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+            <!-- Selection underline (shown via the :selected rule below) -->
+            <Border Name="PART_SelectedPipe"
+                    Height="2" CornerRadius="2"
+                    VerticalAlignment="Bottom"
+                    Background="{DynamicResource FluentAccentBlueBrush}"
+                    IsVisible="False"/>
+          </Panel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="TabItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+  <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+    <Setter Property="IsVisible" Value="True"/>
+  </Style>
+
+  <!-- ============================================================
+       Function-key bar (the bottom "toolbar"): a modern take on the
+       classic Norton/Midnight-Commander F-key strip. Each entry is an
+       accent "key cap" (F1..F10) followed by its action label.
+       ============================================================ -->
+  <Style Selector="Border.fkey-bar">
+    <Setter Property="Background" Value="{DynamicResource FluentSurfaceAltBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+  </Style>
+
+  <!-- One clickable function-key cell -->
+  <Style Selector="Button.fkey">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="Margin" Value="2"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+  </Style>
+  <Style Selector="Button.fkey:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+  <Style Selector="Button.fkey:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+
+  <!-- The accent "key cap" badge holding F1..F10 -->
+  <Style Selector="Border.fkey-cap">
+    <Setter Property="Background" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="5,1"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="MinWidth" Value="24"/>
+  </Style>
+  <Style Selector="Border.fkey-cap TextBlock">
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.fkey TextBlock.fkey-label">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSizeSmall}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <!-- ============================================================
+       Top application toolbar: flat, modern (no boxed buttons).
+       Buttons are borderless with a subtle rounded hover highlight,
+       separated into groups by thin dividers.
+       ============================================================ -->
+  <Style Selector="Border.app-toolbar">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentBorderLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  </Style>
+
+  <Style Selector="Button.toolbar-button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource FluentCornerRadiusSmall}"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextPrimaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource FluentFontFamily}"/>
+    <Setter Property="FontSize" Value="{DynamicResource FluentFontSize}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.toolbar-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentHoverHighlightBrush}"/>
+  </Style>
+  <Style Selector="Button.toolbar-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FluentSelectionHighlightBrush}"/>
+  </Style>
+  <!-- Disabled (e.g. Back with no history) reads as muted but still clearly visible -->
+  <Style Selector="Button.toolbar-button:disabled">
+    <Setter Property="Opacity" Value="0.55"/>
+  </Style>
+
+  <!-- Thin vertical divider between toolbar groups -->
+  <Style Selector="Border.toolbar-divider">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Margin" Value="5,6"/>
+    <Setter Property="Background" Value="{DynamicResource FluentBorderLightBrush}"/>
+  </Style>
+
+  <!-- ============================================================
+       Panel header bits: a subtle filesystem-type tag, and an
+       accent path when the panel is the active (focused) one.
+       ============================================================ -->
+
+  <!-- Filesystem-type tag (e.g. FAT32 / NDFS / UFS) — a light outlined chip,
+       far less heavy than the old solid accent pill. -->
+  <Style Selector="Border.fs-badge">
+    <Setter Property="Background" Value="{DynamicResource FluentBackgroundSecondaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="5,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Border.fs-badge TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FluentAccentBlueBrush}"/>
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <!-- The active panel's path is accent-coloured; the inactive panel's is muted.
+       Makes which panel has focus obvious at a glance. -->
+  <Style Selector="Border.panel-active TextBlock.panel-path">
+    <Setter Property="Foreground" Value="{DynamicResource FluentAccentBlueBrush}"/>
+  </Style>
+  <Style Selector="Border.panel-inactive TextBlock.panel-path">
+    <Setter Property="Foreground" Value="{DynamicResource FluentTextSecondaryBrush}"/>
+  </Style>
+
+</Styles>

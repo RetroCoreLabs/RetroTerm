@@ -1,0 +1,146 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.KermitDebugWindow"
+        Title="Kermit Debug"
+        Width="460"
+        MinWidth="420" MinHeight="520"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height">
+    <DockPanel Margin="16">
+        <!-- Title -->
+        <TextBlock DockPanel.Dock="Top"
+                   Text="Kermit Debug"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"/>
+
+        <!-- Bottom buttons (DockPanel: declare bottom-docked before fill) -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,12,0,0">
+            <Button Classes="Secondary" Content="Reset Counters"
+                    Click="OnResetClick"
+                    Padding="16,6"/>
+            <Button Classes="Primary" Content="Close"
+                    Click="OnCloseClick"
+                    Padding="16,6"/>
+        </StackPanel>
+
+        <!-- Scrollable content -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="8">
+                <!-- Transfer Status Section -->
+                <Border Background="{DynamicResource SectionBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Transfer Status"
+                                   Foreground="{DynamicResource SectionHeader1Brush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="State:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Name="StateLabel" Text="Idle" Foreground="{DynamicResource SectionHeader2Brush}" FontSize="12"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Current file:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Name="CurrentFileLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Elapsed time:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Name="ElapsedLabel" Text="00:00:00" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Byte Counters Section -->
+                <Border Background="{DynamicResource SectionBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Byte Counters"
+                                   Foreground="{DynamicResource SectionHeader2Brush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="4,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Chars to/from file:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Name="FileBytesLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Characters sent:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Name="CharsSentLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Characters received:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Name="CharsReceivedLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Effective baud rate:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Name="BaudRateLabel" Text="0 baud" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Packet Counters Section -->
+                <Border Background="{DynamicResource SectionBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Packets"
+                                   Foreground="{DynamicResource SectionHeader3Brush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="4,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Packets sent:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Name="PacketsSentLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Packets received:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Name="PacketsReceivedLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Retries:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Name="RetriesLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Timeouts:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Name="TimeoutsLabel" Text="0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Negotiated Parameters Section -->
+                <Border Background="{DynamicResource SectionBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Negotiated Parameters"
+                                   Foreground="{DynamicResource SectionHeader4Brush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="8th-bit quoting:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Name="EbqLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Max send data length:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Name="MaxSendLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Block check type:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Name="BlockCheckLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,3,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Error display -->
+                <Border Name="ErrorBorder"
+                        Background="{DynamicResource ErrorPanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource ErrorPanelBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,8"
+                        IsVisible="False">
+                    <TextBlock Name="ErrorLabel"
+                               Foreground="{DynamicResource ErrorPanelTextBrush}"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

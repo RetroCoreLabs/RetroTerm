@@ -1,0 +1,146 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:RetroTerm.Desktop.ViewModels"
+             xmlns:models="clr-namespace:RetroTerm.Desktop.Models"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="500"
+             x:Class="RetroTerm.Desktop.Controls.VirtualKeyboardPanel"
+             Background="{DynamicResource WindowBackgroundBrush}">
+
+    <Design.DataContext>
+        <vm:VirtualKeyboardViewModel />
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top toolbar with language selection and LED indicators -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelBackgroundBrush}" Padding="10,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Language selection -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="Layout:" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <ComboBox Name="LayoutComboBox" MinWidth="150" VerticalAlignment="Center">
+                        <ComboBoxItem Content="Norwegian" Tag="Norwegian" />
+                        <ComboBoxItem Content="Danish" Tag="Danish" />
+                        <ComboBoxItem Content="Swedish" Tag="Swedish" />
+                        <ComboBoxItem Content="German" Tag="German" />
+                        <ComboBoxItem Content="US ASCII" Tag="USASCII" />
+                        <ComboBoxItem Content="French" Tag="French" />
+                        <ComboBoxItem Content="SDS (Norsk Data)" Tag="SDS" />
+                        <ComboBoxItem Content="FAO" Tag="FAO" />
+                        <ComboBoxItem Content="English (UK)" Tag="English" />
+                        <ComboBoxItem Content="Swiss" Tag="Swiss" />
+                        <ComboBoxItem Content="Finnish" Tag="Finnish" />
+                        <ComboBoxItem Content="Icelandic" Tag="Icelandic" />
+                        <ComboBoxItem Content="Keyboard" Tag="Keyboard" />
+                    </ComboBox>
+                    <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="5,2" />
+                    <Button Classes="Secondary" Name="ResetBindingsButton" Content="Reset Bindings" FontSize="10" Padding="5,2" VerticalAlignment="Center"
+                            ToolTip.Tip="Reset key bindings to defaults (right-click a key to edit bindings)" />
+                    <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="5,2" />
+                    <CheckBox Name="ShowKeyNoCheckBox" Content="Show Key No" VerticalAlignment="Center"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              ToolTip.Tip="Show grid position identifiers (An-Gn) on keys" />
+                </StackPanel>
+
+                <!-- LED Indicators - TDV2200 Hardware LEDs (all red except ON) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                    <!-- L1 - Expand -->
+                    <Border Width="38" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedL1" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="L1 EXP" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- L2 - Append -->
+                    <Border Width="38" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedL2" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="L2 APP" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- L3 - Busy -->
+                    <Border Width="38" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedL3" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="L3 BSY" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- L4 - Message -->
+                    <Border Width="38" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedL4" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="L4 MSG" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- LINE - Terminal online -->
+                    <Border Width="35" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedLine" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="LINE" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- CAR - Carrier signal -->
+                    <Border Width="32" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedCar" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="CAR" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- WAIT - Wait to get online -->
+                    <Border Width="35" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedWait" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="WAIT" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- ERROR - Error condition -->
+                    <Border Width="40" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedError" Width="8" Height="8" Fill="#404040" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="ERROR" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- ON - Power on (green when lit) -->
+                    <Border Width="28" Height="18" Background="#2D2D30" BorderBrush="#555" BorderThickness="1" CornerRadius="2">
+                        <Grid>
+                            <Ellipse Name="LedOn" Width="8" Height="8" Fill="#00FF00" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="ON" FontSize="7" Foreground="#AAA" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,2,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- ND 246 branding -->
+                    <TextBlock Text="ND 246" FontSize="10" FontWeight="Bold" Foreground="#8B4513" VerticalAlignment="Center" Margin="10,0,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Keyboard canvas - scales with window -->
+        <Viewbox Grid.Row="1" Stretch="Uniform" StretchDirection="Both">
+            <Canvas Name="KeyboardCanvas"
+                    Width="1590"
+                    Height="460"
+                    Background="White"
+                    ClipToBounds="False" />
+        </Viewbox>
+    </Grid>
+</UserControl>

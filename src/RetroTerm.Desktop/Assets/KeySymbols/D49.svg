@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Top: double-shaft RIGHT arrow (mirror of D47's left arrow) -->
+  <path d="M 3,1.5 L 19,1.5 M 3,5.5 L 19,5.5 M 3,1.5 L 3,5.5" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 18,-3 L 24,3.5 L 18,10" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Bottom: double-shaft DOWN arrow (flipped D47's up arrow) -->
+  <path d="M 10,15 L 10,27 M 14,15 L 14,27 M 10,15 L 14,15" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 6,27 L 12,32 L 18,27" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 2026.0.0 is the first version without GHSA-q939-rpr3-3284: ScpClient's recursive download
+         let a malicious server pick the filenames and so write outside the target directory. High
+         severity, and NuGet audit fails the build on it. Nothing here uses ScpClient, but the
+         advisory is real and the upgrade is a version bump. -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

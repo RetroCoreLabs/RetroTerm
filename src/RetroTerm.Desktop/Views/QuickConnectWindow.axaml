@@ -1,0 +1,130 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.QuickConnectWindow"
+        Title="Quick Connect"
+        Width="420"
+        SizeToContent="Height"
+        CanResize="False"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner">
+
+    <!--
+        A FORM, not a picker. Until 25 August 2026 this window listed the SAVED connections with a
+        search box, which is what Manage Connections is already for - so the one thing it was named
+        after, connecting quickly to something not saved, was the one thing it could not do.
+
+        Nothing here is saved or loaded. Type an address, pick the two things that cannot be
+        guessed, press Enter.
+    -->
+    <StackPanel Margin="18" Spacing="12">
+
+        <TextBlock Text="Connect to"
+                   FontSize="12"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+        <TextBox Name="HostBox"
+                 Watermark="host or host:port"
+                 Background="{DynamicResource SectionBackgroundBrush}"
+                 Foreground="{DynamicResource PrimaryTextBrush}"
+                 BorderBrush="{DynamicResource BorderBrush}"
+                 BorderThickness="1"
+                 Padding="8,6"
+                 FontSize="14"/>
+
+        <Grid ColumnDefinitions="*,12,110">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="Protocol"
+                           FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <ComboBox Name="ProtocolBox"
+                          HorizontalAlignment="Stretch"
+                          FontSize="13"
+                          Background="{DynamicResource SecondaryButtonBrush}"
+                          Foreground="{DynamicResource PrimaryTextBrush}"
+                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                          Padding="8,5"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Name="PortPanel" Spacing="4">
+                <TextBlock Text="Port"
+                           FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Name="PortBox"
+                         Background="{DynamicResource SectionBackgroundBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         BorderBrush="{DynamicResource BorderBrush}"
+                         BorderThickness="1"
+                         Padding="8,6"
+                         FontSize="13"/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Emulator"
+                       FontSize="12"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <ComboBox Name="EmulatorBox"
+                      HorizontalAlignment="Stretch"
+                      FontSize="13"
+                      Background="{DynamicResource SecondaryButtonBrush}"
+                      Foreground="{DynamicResource PrimaryTextBrush}"
+                      BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                      Padding="8,5"/>
+        </StackPanel>
+
+        <!-- Only shown for SSH, because only SSH cannot start without them. -->
+        <Grid Name="CredentialsPanel" ColumnDefinitions="*,12,*" IsVisible="False">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="Username"
+                           FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Name="UserBox"
+                         Background="{DynamicResource SectionBackgroundBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         BorderBrush="{DynamicResource BorderBrush}"
+                         BorderThickness="1"
+                         Padding="8,6"
+                         FontSize="13"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+                <TextBlock Text="Password"
+                           FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Name="PasswordBox"
+                         PasswordChar="•"
+                         Background="{DynamicResource SectionBackgroundBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         BorderBrush="{DynamicResource BorderBrush}"
+                         BorderThickness="1"
+                         Padding="8,6"
+                         FontSize="13"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Name="ErrorText"
+                   FontSize="12"
+                   Foreground="#E06C75"
+                   TextWrapping="Wrap"
+                   IsVisible="False"/>
+
+        <StackPanel Orientation="Horizontal"
+                    Spacing="10"
+                    HorizontalAlignment="Right"
+                    Margin="0,4,0,0">
+            <Button Classes="Secondary" Padding="11,5,11,6" Name="CancelBtn"
+                    Content="Cancel"
+                    Width="86" Height="32"
+                    FontSize="13"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"/>
+            <Button Classes="Primary" Padding="11,5,11,6" Name="ConnectBtn"
+                    Content="Connect"
+                    Width="106" Height="32"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    IsEnabled="False"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

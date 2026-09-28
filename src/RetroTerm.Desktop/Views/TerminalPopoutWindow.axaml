@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.TerminalPopoutWindow"
+        Title="RetroTerm"
+        Width="800" Height="600"
+        Background="#1E1E1E"
+        Icon="/Assets/RetroTerm-icon.png">
+    <DockPanel>
+        <!-- Status Bar -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#2D2D30"
+                BorderBrush="#3C3C3C"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Name="PopoutStatusText"
+                           Text="Ready"
+                           Foreground="#CCCCCC"
+                           FontSize="11"
+                           Grid.Column="0"/>
+
+                <TextBlock Name="PopoutRecIndicator"
+                           Text="REC"
+                           Foreground="#FF4444"
+                           FontWeight="Bold"
+                           FontSize="11"
+                           IsVisible="False"
+                           Margin="0,0,12,0"
+                           Grid.Column="1"/>
+
+                <TextBlock Name="PopoutConnectionInfo"
+                           Foreground="#999999"
+                           FontSize="11"
+                           Grid.Column="2"
+                           IsVisible="False"/>
+            </Grid>
+        </Border>
+
+        <!-- Terminal content placed here programmatically -->
+        <ContentControl Name="PopoutContent"/>
+    </DockPanel>
+</Window>

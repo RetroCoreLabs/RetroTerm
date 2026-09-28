@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.GatewayDebugWindow"
+        Title="Gateway Debug"
+        Width="900" Height="550"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="Primary" Name="CopyButton"
+                        Content="Copy to Clipboard"
+                        Click="OnCopyClick"
+                        Padding="12,4"/>
+                <Button Classes="Secondary" Name="ClearButton"
+                        Content="Clear"
+                        Click="OnClearClick"
+                        Padding="12,4"/>
+                <CheckBox Name="AutoScrollCheckBox"
+                          Content="Auto-scroll"
+                          IsChecked="True"
+                          Foreground="{DynamicResource PrimaryTextBrush}"
+                          Margin="12,0,0,0"
+                          VerticalAlignment="Center"/>
+                <TextBlock Name="StatusLabel"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Margin="20,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Message List -->
+        <ScrollViewer Name="LogScrollViewer"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+            <ItemsControl Name="LogItemsControl">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{DynamicResource SectionBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="0,0,0,1"
+                                Padding="8,3">
+                            <TextBlock Text="{Binding}"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       FontFamily="Consolas, Courier New, monospace"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

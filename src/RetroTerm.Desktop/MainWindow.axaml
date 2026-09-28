@@ -1,0 +1,285 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="using:RetroTerm.Desktop.Controls"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="RetroTerm.Desktop.MainWindow"
+        Title="RetroTerm"
+        Width="800" Height="600"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        Icon="/Assets/RetroTerm-icon.png">
+    <DockPanel Name="MainDockPanel">
+        <!-- Menu Bar - Following Design System Dark Theme -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="File">
+                <MenuItem Header="New Tab                   Ctrl+T"
+                          Click="OnNewTabClick"/>
+                <!-- Filled in from EmulatorFactory.AvailableEmulators at startup, so every
+                     terminal the program can build can be opened without saving a connection
+                     first. See BuildNewTabAsSubmenu. -->
+                <MenuItem Header="New Tab As"
+                          Name="NewTabAsMenuItem"/>
+                <MenuItem Header="Quick Connect...    Ctrl+Shift+N"
+                          Click="OnQuickConnectClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Close Tab                 Ctrl+W"
+                          Click="OnCloseTabClick"/>
+                <MenuItem Header="Close All Tabs"
+                          Click="OnCloseAllTabsClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Preferences..."
+                          Click="OnPreferencesClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Exit"
+                          Click="OnExitClick"/>
+            </MenuItem>
+            <MenuItem Header="Edit">
+                <MenuItem Header="Copy                    Ctrl+Shift+C"
+                          Name="CopyMenuItem"
+                          Click="OnCopyClick"/>
+                <MenuItem Header="Paste                   Ctrl+Shift+V"
+                          Click="OnPasteClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Select All            Ctrl+Shift+A"
+                          Click="OnSelectAllClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Find...               Ctrl+Shift+F"
+                          Click="OnFindClick"/>
+            </MenuItem>
+            <MenuItem Header="View">
+                <!-- Discoverability. A shortcut nobody knows about is a shortcut nobody uses, and
+                     the status bar dropdown only says what the size IS, not how to change it. -->
+                <MenuItem Header="Zoom In                  Ctrl++"
+                          Click="OnZoomInClick"/>
+                <MenuItem Header="Zoom Out                 Ctrl+-"
+                          Click="OnZoomOutClick"/>
+                <MenuItem Header="Normal Size              Ctrl+0"
+                          Click="OnZoomResetClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Log"
+                          Click="OnLogClick"/>
+                <MenuItem Header="Protocol Monitor"
+                          Click="OnProtocolMonitorClick"/>
+                <MenuItem Header="Script Editor"
+                          Click="OnScriptEditorClick"/>
+                <MenuItem Header="Script Console"
+                          Click="OnScriptConsoleClick"/>
+                <MenuItem Header="MCP Log"
+                          Click="OnMcpLogClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Virtual Keyboard"
+                          Name="VirtualKeyboardMenuItem"
+                          Click="OnVirtualKeyboardClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Start Session Log..."
+                          Name="StartSessionLogMenuItem"
+                          Click="OnStartSessionLogClick"/>
+                <MenuItem Header="Stop Session Log"
+                          Name="StopSessionLogMenuItem"
+                          Click="OnStopSessionLogClick"
+                          IsEnabled="False"/>
+            </MenuItem>
+            <MenuItem Header="Connection">
+                <MenuItem Header="Quick Connect..."
+                          Click="OnQuickConnectClick"/>
+                <MenuItem Header="Manage Connections..."
+                          Click="OnManageConnectionsClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Reconnect"
+                          Name="ReconnectMenuItem"
+                          Click="OnReconnectClick"
+                          IsEnabled="False"/>
+                <MenuItem Header="Disconnect"
+                          Name="DisconnectMenuItem"
+                          Click="OnDisconnectClick"
+                          IsEnabled="False"/>
+                <!-- Changes the terminal type of the tab in front of you, keeping its connection
+                     and its screen. Filled in from EmulatorFactory.AvailableEmulators, same list
+                     as New Tab As. See BuildEmulationSubmenu. -->
+                <MenuItem Header="Emulation"
+                          Name="EmulationMenuItem"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Favorites"
+                          Name="FavoritesMenuItem">
+                    <MenuItem Header="(No favorites)"
+                              IsEnabled="False"/>
+                </MenuItem>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Gateway Settings..."
+                          Click="OnGatewaySettingsClick"/>
+                <MenuItem Header="Gateway Disk Images..."
+                          Click="OnGatewayDiskImagesClick"/>
+                <MenuItem Header="Gateway Statistics..."
+                          Click="OnGatewayStatisticsClick"/>
+                <MenuItem Header="Gateway Debug..."
+                          Click="OnGatewayDebugClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Kermit Debug..."
+                          Click="OnKermitDebugClick"/>
+                <MenuItem Header="OPCOM Debug..."
+                          Click="OnOpcomDebugClick"/>
+            </MenuItem>
+            <MenuItem Header="Transfer">
+                <MenuItem Header="Send File(s)..."
+                          Name="SendFileMenuItem"
+                          Click="OnSendFileClick"
+                          IsEnabled="False"/>
+                <MenuItem Header="Receive File(s)..."
+                          Name="ReceiveFileMenuItem"
+                          Click="OnReceiveFileClick"
+                          IsEnabled="False"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Cancel Transfer"
+                          Name="CancelTransferMenuItem"
+                          Click="OnCancelTransferClick"
+                          IsEnabled="False"/>
+            </MenuItem>
+            <MenuItem Header="Keyboard">
+                <MenuItem Header="Key Reference"
+                          Click="OnKeyboardReferenceClick"/>
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                <MenuItem Header="Configure PUSH Keys..."
+                          Click="OnConfigurePushKeysClick"/>
+            </MenuItem>
+            <MenuItem Header="Help">
+                <MenuItem Header="About"
+                          Click="OnAboutClick"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Status Bar - Following Design System -->
+        <Border DockPanel.Dock="Bottom" Classes="StatusBar">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Name="StatusText"
+                           Text="Ready"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           Grid.Column="0"/>
+
+                <TextBlock Name="TransferIndicator"
+                           Text="XFR"
+                           Foreground="{DynamicResource TransferIndicatorBrush}"
+                           FontWeight="Bold"
+                           IsVisible="False"
+                           Margin="0,0,12,0"
+                           Grid.Column="1"/>
+
+                <TextBlock Name="RecIndicator"
+                           Text="REC"
+                           Foreground="{DynamicResource RecordIndicatorBrush}"
+                           FontWeight="Bold"
+                           IsVisible="False"
+                           Margin="0,0,12,0"
+                           Grid.Column="2"/>
+
+                <TextBlock Name="ModeIndicator"
+                           Foreground="{DynamicResource WarningBrush}"
+                           FontWeight="Bold"
+                           Grid.Column="3"
+                           Margin="0,0,20,0"
+                           IsVisible="False"/>
+
+                <TextBlock Name="ConnectionInfo"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           Grid.Column="4"
+                           IsVisible="False"/>
+
+                <TextBlock Name="GatewayStatus"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           Grid.Column="5"
+                           Margin="12,0,0,0"
+                           IsVisible="False"/>
+
+                <!-- Display size, as a percentage of the normal view. 100% is the picture the
+                     window shows on its own, and it also lets the window decide how many columns
+                     and rows there are; any other percentage pins the grid and magnifies instead.
+                     Ctrl+plus, Ctrl+minus and Ctrl+0 do the same thing from the keyboard, off the
+                     same ladder. -->
+                <ComboBox Name="ZoomSelector"
+                          Grid.Column="6"
+                          Margin="12,0,0,0"
+                          MinWidth="76"
+                          ToolTip.Tip="Display size, as a percentage of the normal view. 100% follows the window; anything else keeps the current columns and rows and scales the picture. Ctrl+ / Ctrl- / Ctrl+0."/>
+            </Grid>
+        </Border>
+
+        <!-- Tab Bar -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <DockPanel>
+                <!-- Docked Right in this order, so left-to-right they read: < > list + -->
+                <Button Name="NewTabButton"
+                        DockPanel.Dock="Right"
+                        Click="OnNewTabClick"
+                        Content="+"
+                        Classes="NewTabButton"
+                        FontSize="17"
+                        Width="34" Height="30"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Padding="0"
+                        Margin="0,0,4,0"/>
+                <!-- Every open session, docked tabs AND popped-out windows, in one list. With
+                     enough tabs open the strip cannot show them all, and scrolling to hunt for
+                     one is worse than picking it by name. Always visible: it is the only way to
+                     reach a popped-out window from here. -->
+                <Button Name="TabListButton"
+                        DockPanel.Dock="Right"
+                        Click="OnTabListClick"
+                        Content="&#x2261;"
+                        ToolTip.Tip="All open sessions"
+                        Classes="NewTabButton"
+                        FontSize="15"
+                        Width="28" Height="30"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Padding="0"/>
+                <!-- Only shown when the strip actually overflows - see UpdateTabScrollButtons. -->
+                <Button Name="ScrollTabsRightButton"
+                        DockPanel.Dock="Right"
+                        Click="OnScrollTabsRightClick"
+                        Content="&#x203A;"
+                        ToolTip.Tip="Scroll tabs right"
+                        Classes="NewTabButton"
+                        FontSize="17"
+                        Width="22" Height="30"
+                        IsVisible="False"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Padding="0"/>
+                <Button Name="ScrollTabsLeftButton"
+                        DockPanel.Dock="Right"
+                        Click="OnScrollTabsLeftClick"
+                        Content="&#x2039;"
+                        ToolTip.Tip="Scroll tabs left"
+                        Classes="NewTabButton"
+                        FontSize="17"
+                        Width="22" Height="30"
+                        IsVisible="False"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Padding="0"/>
+                <ScrollViewer Name="TabStripScroller"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Name="TabStrip" Orientation="Horizontal" Margin="4,0,0,0"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Active Tab Content -->
+        <ContentControl Name="TabContent"/>
+    </DockPanel>
+</Window>

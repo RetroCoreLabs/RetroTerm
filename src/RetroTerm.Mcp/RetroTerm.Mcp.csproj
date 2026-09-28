@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Kestrel + routing for the streamable-HTTP MCP endpoint. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Official MCP C# SDK (verified cached 2026-08-04; 2.0.0 exists upstream,
+         upgrade later if its API changes are worth it). -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RetroTerm.Tests" />
+  </ItemGroup>
+
+</Project>

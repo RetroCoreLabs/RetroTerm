@@ -1,0 +1,62 @@
+stateDiagram-v2
+    [*] --> IDLE : System Initialization
+    
+    IDLE : 0 - IDLE
+    IDLE : No transmission in progress
+    IDLE : Ready to accept new data
+    IDLE : Z80SIO channel available
+    
+    READY_TO_SEND : 1 - READY_TO_SEND  
+    READY_TO_SEND : Data queued for transmission
+    READY_TO_SEND : Hardware initialized
+    READY_TO_SEND : Waiting for transmission start
+    
+    SENDING_DATA : 2 - SENDING_DATA
+    SENDING_DATA : Active transmission in progress
+    SENDING_DATA : Data flowing through Z80SIO
+    SENDING_DATA : Hardware busy
+    
+    ERROR_OR_DISABLED : 3 - ERROR_OR_DISABLED
+    ERROR_OR_DISABLED : Communication error state
+    ERROR_OR_DISABLED : System disabled
+    ERROR_OR_DISABLED : Requires manual intervention
+    
+    IDLE --> READY_TO_SEND : serial_start_transmission_if_ready()\nData available & system_mode_state == 2
+    READY_TO_SEND --> SENDING_DATA : Hardware starts transmission\nZ80SIO begins data transfer
+    SENDING_DATA --> IDLE : serial_tx_complete_interrupt_handler()\nTransmission complete & buffer empty
+    SENDING_DATA --> READY_TO_SEND : serial_tx_complete_interrupt_handler()\nTransmission complete & more data queued
+    
+    IDLE --> ERROR_OR_DISABLED : Hardware failure\nCommunication error
+    READY_TO_SEND --> ERROR_OR_DISABLED : Initialization failure\nTimeout error
+    SENDING_DATA --> ERROR_OR_DISABLED : Transmission error\nHardware malfunction
+    
+    ERROR_OR_DISABLED --> IDLE : Manual reset\nError recovery\nSystem restart
+    
+    note right of IDLE
+        Entry Conditions:
+        • System boot/reset
+        • Successful transmission completion
+        • Error recovery
+    end note
+    
+    note right of READY_TO_SEND
+        Entry Conditions:
+        • serial_transmission_state = 1 in code
+        • keyboard_data_available_flag != 0
+        • system_mode_state allows transmission
+    end note
+    
+    note right of SENDING_DATA
+        Entry Conditions:
+        • Z80SIO hardware starts transmission
+        • Previous state was READY_TO_SEND
+        • Data loaded into transmission buffer
+    end note
+    
+    note right of ERROR_OR_DISABLED
+        Entry Conditions:
+        • Hardware communication failure
+        • Buffer overflow
+        • System disabled by operator
+        • Unrecoverable transmission error
+    end note

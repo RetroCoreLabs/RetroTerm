@@ -1,0 +1,20 @@
+# Manuals are binary, and git does not always work that out for itself. The Level 2 Sixel
+# Programming Reference staged as 5909 lines of TEXT rather than as a blob, which means Windows
+# line-ending conversion would have rewritten bytes inside the PDF and produced a file that no
+# reader could open - from a clone that looked clean.
+*.pdf binary
+
+# Conformance corpora are DATA, not source. Their bytes are the test.
+#
+# Git on Windows would otherwise turn every LF into CRLF on checkout, which changes the
+# streams being fed to the emulator and the expected screens being compared against. A
+# fresh clone would then disagree with this machine for a reason nobody could see in a
+# diff - the files would look identical.
+#
+# -text means "never convert line endings in either direction".
+tests/RetroTerm.Tests/Conformance/xtermjs/*.in    -text
+tests/RetroTerm.Tests/Conformance/xtermjs/*.text  -text
+tests/RetroTerm.Tests/Conformance/xtermjs/NOTES   -text
+tests/RetroTerm.Tests/Conformance/libvterm/*.test -text
+tests/RetroTerm.Tests/Conformance/tektronix/**    -text
+tests/RetroTerm.Tests/Conformance/vt340test/**    -text

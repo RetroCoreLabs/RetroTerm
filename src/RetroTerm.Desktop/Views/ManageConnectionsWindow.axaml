@@ -1,0 +1,132 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.ManageConnectionsWindow"
+        Title="Manage Connections"
+        Width="850" Height="620"
+        MinWidth="750" MinHeight="550"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="1"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Panel: Connection List -->
+        <Border Grid.Column="0" Background="{DynamicResource SectionBackgroundBrush}" Padding="12">
+            <DockPanel>
+                <!-- New Connection Button at Top -->
+                <Button Classes="Primary" Padding="11,5,11,6" Name="NewConnectionBtn"
+                        DockPanel.Dock="Top"
+                        Content="+ New Connection"
+                        Height="32"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Margin="0,0,0,12"/>
+
+                <!-- Search Box -->
+                <TextBox Name="SearchBox"
+                         DockPanel.Dock="Top"
+                         Watermark="Search connections..."
+                         Background="{DynamicResource ControlBackgroundBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         BorderBrush="{DynamicResource BorderBrush}"
+                         BorderThickness="1"
+                         Padding="8,6"
+                         FontSize="13"
+                         Margin="0,0,0,8"/>
+
+                <!-- Delete Button at Bottom -->
+                <Button Classes="Danger" Padding="11,5,11,6" Name="DeleteBtn"
+                        DockPanel.Dock="Bottom"
+                        Content="Delete"
+                        Height="28"
+                        Width="80"
+                        FontSize="12"
+                        HorizontalAlignment="Left"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        IsEnabled="False"
+                        Margin="0,8,0,0"/>
+
+                <!-- Connection List -->
+                <ListBox Name="ConnectionsListBox"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         SelectionMode="Single"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Splitter -->
+        <Border Grid.Column="1" Background="{DynamicResource BorderBrush}"/>
+
+        <!-- Right Panel: Settings Tabs -->
+        <Border Grid.Column="2" Padding="20">
+            <DockPanel>
+                <!-- Bottom Buttons -->
+                <StackPanel DockPanel.Dock="Bottom"
+                            Orientation="Horizontal"
+                            Spacing="12"
+                            HorizontalAlignment="Right"
+                            Margin="0,16,0,0">
+                    <Button Classes="Secondary" Padding="11,5,11,6" Name="CancelBtn"
+                            Content="Cancel"
+                            Width="80" Height="32"
+                            FontSize="13"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"/>
+                    <!-- No inline Background or Foreground: an inline value BEATS a style
+                         selector in Avalonia, so the SaveAction style below could never colour
+                         the enabled and disabled states. That trap is already written up in
+                         CLAUDE.md - the dialogs that set brushes by hand are why the ComboBox
+                         style appeared to do nothing. -->
+                    <Button Name="SaveBtn"
+                            Content="Save"
+                            Classes="SaveAction"
+                            Width="80" Height="32"
+                            FontSize="13"
+                            IsEnabled="False"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"/>
+                    <Button Classes="Primary" Padding="11,5,11,6" Name="ConnectBtn"
+                            Content="Connect"
+                            Width="100" Height="32"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Tab Headers -->
+                <StackPanel DockPanel.Dock="Top"
+                            Orientation="Horizontal"
+                            Spacing="0"
+                            Margin="0,0,0,16">
+                    <Button Name="GeneralTabBtn"
+                            Content="General"
+                            Classes="ConnectionTab active"/>
+                    <Button Name="ProtocolTabBtn"
+                            Content="Protocol"
+                            Classes="ConnectionTab"/>
+                    <Button Name="TerminalTabBtn"
+                            Content="Terminal"
+                            Classes="ConnectionTab"/>
+                    <Button Name="KeyboardTabBtn"
+                            Content="Keyboard"
+                            Classes="ConnectionTab"/>
+                    <Button Name="ScriptsTabBtn"
+                            Content="Scripts"
+                            Classes="ConnectionTab"/>
+                </StackPanel>
+
+                <!-- Tab Content Area -->
+                <ContentControl Name="TabContent"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,271 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:RetroTerm.Desktop.Views"
+        x:Class="RetroTerm.Desktop.Views.ProgrammableKeysDialog"
+        x:DataType="views:ProgrammableKeysDialog"
+        Title="Configure Programmable PUSH Keys"
+        Width="900"
+        Height="600"
+        Background="{DynamicResource SectionBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <DockPanel>
+        <!-- Title Bar -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="20,15">
+            <StackPanel>
+                <TextBlock Text="Configure Programmable PUSH Keys"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <TextBlock Text="P1-P16 programmable keys. P1-P8: max 12 bytes, P9-P12: max 32, P13-P16: max 48. Syntax: \r (CR), \n (LF), \xNN (hex), \e (ESC)"
+                           FontSize="11"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           Margin="0,5,0,0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Button Bar -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="Import..."
+                        Click="OnImportClick"
+                        Classes="Secondary"/>
+                <Button Content="Export..."
+                        Click="OnExportClick"
+                        Classes="Secondary"/>
+                <Button Content="Close"
+                        Click="OnCloseClick"
+                        Classes="Primary"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content - Two Column Layout -->
+        <Grid Margin="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel - Key List -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource ControlBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="PUSH Keys"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               Margin="15,15,15,10"/>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ListBox Name="KeyListBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 SelectionChanged="OnKeySelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="views:PushKeyItem">
+                                    <Border Padding="12,8"
+                                            Background="Transparent">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding DisplayName}"
+                                                       Foreground="{DynamicResource SectionHeader2Brush}"
+                                                       FontFamily="Consolas,Courier New"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       MinWidth="80"/>
+
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding StatusText}"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       FontSize="10"
+                                                       VerticalAlignment="Center"
+                                                       Margin="10,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Right Panel - Key Editor -->
+            <ScrollViewer Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="20">
+                <Grid>
+                    <StackPanel Name="EditorPanel"
+                                IsVisible="False">
+
+                    <!-- Key Header -->
+                    <TextBlock Name="KeyHeaderText"
+                               Text="PUSH1"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               Margin="0,0,0,20"/>
+
+                    <!-- Sequence Editor -->
+                    <TextBlock Text="Sequence"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <TextBlock Text="Enter the sequence to send when this key is pressed. Special sequences:"
+                               FontSize="10"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               Margin="0,0,0,5"/>
+
+                    <TextBlock Text="  \r = Carriage Return (0x0D)    \n = Line Feed (0x0A)"
+                               FontFamily="Consolas,Courier New"
+                               FontSize="10"
+                               Foreground="{DynamicResource CodeStringBrush}"
+                               Margin="0,0,0,2"/>
+
+                    <TextBlock Text="  \e or \x1B = Escape (0x1B)    \xNN = Hex byte (e.g., \x41 = 'A')"
+                               FontFamily="Consolas,Courier New"
+                               FontSize="10"
+                               Foreground="{DynamicResource CodeStringBrush}"
+                               Margin="0,0,0,10"/>
+
+                    <TextBox Name="SequenceTextBox"
+                             Height="100"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             FontFamily="Consolas,Courier New"
+                             FontSize="12"
+                             Background="{DynamicResource ControlBackgroundBrush}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             BorderBrush="{DynamicResource BorderBrush}"
+                             BorderThickness="1"
+                             Padding="8"
+                             Margin="0,0,0,10"
+                             TextChanged="OnSequenceTextChanged"/>
+
+                    <!-- Hex Preview -->
+                    <TextBlock Text="Preview (Hex Bytes)"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               Margin="0,10,0,8"/>
+
+                    <Border Background="{DynamicResource ControlBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            Padding="8"
+                            MinHeight="60"
+                            Margin="0,0,0,10">
+                        <TextBlock Name="HexPreviewText"
+                                   Text="(empty)"
+                                   FontFamily="Consolas,Courier New"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <!-- Length Info -->
+                    <TextBlock Name="LengthInfoText"
+                               Text="Length: 0 bytes"
+                               FontSize="10"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               Margin="0,0,0,20"/>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="Save Key"
+                                Click="OnSaveKeyClick"
+                                Classes="Primary"/>
+
+                        <Button Content="Clear Key"
+                                Click="OnClearKeyClick"
+                                Classes="Danger"/>
+
+                        <Button Content="Test Key"
+                                Click="OnTestKeyClick"
+                                Classes="Secondary"/>
+                    </StackPanel>
+
+                    <!-- Example Sequences -->
+                    <Border Background="{DynamicResource PanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            Padding="15"
+                            Margin="0,30,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Common Examples"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Login command:"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="login user\r"
+                                       FontFamily="Consolas,Courier New"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource CodeStringBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Function key (ESC O P):"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="\x1BOP"
+                                       FontFamily="Consolas,Courier New"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource CodeStringBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Multi-line script:"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="cd /home\rls -la\r"
+                                       FontFamily="Consolas,Courier New"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource CodeStringBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- No Selection Message -->
+                <StackPanel Name="NoSelectionPanel"
+                            IsVisible="True"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="Select a PUSH key to configure"
+                               FontSize="14"
+                               Foreground="{DynamicResource DisabledTextBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Choose a key from the list on the left"
+                               FontSize="11"
+                               Foreground="{DynamicResource DisabledTextBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,5,0,0"/>
+                </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>

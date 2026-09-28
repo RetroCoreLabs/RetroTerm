@@ -1,0 +1,379 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.PreferencesWindow"
+        Title="Preferences"
+        Width="460"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height">
+    <DockPanel Margin="16">
+        <!-- Title -->
+        <TextBlock DockPanel.Dock="Top"
+                   Text="Preferences"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"/>
+
+        <!-- Bottom buttons -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,12,0,0">
+            <Button Classes="Primary" Content="Close"
+                    Click="OnCloseClick"
+                    Padding="16,6"/>
+        </StackPanel>
+
+        <!-- Content: one tab per settings area -->
+        <TabControl Padding="0,8,0,0">
+
+            <!-- ═══════════════ Appearance ═══════════════ -->
+            <TabItem Header="Appearance" FontSize="13">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Appearance"
+                                       Foreground="{DynamicResource SectionHeader1Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+                            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="ThemeCombo"
+                                          FontSize="12" Padding="6,4" MinWidth="180" HorizontalAlignment="Left"
+                                          Background="{DynamicResource SecondaryButtonBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                          SelectionChanged="OnThemeSelectionChanged"/>
+                            </Grid>
+
+                            <!-- Theme preview -->
+                            <Border Name="ThemePreview"
+                                    Background="{DynamicResource SectionBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="12,8"
+                                    Margin="4,4,4,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Name="PreviewTitle" Text="Preview" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Border Name="PreviewAccent" Width="40" Height="20" CornerRadius="3"/>
+                                        <Border Name="PreviewSuccess" Width="40" Height="20" CornerRadius="3"/>
+                                        <Border Name="PreviewWarning" Width="40" Height="20" CornerRadius="3"/>
+                                        <Border Name="PreviewError" Width="40" Height="20" CornerRadius="3"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ═══════════════ Kermit (incl. file transfer) ═══════════════ -->
+            <TabItem Header="Kermit" FontSize="13">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <!-- File Transfer (part of the Kermit configuration) -->
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="File Transfer"
+                                       Foreground="{DynamicResource SectionHeader2Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+                            <CheckBox Name="AutoCloseCheck"
+                                      Content="Auto-close progress window after transfer completes"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,0"
+                                      IsCheckedChanged="OnAutoCloseChanged"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Kermit Settings -->
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Kermit Settings"
+                                       Foreground="{DynamicResource SectionHeader3Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+                            <!-- Channel -->
+                            <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Parity:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="KermitParityCombo"
+                                          FontSize="12" Padding="6,4" MinWidth="140" HorizontalAlignment="Left"
+                                          Background="{DynamicResource SecondaryButtonBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                          SelectionChanged="OnKermitSettingChanged">
+                                    <ComboBoxItem Content="None"/>
+                                    <ComboBoxItem Content="Even"/>
+                                    <ComboBoxItem Content="Odd"/>
+                                    <ComboBoxItem Content="Mark"/>
+                                    <ComboBoxItem Content="Space"/>
+                                </ComboBox>
+
+                                <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                          Name="KermitForce8BitCheck"
+                                          Content="Force 8-bit quoting"
+                                          Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                          Margin="0,6,0,0"
+                                          IsCheckedChanged="OnKermitCheckChanged"/>
+                            </Grid>
+
+                            <!-- Timing -->
+                            <Grid ColumnDefinitions="150,100,Auto" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Send delay:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="0" Grid.Column="1" Name="KermitDelayUpDown"
+                                               Minimum="0" Maximum="30" Value="0" Increment="1"
+                                               FontSize="12" Height="30"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnKermitNumericChanged"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="seconds"
+                                           Foreground="{DynamicResource DisabledTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Timeout:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="1" Name="KermitTimeoutUpDown"
+                                               Minimum="1" Maximum="60" Value="8" Increment="1"
+                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnKermitNumericChanged"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="seconds"
+                                           Foreground="{DynamicResource DisabledTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="8,6,0,0"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Max retries:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                <NumericUpDown Grid.Row="2" Grid.Column="1" Name="KermitRetriesUpDown"
+                                               Minimum="0" Maximum="99" Value="10" Increment="1"
+                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnKermitNumericChanged"/>
+                            </Grid>
+
+                            <!-- File Handling -->
+                            <Grid ColumnDefinitions="150,*" RowDefinitions="Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="If file exists:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="KermitFileCollisionCombo"
+                                          FontSize="12" Padding="6,4" MinWidth="140" HorizontalAlignment="Left"
+                                          Background="{DynamicResource SecondaryButtonBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                          SelectionChanged="OnKermitSettingChanged">
+                                    <ComboBoxItem Content="Rename"/>
+                                    <ComboBoxItem Content="Overwrite"/>
+                                    <ComboBoxItem Content="Skip"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Advanced -->
+                            <Grid ColumnDefinitions="150,100" RowDefinitions="Auto,Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Block check:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="KermitBlockCheckCombo"
+                                          FontSize="12" Padding="6,4"
+                                          Background="{DynamicResource SecondaryButtonBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                          SelectionChanged="OnKermitSettingChanged">
+                                    <ComboBoxItem Content="1"/>
+                                    <ComboBoxItem Content="2"/>
+                                    <ComboBoxItem Content="3 (CRC)"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Max packet size:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="1" Name="KermitPacketSizeUpDown"
+                                               Minimum="20" Maximum="94" Value="80" Increment="10"
+                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnKermitNumericChanged"/>
+                            </Grid>
+
+                            <!-- Auto-detect -->
+                            <CheckBox Name="KermitAutoDetectCheck"
+                                      Content="Auto-detect incoming Kermit receive"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,4,0,0"
+                                      IsCheckedChanged="OnKermitCheckChanged"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ═══════════════ MCP ═══════════════ -->
+            <TabItem Header="MCP" FontSize="13">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="MCP Server"
+                                       Foreground="{DynamicResource SectionHeader1Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+                            <CheckBox Name="McpEnabledCheck"
+                                      Content="Enable MCP"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,0"
+                                      IsCheckedChanged="OnMcpSettingChanged"/>
+
+                            <Grid ColumnDefinitions="150,120" RowDefinitions="Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="MCP port:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="0" Grid.Column="1" Name="McpPortUpDown"
+                                               Minimum="1" Maximum="65535" Value="5715" Increment="1"
+                                               FormatString="0"
+                                               FontSize="12" Height="30"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnMcpPortChanged"/>
+                            </Grid>
+
+                            <TextBlock Name="McpInfoText"
+                                       Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="4,4,0,0"
+                                       Text="The MCP server listens on localhost only. Changes take effect the next time RetroTerm starts. Connect Claude Code with: claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp — see docs\MCP-AND-SCRIPTING.md."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Gateway" FontSize="13">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="WebSocket Gateway"
+                                       Foreground="{DynamicResource SectionHeader1Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+                            <CheckBox Name="GatewayEnabledCheck"
+                                      Content="Enable WebSocket gateway"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,0"
+                                      IsCheckedChanged="OnGatewaySettingChanged"/>
+
+                            <Grid ColumnDefinitions="150,120" RowDefinitions="Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Listen port:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="0" Grid.Column="1" Name="GatewayPortUpDown"
+                                               Minimum="1" Maximum="65535" Value="8765" Increment="1"
+                                               FormatString="0"
+                                               FontSize="12" Height="30"
+                                               Background="{DynamicResource SecondaryButtonBrush}"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                               ValueChanged="OnGatewayPortChanged"/>
+                            </Grid>
+
+                            <TextBlock Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="4,4,0,0"
+                                       Text="An emulated machine connects here to reach terminals, disk images and the network. The gateway is a relay: the machine itself runs elsewhere."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Ethernet"
+                                       Foreground="{DynamicResource SectionHeader1Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+                            <CheckBox Name="EthernetEnabledCheck"
+                                      Content="Carry the machine's Ethernet frames"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,0"
+                                      IsCheckedChanged="OnEthernetSettingChanged"/>
+
+                            <Grid ColumnDefinitions="150,260" RowDefinitions="Auto,Auto" Margin="4,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Map to:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="EthernetModeCombo"
+                                          FontSize="12" Height="30" HorizontalAlignment="Stretch"
+                                          SelectionChanged="OnEthernetModeChanged"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Name="EthernetTargetLabel"
+                                           Text="Adapter:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="0,8,0,0"/>
+
+                                <!-- An adapter is picked from the real ones, never typed: on
+                                     Windows its system name is a GUID. The address box takes its
+                                     place for the mappings whose parameter really is text. -->
+                                <ComboBox Grid.Row="1" Grid.Column="1" Name="EthernetAdapterCombo"
+                                          FontSize="12" Height="30" Margin="0,8,0,0"
+                                          HorizontalAlignment="Stretch"
+                                          IsVisible="False"
+                                          SelectionChanged="OnEthernetSettingChanged"/>
+
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="EthernetTargetBox"
+                                         FontSize="12" Height="30" Margin="0,8,0,0"
+                                         Background="{DynamicResource SecondaryButtonBrush}"
+                                         Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                         LostFocus="OnEthernetSettingChanged"/>
+                            </Grid>
+
+                            <TextBlock Name="EthernetHintText"
+                                       Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="4,4,0,0"
+                                       Text="Frames are discarded - the guest sees a dead wire."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</Window>

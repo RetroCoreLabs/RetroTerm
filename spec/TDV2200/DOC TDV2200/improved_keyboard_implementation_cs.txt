@@ -1,0 +1,466 @@
+using Emulated.Lib;
+using SDL2;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text;
+
+namespace Emulated.Machines.ND.TDV2000
+{
+    /// <summary>
+    /// TDV Keyboard implementation based on TDV-2215 layout (129903)
+    /// Handles complete keyboard mapping with proper modifier support
+    /// </summary>
+    internal class TDVKeyboard
+    {
+        public delegate void TransmitData(byte value);
+        public event TransmitData OnTransmitData;
+
+        // Modifier key states
+        private bool lshift = false;
+        private bool rshift = false;
+        private bool lctrl = false;
+        private bool rctrl = false;
+
+        private bool IsShiftDown => lshift || rshift;
+        private bool IsCtrlDown => lctrl || rctrl;
+
+        private Dictionary<SDL.SDL_Scancode, KeyboardLayoutEntry> keyboardLayout;
+
+        public TDVKeyboard()
+        {
+            InitializeKeyboardLayout();
+        }
+
+        /// <summary>
+        /// Represents a key mapping entry in the TDV-2215 keyboard layout
+        /// Based on official layout specification 129903
+        /// </summary>
+        private class KeyboardLayoutEntry
+        {
+            /// <summary>Normal key value (unmodified)</summary>
+            public byte Normal { get; set; }
+            
+            /// <summary>Shift key value</summary>
+            public byte Shift { get; set; }
+            
+            /// <summary>Ctrl key value</summary>
+            public byte Ctrl { get; set; }
+            
+            /// <summary>
+            /// Control flags determining key behavior
+            /// Bit 0: Use with Normal (1=enabled)
+            /// Bit 4: Prefix Ctrl with 0xFF (1=yes)
+            /// </summary>
+            public byte Flags { get; set; }
+        }
+
+        private void InitializeKeyboardLayout()
+        {
+            keyboardLayout = new Dictionary<SDL.SDL_Scancode, KeyboardLayoutEntry>();
+
+            // Letters A-Z (based on TDV-2215 layout)
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_A, 0x61, 0x41, 0x01, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_B, 0x62, 0x42, 0x02, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_C, 0x63, 0x43, 0x03, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_D, 0x64, 0x44, 0x04, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_E, 0x65, 0x45, 0x05, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F, 0x66, 0x46, 0x06, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_G, 0x67, 0x47, 0x07, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_H, 0x68, 0x48, 0x08, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_I, 0x69, 0x49, 0x09, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_J, 0x6A, 0x4A, 0x0A, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_K, 0x6B, 0x4B, 0x0B, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_L, 0x6C, 0x4C, 0x0C, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_M, 0x6D, 0x4D, 0x0D, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_N, 0x6E, 0x4E, 0x0E, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_O, 0x6F, 0x4F, 0x0F, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_P, 0x70, 0x50, 0x10, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_Q, 0x71, 0x51, 0x11, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_R, 0x72, 0x52, 0x12, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_S, 0x73, 0x53, 0x13, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_T, 0x74, 0x54, 0x14, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_U, 0x75, 0x55, 0x15, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_V, 0x76, 0x56, 0x16, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_W, 0x77, 0x57, 0x17, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_X, 0x78, 0x58, 0x18, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_Y, 0x79, 0x59, 0x19, 0x0F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_Z, 0x7A, 0x5A, 0x1A, 0x0F);
+
+            // Numbers 0-9
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_0, 0x30, 0x3D, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_1, 0x31, 0x21, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_2, 0x32, 0x22, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_3, 0x33, 0x23, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_4, 0x34, 0x24, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_5, 0x35, 0x25, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_6, 0x36, 0x26, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_7, 0x37, 0x2F, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_8, 0x38, 0x28, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_9, 0x39, 0x29, 0x00, 0x17);
+
+            // Navigation keys (critical for config menu)
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_UP, 0xB1, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_DOWN, 0xB2, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_RIGHT, 0xB3, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_LEFT, 0xB4, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_HOME, 0xB8, 0x00, 0x00, 0x37);
+
+            // Function keys P1-P8
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F1, 0xA0, 0xA8, 0x81, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F2, 0xA1, 0xA9, 0x82, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F3, 0xA2, 0xAA, 0x83, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F4, 0xA3, 0xAB, 0x84, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F5, 0xA4, 0xAC, 0x85, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F6, 0xA5, 0xAD, 0x86, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F7, 0xA6, 0xAE, 0x87, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_F8, 0xA7, 0xAF, 0x88, 0x3F);
+
+            // Special control keys
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_SPACE, 0x20, 0x00, 0x00, 0x1F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_BACKSPACE, 0x08, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_TAB, 0x09, 0x99, 0x00, 0x3F);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_RETURN, 0xCD, 0x00, 0x00, 0x37);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_ESCAPE, 0xDB, 0x00, 0x00, 0x37);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_DELETE, 0x7F, 0x00, 0x00, 0x37);
+
+            // Numeric keypad
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_0, 0xE0, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_1, 0xE1, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_2, 0xE2, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_3, 0xE3, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_4, 0xE4, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_5, 0xE5, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_6, 0xE6, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_7, 0xE7, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_8, 0xE8, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_9, 0xE9, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_MINUS, 0xEA, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_PERIOD, 0xEB, 0x00, 0x00, 0x17);
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_KP_ENTER, 0xED, 0x00, 0x00, 0x17);
+
+            // System keys
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_INSERT, 0x00, 0xF8, 0x00, 0x34); // MODE key
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_PAUSE, 0xFE, 0xF9, 0xF4, 0x3D);  // BREAK key
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_PRINTSCREEN, 0x00, 0xFC, 0xFD, 0x3C); // PRINT key
+
+            // Punctuation (common keys)
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_APOSTROPHE, 0x27, 0x2A, 0x00, 0x17); // ' *
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_EQUALS, 0x2B, 0x3F, 0x00, 0x17);     // + ?
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_COMMA, 0x2C, 0x3B, 0x00, 0x17);      // , ;
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_MINUS, 0x2D, 0x5F, 0x1F, 0x1F);     // - _
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_PERIOD, 0x2E, 0x3A, 0x00, 0x17);    // . :
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_GRAVE, 0x3C, 0x3E, 0x00, 0x17);     // < >
+            AddKey(SDL.SDL_Scancode.SDL_SCANCODE_BACKSLASH, 0x40, 0x60, 0x00, 0x1F); // @ `
+        }
+
+        internal void KeyDown(SDL.SDL_Keysym keysym)
+        {
+            HandleKey(keysym, true);
+        }
+
+        internal void KeyUp(SDL.SDL_Keysym keysym)
+        {
+            HandleKey(keysym, false);
+        }
+
+        internal void HandleKey(SDL.SDL_Keysym keysym, bool isDown)
+        {
+            // Handle modifier keys first
+            switch (keysym.scancode)
+            {
+                case SDL.SDL_Scancode.SDL_SCANCODE_LSHIFT:
+                    lshift = isDown;
+                    return;
+                case SDL.SDL_Scancode.SDL_SCANCODE_RSHIFT:
+                    rshift = isDown;
+                    return;
+                case SDL.SDL_Scancode.SDL_SCANCODE_LCTRL:
+                    lctrl = isDown;
+                    return;
+                case SDL.SDL_Scancode.SDL_SCANCODE_RCTRL:
+                    rctrl = isDown;
+                    return;
+            }
+
+            // Only process key presses, not releases (except for modifiers)
+            if (!isDown)
+                return;
+
+            // Look up the key in our layout
+            if (keyboardLayout.TryGetValue(keysym.scancode, out KeyboardLayoutEntry entry))
+            {
+                ProcessKeyPress(entry);
+            }
+            else
+            {
+                Log($"Unmapped key: {keysym.scancode}");
+            }
+        }
+
+        private void ProcessKeyPress(KeyboardLayoutEntry entry)
+        {
+            byte codeToTransmit = 0x00;
+            bool needsFFPrefix = false;
+
+            // Determine which code to send based on modifier state
+            // Priority: Ctrl > Shift > Normal
+            if (IsCtrlDown && entry.Ctrl != 0x00)
+            {
+                codeToTransmit = entry.Ctrl;
+                // Check if Ctrl key needs 0xFF prefix (bit 4 of flags)
+                needsFFPrefix = (entry.Flags & 0x10) != 0;
+            }
+            else if (IsShiftDown && entry.Shift != 0x00)
+            {
+                codeToTransmit = entry.Shift;
+            }
+            else if ((entry.Flags & 0x01) != 0) // Check if Normal is enabled (bit 0)
+            {
+                codeToTransmit = entry.Normal;
+            }
+
+            // Transmit the key code(s)
+            if (codeToTransmit != 0x00)
+            {
+                if (needsFFPrefix)
+                {
+                    Transmit(0xFF);
+                }
+                Transmit(codeToTransmit);
+            }
+        }
+
+        internal void ProcessCommand(byte value)
+        {
+            byte cmdGroup = (byte)(value >> 4);
+            byte cmdDetail = (byte)(value & 0x0F);
+
+            switch (cmdGroup)
+            {
+                case 0x00:
+                    if (value > 0)
+                    {
+                        byte led = (byte)((value - 1) & 0x07);
+                        bool led_on = ((value >> 3) & 0x01) == 1;
+                        SetLed(led, led_on);
+                    }
+                    break;
+                case 0x01:
+                    Log($"Turn LED {cmdDetail} on in RAM bitmap only");
+                    break;
+                case 0x02:
+                    ExecuteOperation((byte)(cmdDetail + 1));
+                    break;
+                default:
+                    Log($"Unknown keyboard command 0x{value:X2}");
+                    break;
+            }
+        }
+
+        private void ExecuteOperation(byte operation)
+        {
+            switch (operation)
+            {
+                case 1: // Do Nothing
+                    Log("Keyboard: Do nothing command");
+                    break;
+                case 2: // Enable Click
+                    Log("Keyboard: Enable Click");
+                    break;
+                case 3: // Disable Click
+                    Log("Keyboard: Disable Click");
+                    break;
+                case 4: // Turn on CAPS
+                    Log("Keyboard: Turn on CAPS");
+                    break;
+                case 5: // Trigger Beeper
+                    Log("Keyboard: Trigger Beeper");
+                    break;
+                case 6: // Turn off LED 1 to 8
+                    Log("Keyboard: Turn off LED 1 to 8");
+                    break;
+                case 7: // Turn off LED 1 to 4
+                    Log("Keyboard: Turn off LED 1 to 4");
+                    break;
+                case 8: // Check Keyboard Expansion busy state
+                    Log("Keyboard: Check Keyboard Expansion busy state");
+                    Transmit(0xEF);
+                    break;
+                case 9: // Enable Key-Repeat
+                    Log("Keyboard: Enable Key-Repeat");
+                    break;
+                case 10: // Disable Key-Repeat
+                    Log("Keyboard: Disable Key-Repeat");
+                    break;
+                case 11: // Read Locks
+                    Log("Keyboard: Read locks");
+                    // DC: AL1 on, AL2 on
+                    // DD: AL1 off, AL2 on  
+                    // DE: AL1 on, AL2 off
+                    // DF: AL1 off, AL2 off
+                    Transmit(0xDC);
+                    break;
+                case 12: // Disable READY to expansion
+                    Log("Keyboard: Disable READY to expansion");
+                    break;
+                case 13: // Enable READY to expansion
+                    Log("Keyboard: Enable READY to expansion");
+                    break;
+                case 14: // ROM Check (AA = ok, else fail)
+                    Log("Keyboard: ROM Check");
+                    Transmit(0xAA);
+                    break;
+                case 15: // RAM Check (AA = ok, EE = fail)
+                    Log("Keyboard: RAM Check");
+                    Transmit(0xAA);
+                    break;
+                case 16: // Read Selected Layout ID number (6 chars)
+                    Log("Keyboard: Read Selected Layout ID number");
+                    // TDV-2215 General Purpose ASCII terminal keyboard
+                    // Layout 129903
+                    Transmit("129");
+                    Transmit("903");
+                    break;
+                default:
+                    Log($"Unknown Keyboard Operation #{operation}");
+                    break;
+            }
+        }
+
+        private void SetLed(byte led, bool led_on)
+        {
+            Log($"Keyboard LED #{led} {(led_on ? "ON" : "OFF")}");
+        }
+
+        private void Transmit(string value)
+        {
+            foreach (char c in value)
+            {
+                Transmit((byte)c);
+            }
+        }
+
+        private void Transmit(byte value)
+        {
+            if (OnTransmitData != null)
+            {
+                OnTransmitData(value);
+            }
+            else
+            {
+                Log($"Debug: Keyboard Transmit 0x{value:X2} - No OnTransmit()");
+            }
+        }
+
+        private void Log(string message)
+        {
+            Logger.Log($"[TDV KEYBOARD] {message}", Logger.LogLevel.Device);
+        }
+
+        /// <summary>
+        /// Add a character directly (for programmatic input)
+        /// </summary>
+        internal void AddChar(char key)
+        {
+            // Convert character to appropriate key code
+            byte keyCode = (byte)key;
+            
+            // Handle special cases
+            switch (key)
+            {
+                case '\r':
+                case '\n':
+                    Transmit(0xCD); // CR
+                    break;
+                case '\b':
+                    Transmit(0x08); // Backspace
+                    break;
+                case '\t':
+                    Transmit(0x09); // Tab
+                    break;
+                case ' ':
+                    Transmit(0x20); // Space
+                    break;
+                default:
+                    if (key >= 'A' && key <= 'Z')
+                    {
+                        // Uppercase letter - send as shift
+                        Transmit((byte)(0x41 + (key - 'A')));
+                    }
+                    else if (key >= 'a' && key <= 'z')
+                    {
+                        // Lowercase letter - send as normal
+                        Transmit((byte)(0x61 + (key - 'a')));
+                    }
+                    else if (key >= '0' && key <= '9')
+                    {
+                        // Number
+                        Transmit((byte)(0x30 + (key - '0')));
+                    }
+                    else
+                    {
+                        // Try to send as-is
+                        Transmit(keyCode);
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Send a specific key code directly (for testing/debugging)
+        /// </summary>
+        internal void SendKeyCode(byte keyCode)
+        {
+            Transmit(keyCode);
+        }
+
+        /// <summary>
+        /// Send config menu navigation keys
+        /// </summary>
+        internal void SendConfigKey(ConfigKey key)
+        {
+            switch (key)
+            {
+                case ConfigKey.EnterConfig:
+                    Transmit(0xF8); // MODE key (Shift+INSERT)
+                    break;
+                case ConfigKey.Up:
+                    Transmit(0xB1); // Up arrow
+                    break;
+                case ConfigKey.Down:
+                    Transmit(0xB2); // Down arrow
+                    break;
+                case ConfigKey.Left:
+                    Transmit(0xB4); // Left arrow
+                    break;
+                case ConfigKey.Right:
+                    Transmit(0xB3); // Right arrow
+                    break;
+                case ConfigKey.Enter:
+                    Transmit(0xED); // Numeric keypad Enter
+                    break;
+                case ConfigKey.Exit:
+                    Transmit(0xDB); // ESC
+                    break;
+                case ConfigKey.Home:
+                    Transmit(0xB8); // Home
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Configuration menu navigation keys
+        /// </summary>
+        public enum ConfigKey
+        {
+            EnterConfig, // 0xF8
+            Up,          // 0xB1
+            Down,        // 0xB2  
+            Left,        // 0xB4
+            Right,       // 0xB3
+            Enter,       // 0xED
+            Exit,        // 0xDB
+            Home         // 0xB8
+        }
+    }
+}

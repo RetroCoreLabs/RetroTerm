@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Stem -->
+  <path d="M 68,20 L 68,80" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round"/>
+  <!-- Bowl: two smooth arcs from stem around left and back to stem -->
+  <path d="M 68,32 C 48,12 18,22 18,52 C 18,82 48,92 68,72" fill="none" stroke="#000" stroke-width="7"/>
+  <!-- Slash: lower-left to upper-right -->
+  <path d="M 10,88 L 82,16" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round"/>
+</svg>

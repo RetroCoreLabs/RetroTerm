@@ -1,0 +1,496 @@
+ANSI Standard (X3.64) Control Sequences
+for Video Terminals and Peripherals
+with Examples for the IBM PC
+Compiled by W.C. Parke, 1986
+References:
+ANSI X3.64-1979:
+Information Systems-Codes, American National Standards
+Institute, 1430 Broadway, NY, NY 10018
+ISO 6429 standard:
+Information Processing-ISO 7-bit and 8-bit Coded
+Character Sets-Additional Control Functions for
+Charater-Imaging Devices, ANSI as above.
+Mark L. Siegel, April 1984 BYTE, p. 365
+Zenith Programmer's Utility Pack, Ver. 2, 1984
+In the table below:
+F
+
+is a Final character in
+an Escape sequence (F from 48 to 126 in the ASCII table)
+a control sequence (F from 64 to 126).
+
+Fe
+
+is a Final character in ASCII range 64 to 95.
+
+Gs
+
+is a graphic character appearing in strings (Gs ranges from
+32 to 126) in the ASCII table.
+
+C0
+
+is the set of 7-bit ASCII control characters from 0 to 31.
+
+C1
+
+the set of control characters available only in 8-bit systems.
+
+Ce
+set
+
+is a control represented as a single bit combination in the C1
+of controls in an 8-bit character set.
+
+I
+
+is an Intermediate character from 32 to 47 (inclusive) in the
+ASCII table.
+
+P
+
+is a parameter character from 48 to 63 (inclusive) in the ASCII
+table.
+
+Pn
+
+is a numeric parameter in a control sequence, a string of zero or
+more characters ranging from 48 to 57 in the ASCII table.
+Numeric parameters must be in decimal radix.
+
+Ps
+is a variable number of selective parameters in a control
+sequence
+with each selective parameter separated from the other by the
+code
+59 (which usually represents a semicolon); Ps ranges from
+48 to 57 and 59.
+
+Default
+Sequence
+Sequence
+Parameter
+Mnemonic
+Name
+Sequence
+Value
+-------------------------------------------------------------------------Introducer sequences:
+CSI
+SS2
+SS3
+
+Control Sequence Intro
+Single Shift 2 (G2 set)
+Single Shift 3 (G3 set)
+
+Esc [
+Esc N
+Esc O
+
+Delimiters:
+APC
+DCS
+OSC
+PM
+ST
+
+Applicatn Program Command Esc Fe
+Device Control String
+Esc P
+Operating System Command Esc ]
+Privacy Message
+Esc ^
+String Terminator
+Esc \
+
+Configuration:
+DA
+
+Device Attributes
+Esc [ Pn c
+0
+The VT100 responds to receiving the DA by transmitting the
+sequence: Esc [ ? l ; Ps c
+
+DSR
+
+Device Status Report
+Esc [ Ps n
+The console driver will output a CPR sequence.
+
+STS
+DMI
+EMI
+INT
+RIS
+
+Set Transmit State
+Disable Manual Input
+Enable Manual Input
+Interrupt
+Reset to Initial State
+
+0
+
+Esc S
+Esc \
+Esc b
+Esc a
+Esc c
+
+Editor Functions:
+CBT
+CCH
+CHA
+CHT
+CNL
+CPL
+CPR
+
+Cursor Backward Tab
+Esc [ Pn Z
+Cancel Previous Character Esc T
+Cursor Horzntal Absolute Esc [ Pn G
+Cursor Horizontal Tab
+Esc [ Pn I
+Cursor Next Line
+Esc [ Pn E
+Cursor Preceding Line
+Esc [ Pn F
+Cursor Position Report
+Esc [ Pn ; Pn R
+Report of cursor current line and column.
+of MS-DOS Prompt command.)
+
+1
+
+CTC
+CUB
+
+Cursor Tab Control
+Esc [ Ps W
+0
+Cursor Backward
+Esc [ Pn D
+1
+Move cursor back Pn columns. Ignored if cursor in leftmost
+column.
+
+CUD
+
+Cursor Down
+Esc [ Pn B
+1
+Move cursor down Pn lines. Ignored if cursor on bottom line.
+
+1
+1
+1
+1
+1, 1
+()Do not use as part
+
+CUF
+
+Cursor Forward
+Esc [ Pn C
+1
+Move cursor Pn columns forward. Ignored if cursor at rightmost
+column.
+
+CUP
+
+Cursor Position
+Esc [ Pn ; Pn H
+1, 1
+Move cursor to position specified. First parameter is line
+number and second is column number. No parameters means home
+position.
+
+CUU
+
+Cursor Up
+Move cursur up Pn lines.
+
+Esc [ Pn A
+1
+Ignored if cursor on top line.
+
+Default
+Sequence
+Sequence
+Parameter
+Mnemonic
+Name
+Sequence
+Value
+-------------------------------------------------------------------------CVT Cursor Vertical Tab
+Esc [ Pn Y
+DAQ Define Area Qualification Esc [ Ps o
+0
+DCH Delete Character
+Esc [ Pn P
+1
+DL
+Delete Line
+Esc [ Pn M
+1
+EA
+Erase in Area
+Esc [ Ps O
+0
+ECH Erase Character
+Esc [ Pn X
+1
+ED
+Erase in Display
+Esc [ Ps J
+0
+Erases whole screen and cursor goes to home position.
+EF
+EL
+
+Erase in Field
+Esc [ Ps N
+0
+Erase in Line
+Esc [ Ps K
+0
+Erases everything between the cursor and the end of the line,
+including cursor position.
+
+EPA End of Protected Area
+ESA End of Selected Area
+ICH Insert Character
+IL
+Insert Line
+NP
+Next Page
+PP
+Preceding Page
+SD
+Scroll Down
+SL
+Scroll Left
+SPI Spacing Increment
+SPA Start of Protected Area
+SR
+Scroll Right
+SSA Start of Selected Area
+SU Scroll Up
+TBC Tab Clear
+TSS Thin Space Specification
+VPA Vert Position Absolute
+VPR Vert Position Relative
+VTS Vertical Tabulation Set
+
+Esc W
+Esc G
+Esc [ Pn @
+Esc [ Pn L
+Esc [ Pn U
+Esc [ Pn V
+Esc [ Pn T
+Esc [ Pn Space @
+Esc [ Pn ; Pn Space G
+Esc V
+Esc [ Pn Space A
+Esc F
+Esc [ Pn S
+Esc [ Ps g
+Esc [ Pn Space E
+Esc [ Pn d
+Esc [ Pn e
+Esc J
+
+1
+1
+1
+1
+1
+1
+none
+1
+1
+0
+none
+1
+1
+
+Format Sequences:
+FNT
+GSM
+GSS
+HPA
+HPR
+HTJ
+HTS
+HVP
+
+Font Selection
+Esc [ Pn ; Pn Space D
+Graphic Size Modify
+Esc [ Pn ; Pn Space B
+Graphic Size Selection
+Esc [ Pn Space C
+Horz Position Absolute
+Esc [ Pn `
+Horz Position Relative
+Esc [ Pn a
+Horz Tab w/Justification Esc I
+Horizontal Tab Set
+Esc H
+Horz & Vertical Position Esc [ Pn ; Pn f
+Moves cursor to line number, column number specified.
+No parameters moves cursor to home position.
+
+IND
+JFY
+MC
+
+Index
+Justify
+Media Copy
+
+Esc D
+Esc [ Ps ; ... ; Ps Space F
+Esc [ Ps i
+
+0, 0
+100, 100
+none
+1
+1
+1, 1
+
+0
+0
+
+MW
+Message Waiting
+Esc U
+NEL Next Line
+Esc E
+PLD Partial Line Down
+Esc K
+PLU Partial Line Up
+Esc L
+PU1 Private Use 1
+Esc Q
+PU2 Private Use 2
+Esc R
+QUAD Typographic Quadding
+Esc [ Ps Space H
+RCP Restore Cursor Position
+ESC [ u
+Restores cursor position saved by SCP.
+REP
+RI
+
+Repeat Char or Control
+Reverse Index
+
+Esc [ Pn b
+Esc M
+
+0
+
+1
+
+Default
+Sequence
+Sequence
+Parameter
+Mnemonic
+Name
+Sequence
+Value
+-------------------------------------------------------------------------RM
+
+Reset Mode
+Esc [ Ps l
+none
+Reset screen width or type. See SM for parameters. Parameter 7
+will reset wrap mode (characters past end-of-line are lost.)
+
+SCP
+
+Save Cursor Position
+Esc [ s
+Cursor position will be restored with RCP sequence.
+
+SEM
+SGR
+
+Select Edit Extent Mode
+Esc [ Ps Q
+0
+Select Graphic Rendition Esc [ Ps m
+0
+Invokes graphic rendition specified by the parameters. All
+following characters are rendered according to the parameter(s)
+until the next SGR. Parameter functions on IBM PC:
+0 All attributes off (normal, white on black)
+1 Bold on (high intensity)
+4 Underscore On (monochrome displays only)
+5 Blink on
+7 Reverse Video on
+8 Cancelled on (invisible)
+30 Black foreground
+31 Red foreground
+32 Green foreground
+33 Yellow foreground
+34 Blue foreground
+35 Magenta foreground
+36 Cyan foreground
+37 White foreground
+40 Black foreground
+41 Red background
+42 Green background
+43 Yellow background
+44 Blue background
+45 Magenta background
+46 Cyan background
+47 White background
+
+SM
+
+Select Mode
+Esc [ Ps h
+Invokes the screen width or type specified.
+0 40 x 25 monochrome
+1 40 x 25 color
+2 80 x 25 monochrome
+3 80 x 25 color
+4 320 x 200 color
+5 320 x 200 monochrome
+6 640 x 200 monochrome
+7 wrap at end of line (word wrap)
+
+none
+IBM PC paramters:
+
+IBM PC Keyboard Reassignment:
+Keyboard reassignment uses an undefined ANSI X3.64-1979 code sequence
+to define a character or set of characters send by the console whenever
+a given key is pressed on an IBM PC compatible. The control sequence
+is:
+ESC [ Pn ; Pn ; ... Pn p
+or
+ESC [ "string" ; p
+The first ASCII code in the sequence defines which code is being mapped.
+If the first code is 0 (nul), then the second code is the extended
+IBM keycode. The remaining numbers define the sequence of ASCII codes
+generated when this key is intercepted, or the string (enclosed in
+quotes) to be generated. For example:
+ESC [65;81p
+ESC [0;68;"dir";13p
+
+A becomes Q
+F10 generates
+
+dir
+
+followed by a CR.
+
+

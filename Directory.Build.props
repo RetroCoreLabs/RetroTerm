@@ -1,0 +1,131 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <!-- Warnings are errors. The whole solution builds warning-free; this keeps it
+         that way instead of letting warnings accumulate again.
+         If a warning is genuinely not applicable, suppress that specific code with a
+         comment explaining WHY (see AVLN3001 in RetroTerm.Desktop.csproj) rather than
+         turning this off. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- Product information -->
+    <Product>RetroTerm</Product>
+    <Company>Retro Family</Company>
+    <Copyright>Copyright © 2024-2026 Ronny Hansen</Copyright>
+    <Version>1.0.26.2</Version>
+    <AssemblyVersion>1.0.26.2</AssemblyVersion>
+    <FileVersion>1.0.26.2</FileVersion>
+    <InformationalVersion>1.0.26.2</InformationalVersion>
+    
+    <!-- Enable long paths on Windows -->
+    <LongPathsEnabled>true</LongPathsEnabled>
+    
+    <!-- No debug symbols in Release. A published RetroTerm is ONE .exe: no .pdb files
+         beside it, and nothing embedded inside it either (DebugType=embedded would put
+         the symbols in the assembly, which is explicitly not wanted).
+         Set here rather than in the app project because the loose .pdb files in a publish
+         come from the referenced class libraries, not from RetroTerm.Desktop.
+         Consequence: stack traces in startup-error.log keep method names but lose file
+         and line numbers. Debug builds are unaffected. -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+
+    <!-- Deterministic builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Build Date/Time Capture -->
+    <CurrentDate>$([System.DateTime]::Now.ToString("dd.MMM.yyyy"))</CurrentDate>
+    <CurrentTime>$([System.DateTime]::Now.ToString("HH:mm:ss"))</CurrentTime>
+  </PropertyGroup>
+
+  <!-- Embed build date/time as assembly metadata -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BuildDate</_Parameter1>
+      <_Parameter2>$(CurrentDate)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BuildTime</_Parameter1>
+      <_Parameter2>$(CurrentTime)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Git identity, stamped into every assembly.
+
+       WHY, 27 August 2026: two copies of RetroTerm were running from the same folder and only
+       the first had the MCP port. Anything driving the terminal was one launch away from testing
+       an old binary with no way of noticing, and a stale binary that passes is worse than one
+       that fails. BuildDate and BuildTime above answer "when"; these answer "which code".
+
+       Captured in a TARGET rather than the ItemGroup above because MSBuild evaluates properties
+       before any target runs, so an Exec's output cannot reach a static ItemGroup. This one adds
+       the attributes itself, just before the compiler is asked for them.
+
+       Every step tolerates git being absent or this not being a checkout - a build must not fail
+       because somebody unzipped the source. The values then read "unknown", which is honest. -->
+  <Target Name="CaptureGitIdentity" BeforeTargets="GetAssemblyAttributes">
+
+    <Exec Command="git rev-parse --short=12 HEAD"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          ContinueOnError="true"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitCaptured" />
+    </Exec>
+
+    <Exec Command="git rev-parse --abbrev-ref HEAD"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          ContinueOnError="true"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitBranchCaptured" />
+    </Exec>
+
+    <!-- Any output at all means something is uncommitted, which is the whole question a stamp
+         has to answer: the hash alone would claim a clean tree that is not there. -->
+    <Exec Command="git status --porcelain"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          ContinueOnError="true"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitStatusCaptured" />
+    </Exec>
+
+    <PropertyGroup>
+      <GitCommit Condition="'$(GitCommitCaptured)' != ''">$(GitCommitCaptured.Trim())</GitCommit>
+      <GitCommit Condition="'$(GitCommit)' == ''">unknown</GitCommit>
+
+      <GitBranch Condition="'$(GitBranchCaptured)' != ''">$(GitBranchCaptured.Trim())</GitBranch>
+      <GitBranch Condition="'$(GitBranch)' == ''">unknown</GitBranch>
+
+      <GitDirty Condition="'$(GitStatusCaptured.Trim())' != ''">true</GitDirty>
+      <GitDirty Condition="'$(GitDirty)' == ''">false</GitDirty>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitCommit</_Parameter1>
+        <_Parameter2>$(GitCommit)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitBranch</_Parameter1>
+        <_Parameter2>$(GitBranch)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitDirty</_Parameter1>
+        <_Parameter2>$(GitDirty)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
+  <!-- Common package references for all projects -->
+  <ItemGroup>
+    <!-- None yet - add as needed -->
+  </ItemGroup>
+</Project>
+

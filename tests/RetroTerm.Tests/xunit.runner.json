@@ -1,0 +1,17 @@
+{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+
+  "//": "FOUR COLLECTIONS AT A TIME, not one per core.",
+  "//1": "Without this the suite failed roughly one run in three, and always the same way: the",
+  "//2": "whole headless UI collection went red together, hundreds of tests at once, on",
+  "//3": "KeyNotFoundException for the key 'fonts:SystemFonts' out of Avalonia.Media.FontManager.",
+  "//4": "That is the headless platform losing its font collection - a race inside Avalonia that",
+  "//5": "shows up under load, not a defect in anything this repo owns and not one test's fault.",
+  "//6": "It appeared on 10 September 2026 when 37 socket-using integration tests were brought",
+  "//7": "back, which raised the load rather than introduced the race.",
+  "//8": "Measured on 16 cores: four runs green with this cap, and no time cost at all - 5m14s to",
+  "//9": "6m27s against 5m30s to 6m without it. The suite is dominated by a few slow tests, not by",
+  "//10": "how many run at once, which is why capping the width is free here.",
+
+  "maxParallelThreads": 4
+}

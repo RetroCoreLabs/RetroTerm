@@ -1,0 +1,23 @@
+# Build and test on every push and pull request. This is what the build badge in README.md
+# reports, so the badge can go red - a badge that cannot is decoration.
+#
+# windows-latest because RetroTerm.Tests targets net9.0-windows and the UI is Avalonia on
+# Windows. SDK 10.x rather than 9.x because that is what the repository is actually built
+# with on the development machine (10.0.401); SDK 10 builds net9.0 targets.
+name: build
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore RetroTerm.sln
+      - run: dotnet build RetroTerm.sln -c Release --no-restore -nodeReuse:false
+      # The main suite takes about two and a half minutes locally.
+      - run: dotnet test RetroTerm.sln -c Release --no-build -nodeReuse:false --logger "console;verbosity=minimal"

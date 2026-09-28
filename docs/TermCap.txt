@@ -1,0 +1,274 @@
+ From: Jon Kaare Hellan (hellan@idt.ntnu.no)
+ Subject: Re: Tandberg Terminaler
+ Newsgroups: no.linux
+ Date: 1998/05/08
+   
+Ole W Saastad <ole.saastad@chem.sintef.no> writes:
+
+> This is a multi-part message in MIME format.
+> --------------72107406F8565E5CF2D95CDA
+> Content-Type: text/plain; charset=iso-8859-1
+> Content-Transfer-Encoding: 8bit
+>
+>
+>
+> Geir Frode Raanes wrote:
+> Men personlig er jeg fortsatt på jakt etter 'termcap' innslag for disse
+>
+> Her legger jeg ved min termcal fil.
+>
+> setenv TERMCAP ~/div/termcap; setenv TERM ta2215
+>
+> Eller en annen, les fila så finner du en entry som passer.
+
+Nedenfor følger de termcap- og terminfo-definisjonene som ND brukte,
+samt et alternativ som ble postet her tidligere. Kanskje noen med slik
+terminal kan prøve dem ut, finne ut hvilken som er best, og få den
+lagt inn i Linux-distribusjonene?
+
+Dette ble brukt i Unix-versjonen av NOTIS. Termcap:
+#
+#  @(#) termcap
+#
+#  Various terminals supported by NOTIS
+#
+#  Date   :  11.7.90
+#  Version:  1.0
+#
+#---------------------------------------------------------------------------
+-
+#  Terminal        Remarks
+#
+#  tdv1200         Min. emulator rev. level 11
+#  tdv2200         Min. emulator rev. level 22
+#  nd320
+#  nd246           Min. emulator rev. level 11 (10 may work poorly)
+
+t1|tdv2200|Tandberg TDV2200/9S:\
+        :al=\E[L:AL=\E[%dL:am:\
+        :bs:cd=\E[J:ce=\E[K:cm=\E[%i%d;%dH:\
+        :cl=\E[H\E[2J:PN=\E[5i:PS=\E[4i:\
+        :co#80:dc=\E[P:DC=\E[%dP:dl=\E[M:DL=\E[%dM:\
+        :do=\E[B:ei=:ho=\E[H:ic=\E[@:IC=\E[%d@:im=:\
+        :is=\E[62;36;66l\EQ\E[36;62;62h\E[0m:\
+        :kb=^H:kd=^K:kh=^]:kl=^H:kr=^X:ku=^\:\
+        :li#25:mi:nd=\E[C:se=\E[0m:sf=\E[S:SF=\E[%dS:\
+        :so=\E[7m:sr=\E[T:ue=\E[0m:up=\E[A:us=\E[4m:\
+        :ve=\E[0m:vs=\E[2m:\
+        :GC=\E15:GH=\E10:GL=\E14:GR=\E16:G1=\E19:G2=\E17:\
+        :G3=\E11:G4=\E13:GU=\E12:GD=\E18:GV=\E1.:\
+        :EN=\E[=C:PU=\E[S:PD=\E[T:\
+        :k0=\E[50_:k1=\E[50_:k2=\E[52_:k3=\E[55_:k4=\E[58_:\
+        :k5=\E[60_:k6=\E[62_:k7=\E[64_:k8=\E[66_:\
+        :l0=\E[51_:l1=\E[53_:l2=\E[56_:l3=\E[59_:l4=\E[61_:l5=\E[63_:\
+        :l6=\E[65_:l7=\E[67_:
+
+TDV 1200 var ikke så utbredt:
+
+
+t2|tdv1200|Tandberg TDV1200:\
+        :al=\E[L:AL=\E[%dL:am:\
+        :bs:cd=\E[J:ce=\E[K:cm=\E[%i%d;%dH:\
+        :cl=\E[H\E[2J:PN=\E[5i:PS=\E[4i:\
+        :co#80:dc=\E[P:DC=\E[%dP:dl=\E[M:DL=\E[%dM:\
+        :do=\E[B:ei=:ho=\E[H:ic=\E[@:IC=\E[%d@:im=:\
+        :is=\E[>6;8;9l\EQ\E[66h\E[1Q\E[0m:\
+        :k1=\E[M:k2=\E[L:k3=\E[=F:k4=\E[=G:\
+        :k5=\EOP:k6=\EOQ:k7=\EOR:k8=\EOS:\
+        :l0=\E[=d:l1=\E[=e:l2=\E[=f:l3=\E[=g:l4=\E[=h:l5=\E[=i:\
+        :l6=\E[=j:l7=\E[=k:kb=\E[D:kd=\E[B:\
+        :kh=\E[H:kl=\E[D:kr=\E[C:ku=\E[A:\
+        :li#25:mi:nd=\E[C:se=\E[0m:sf=\E[S:SF=\E[%dS:\
+        :so=\E[7m:sr=\E[T:ue=\E[0m:up=\E[A:us=\E[4m:\
+        :ve=\E[0m:vs=\E[2m:\
+        :GC=\E15:GH=\E10:GL=\E14:GR=\E16:G1=\E19:G2=\E17:\
+        :G3=\E11:G4=\E13:GU=\E12:GD=\E18:GV=\E1.:\
+        :EN=\E[=C:PU=\E[S:PD=\E[T:
+
+n0|nd224|Norsk Data 224,VTM 3:\
+        :tc=tdv2115:
+
+n1|nd242|Norsk Data 242,VTM 36:\
+       :tc=tdv2115:
+
+n2|nd246|Norsk Data 246,VTM 53:\
+        :cm=^P%.%.:\
+        :vb=^B^A^A^A^A^A^C:\
+        :tc=tdv2200:
+
+n3|nd320|Norsk Data 320,VTM 93,103:\
+        :tc=tdv2200:
+
+Og terminfo:
+
+------cut: terminfo nd246.ti (tdv2200 med r|de lamper)-----
+nd246|Norsk Data 246,
+   am,
+   cols#80, lines#25,
+   bel=^G, blink=\E[5m, cbt=\E[38_, clear=^Y,
+   cnorm=\E[0m, cr=\r, cub1=\b, cud1=^K, cuf1=^X,
+        cup=^P%p1%c%p2%c,
+   dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K, home=^], knl=\r,
+   kf0=\E[24_, kf1=\E[50_, kf2=\E[52_, kf3=\E[55_, kf4=\E[58_,
+   kf5=\E[60_, kf6=\E[62_, kf7=\E[64_, kf8=\E[66_, kf9=\E[84_,
+   kf10=\E[42_, kf11=\E[00_, kf12=\E[30_, kf13=\E[51_, kf14=\E[53_,
+   kf15=\E[56_, kf16=\E[59_, kf17=\E[61_, kf18=\E[63_, kf19=\E[65_,
+   kf20=\E[67_, kf21=\E[85_, kf22=\E[43_, kf23=\E[01_, kf24=\E[31_,
+   kf25=\E[02_, kf26=\E[03_, kf27=\E[04_, kf28=\E[06_, kf29=\E[08_,
+   kf30=\E[09_, kf31=\E[12_, kf32=\E[14_, kf33=\E[46_, kf34=\E[38_,
+   kf35=\E[40_, kf36=\E[44_,
+   kf37=\E[35_, kf38=\E[37_, kf39=\E[13_, kf40=\E[15_, kf41=\E[39_,
+   kf42=\E[41_, kf43=\E[26_, kf44=\E[27_, kf45=\E[49_, kf46=\E[25_,
+   kf47=\E[22_, kf48=\E[23_, kf49=\E[86_, kf50=\E[87_, kf51=\E[20_,
+   kf52=\E[21_, kf53=\E[47_, kf54=\E[45_, kf55=\E[05_, kf56=\E[07_,
+   kbeg=\E[35_, kdo=\E[86_, kopt=\E[20_, kOPT=\E[21_,
+   ked=\E[48_, kel=\E[11_, kil1=\E[18_, kdl1=\E[19_,
+   kri=\E[29_, kind=\E[33_, krmir=\E[83_, kact=\E[86_,
+   kbs=\177, kll=\E[36_, kclr=\E[34_, kdch1=\E[10_,
+   flash=^B^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^C,
+   ht=\E[40_, ich1=\E[@, il=\E[%p1%dL, il1=\E[L, ind=\n,
+   indn=\E[%p1%dS, is2=\EQ\E[30;7;80l\E[62;62h\E[0m,
+   kCAN=\E[11_, kCMD=\E[43_, kCPY=\E[13_, kEXT=\E[49_,
+   kHLP=\E[47_, kMOV=\E[15_, kPRT=\E[45_, kUND=\E[31_,
+   kcan=\E[10_, kcbt=\E[38_, kcmd=\E[42_, kcpy=\E[12_,
+   kctab=\E[17_, kcub1=^H, kcud1=^K, kcuf1=^X, kcuu1=^\,
+   kent=\r, kext=\E[48_, kquit=\E[48_,
+   khlp=\E[46_, khome=^], khts=\E[16_,
+   kich1=\E[82_, kmov=\E[14_, knp=\E[32_,
+   kpp=\E[28_, kprt=\E[44_, kund=\E[30_, rev=\E[7m,
+   ri=^W, rmso=\E[0m, rmul=\E[0m, sgr0=\E[0m, smso=\E[7m,
+   sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1%;m,
+   smul=\E[4m, mc4=\E[4i, mc5=\E[5i,
+   box1=\ENj, box2=\EN`,
+------end cut: nd246.ti ------------------------------------
+
+
+------cut: terminfo tdv2200.ti (tdv2200 med gr|nne lamper)-----
+tdv2200|Tandberg TDV2200/9S,
+   am,
+   cols#80, lines#25,
+   bel=^G, blink=\E[5m, cbt=\E[38_, clear=^Y,
+   cnorm=\E[0m, cr=\r, cub1=\b, cud1=^K, cuf1=^X,
+   cup=\E[%i%p1%d;%p2%dH, cuu1=^\, dch1=\E[P, dim=\E[2m,
+   dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K, home=^], knl=\r,
+   kf0=\E[24_, kf1=\E[50_, kf2=\E[52_, kf3=\E[55_, kf4=\E[58_,
+   kf5=\E[60_, kf6=\E[62_, kf7=\E[64_, kf8=\E[66_, kf9=\E[84_,
+   kf10=\E[42_, kf11=\E[00_, kf12=\E[30_, kf13=\E[51_, kf14=\E[53_,
+   kf15=\E[56_, kf16=\E[59_, kf17=\E[61_, kf18=\E[63_, kf19=\E[65_,
+   kf20=\E[67_, kf21=\E[85_, kf22=\E[43_, kf23=\E[01_, kf24=\E[31_,
+   kf25=\E[02_, kf26=\E[03_, kf27=\E[04_, kf28=\E[06_, kf29=\E[08_,
+   kf30=\E[09_, kf31=\E[12_, kf32=\E[14_, kf33=\E[46_, kf34=\E[38_,
+   kf35=\E[40_, kf36=\E[44_,
+   kf37=\E[35_, kf38=\E[37_, kf39=\E[13_, kf40=\E[15_, kf41=\E[39_,
+   kf42=\E[41_, kf43=\E[26_, kf44=\E[27_, kf45=\E[49_, kf46=\E[25_,
+   kf47=\E[22_, kf48=\E[23_, kf49=\E[86_, kf50=\E[87_, kf51=\E[20_,
+   kf52=\E[21_, kf53=\E[47_, kf54=\E[45_, kf55=\E[05_, kf56=\E[07_,
+   kbeg=\E[35_, kdo=\E[86_, kopt=\E[20_, kOPT=\E[21_,
+   ked=\E[48_, kel=\E[11_, kil1=\E[18_, kdl1=\E[19_,
+   kri=\E[29_, kind=\E[33_, krmir=\E[83_, kact=\E[86_,
+   kbs=\177, kll=\E[36_, kclr=\E[34_, kdch1=\E[10_,
+   flash=^B^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^A^C,
+   ht=\E[40_, ich1=\E[@, il=\E[%p1%dL, il1=\E[L, ind=\n,
+   indn=\E[%p1%dS, is2=\EQ\E[30;7;80l\E[62;62h\E[0m,
+   kCAN=\E[11_, kCMD=\E[43_, kCPY=\E[13_, kEXT=\E[49_,
+   kHLP=\E[47_, kMOV=\E[15_, kPRT=\E[45_, kUND=\E[31_,
+   kcan=\E[10_, kcbt=\E[38_, kcmd=\E[42_, kcpy=\E[12_,
+   kctab=\E[17_, kcub1=^H, kcud1=^K, kcuf1=^X, kcuu1=^\,
+   kent=\r, kext=\E[48_, kquit=\E[48_,
+   khlp=\E[46_, khome=^], khts=\E[16_,
+   kich1=\E[82_, kmov=\E[14_, knp=\E[32_,
+   kpp=\E[28_, kprt=\E[44_, kund=\E[30_, rev=\E[7m,
+   ri=^W, rmso=\E[0m, rmul=\E[0m, sgr0=\E[0m, smso=\E[7m,
+   sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1%;m,
+   smul=\E[4m, mc4=\E[4i, mc5=\E[5i,
+   box1=\ENj, box2=\EN`,
+------end cut: tdv2200.ti -------------------------------------
+
+
+------cut: terminfo tdv1200.ti -----------------------------
+tdv1200|Tandberg TDV1200,
+   am,
+   cols#80, lines#25,
+   acsc=lgmakijcq`xjtdufvbwhne+o0/-q\,p.r, bel=^G,
+   blink=\E[5m, bold=\E[7m, clear=\E[H\E[2J, cnorm=\E[0m,
+   cr=\r, cub1=\E[D, cud1=\E[B, cuf1=\E[C, knl=\r,
+   cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dch=\E[%p1%dP,
+   dch1=\E[P, dim=\E[2m, dl=\E[%p1%dM, dl1=\E[M, ed=\E[J,
+   el=\E[K, home=\E[H, ich1=\E[@, il=\E[%p1%dL, il1=\E[L,
+   ind=\n, indn=\E[%p1%dS, kri=\E[40\s@, kind=\E[40\sA,
+   kclr=\E[V, kll=\E[U, ked=\E[=C, krmir=\E[=v, kact=\E[=U,
+   kdch1=\E[=L, kel=\E[=l, kil1=\E[=O, kdl1=\E[=o,
+   is2=\EQ\E[66h\E[2w\E[>8;9l\E>\E[1Q\E[0m, kCAN=\E[=l,
+   kCMD=\E[=`, kCPY=\E[=m, kEXT=\E[=c, kHLP=\E[=b,
+   kMOV=\E[=n, kPRT=\E[=a, kUND=\E[=p, kcan=\E[=L,
+   kcbt=\E[Z, kcmd=\E[=@, kcpy=\E[=M, kctab=\Eg,
+   kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+   kext=\E[=C, kquit=\E[=C,
+   kf0=\E[\sH, kf1=\E[M, kf2=\E[L, kf3=\E[=F,
+   kf4=\E[=G, kf5=\EOP, kf6=\EOQ, kf7=\EOR,
+   kf8=\EOS, kf9=\E[=W, kf10=\E[=@, kf11=\E[=X,
+   kf12=\E[=P, kf13=\E[=d, kf14=\E[=e, kf15=\E[=f,
+   kf16=\E[=g, kf17=\E[=h, kf18=\E[=i, kf19=\E[=j,
+   kf20=\E[=k, kf21=\E[=w, kf22=\E[=`, kf23=\E[=x,
+   kf24=\E[=p, kf25=\E[=Y, kf26=\E[=y, kf27=\E[=Z,
+   kf28=\E[=[, kf29=\E[=\\, kf30=\E[=|, kf31=\E[=M,
+   kf32=\E[=N, kf33=\E[=B, kf34=\E[Z, kf35=\t,
+   kf36=\E[=A, kf37=\E[=q, kf38=\E[=r, kf39=\E[=m,
+   kf40=\E[=n, kf41=\E[=s, kf42=\E[=t, kf43=\E[\s5;7F,
+   kf44=\E[\s6F, kf45=\E[=c, kf46=\E[\sF, kf47=\E[\s5F,
+   kf48=\E[\s7F, kf49=\E[=U, kf50=\E[=u, kf51=\E[4m,
+   kf52=\E[24m, kf53=\E[=b, kf54=\E[=a, kf55=\E[=z,
+   kf56=\E[={, kf57=\E[=[, kf58=\E[={, kf59=\E[=Z,
+   kf60=\E[=z, kf61=\E[=Y, kf62=\E[=y, kf63=\E[=x,
+   khlp=\E[=B, khome=\E[H,
+   khts=\EH, kich1=\E[=V, kmov=\E[=N, kmrk=\E[=X,
+   knp=\E[T, kpp=\E[S, kprt=\E[=A, kund=\E[=P, rev=\E[7m,
+   ri=\E[T, rmacs=^N, rmso=\E[0m, rmul=\E[0m,
+   rs2=\EQ\E[66h\E[1w\E[>8;9l\E>\E[1Q\E[0m, sgr0=\E[0m,
+   sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1%;m,
+   smacs=\En, smso=\E[7m, smul=\E[4m,
+   kopt=\E[4m, kOPT=\E[24m,
+------end cut: tdv1200.ti ----------------------------------
+
+Her er enda et alternativ, tidligere postet her:
+
+Subject:      Re: TDV2200 terminal mot Linux/FreeBSD - termcap?
+From:         Jan Marius Evang <jane@ifi.uio.no>
+Date:         1997/07/02
+Message-ID:   <xmlen9h3ocu.fsf@hrotti.ifi.uio.no>
+
+tdv2200|Tandberg TDV2200/9(S) without al,dl,AL,DL termcaps:\
+       :am:bs:bt=\E[38_:cd=\E[J:ce=\E[K:cl=^Y:\
+       :IC=\E[%d@:DC=\E[%dP:\
+       :li#25:le=^H:\
+       :cm=\E[%i%d;%dH:\
+       :co#80:dc=\E[P:do=^K:ei=:ic=\E[@:im=:\
+       :is=\EQ\E[62;36;7;60;80l\E[62;36h\E[62h\E[1U:\
+       :k0=\E[50_:k1=\E[52_:k2=\E[55_:k3=\E[58_:k4=\E[60_:\
+       :k5=\E[62_:k6=\E[64_:k7=\E[66:\
+       :l0=\E[51_:l1=\E[53_:l2=\E[56_:l3=\E[59_:l4=\E[61_:l5=\E[63_:\
+       :l6=\E[65_:l7=\E[67_:\
+       :kb=^H:kd=^K:kh=^]:kl=^H:kr=^X:ku=^\:\
+       :mi:nd=^X:\
+       :se=\E[0m:so=\E[7m:sr=^W:sf=^L:ue=\E[0m:up=\034:us=\E[4m:\
+       :ve=\E[0m:vs=\E[0m:ta=\E[40_:sb=^W:
+tdv2200-all|Tandberg TDV2200/9(S) with all termcaps:\
+       :al=\E[L:dl=\E[M:\
+       :AL=\E[%dL:DL=\E[%dM:\
+       :tc=tdv2200:
+tdv2200-us|Tandberg TDV2200/9S, US-ascii:\
+       :is=\EQ\E[62;36;7;60;80l\E[62;36h\E[62h\E[5U:\
+       :tc=tdv2200:
+tdv2200-fun|Tandberg TDV2200/9(S) in function mode:\
+       :is=\EQ\E[62;36;7;60;80l\E[62;36;80h\E[62h\E[1U:\
+       :tc=tdv2200:
+tdv2200-usf|Tandberg TDV2200/9S, US-ascii and function mode:\
+       :is=\EQ\E[62;36;7;60;80l\E[62;36;80h\E[62h\E[5U:\
+       :tc=tdv2200:
+#
+
+--
+Jon K. Hellan                                   Jon.K.Hellan@item.ntnu.no
+Div. of Telematics                              Phone: +47 73 59 43 27
+Norwegian University of Science & Technology    Fax:   +47 73 59 69 73
+Trondheim - Norway

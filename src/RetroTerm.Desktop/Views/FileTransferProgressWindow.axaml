@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.FileTransferProgressWindow"
+        Title="File Transfer"
+        Width="420" Height="300"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <DockPanel Margin="16">
+        <!-- Title -->
+        <TextBlock DockPanel.Dock="Top"
+                   Name="DirectionLabel"
+                   Text="File Transfer"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"/>
+
+        <!-- Transfer Info Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,12">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="State:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="StateLabel" Text="Idle" Foreground="{DynamicResource SectionHeader2Brush}" FontSize="12"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="File:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="FileNameLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,4,0,0"
+                               TextTrimming="CharacterEllipsis"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Progress:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Name="BytesLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,4,0,0"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="File count:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,4,0,0"
+                               Name="FileCountLabelHeader"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Name="FileCountLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,4,0,0"/>
+                </Grid>
+
+                <!-- Progress Bar -->
+                <ProgressBar Name="TransferProgressBar"
+                             Height="8"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Foreground="{DynamicResource TransferIndicatorBrush}"
+                             Background="{DynamicResource SecondaryButtonBrush}"
+                             Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Error message -->
+        <Border DockPanel.Dock="Top"
+                Name="ErrorBorder"
+                Background="{DynamicResource ErrorPanelBackgroundBrush}"
+                BorderBrush="{DynamicResource ErrorPanelBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,12"
+                IsVisible="False">
+            <TextBlock Name="ErrorLabel"
+                       Foreground="{DynamicResource ErrorPanelTextBrush}"
+                       FontSize="12"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Bottom buttons -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="Secondary" Name="CancelButton"
+                    Content="Cancel"
+                    Click="OnCancelClick"
+                    Padding="16,6"/>
+            <Button Classes="Primary" Name="CloseButton"
+                    Content="Close"
+                    Click="OnCloseClick"
+                    IsEnabled="False"
+                    Padding="16,6"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

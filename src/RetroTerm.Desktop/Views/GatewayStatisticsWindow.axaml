@@ -1,0 +1,144 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.GatewayStatisticsWindow"
+        Title="Gateway Statistics"
+        Width="480"
+        SizeToContent="Height"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <!-- SIZE TO THE CONTENT, and do NOT go back to a fixed height.
+
+         This window declared 480 by 420 and its four sections need more than that, so the Clients
+         section was cut in half and the Reset Counters and Close buttons sat off the bottom edge -
+         with CanResize false and no scroll bar, there was no way to reach them at all. Found
+         9 September 2026 by rendering the window and looking at it; it had been that way since the
+         window was written, and nothing went red to say so.
+
+         A taller fixed number would only move the cliff: the sections are text, and text grows with
+         the theme font and the system's display scaling. Measuring the content is the fix that
+         cannot come back.
+
+         LastChildFill is off because the button row is declared last and carries Dock Bottom. With
+         the fill on, that Dock is ignored and the row is stretched into whatever space is left over
+         instead of sitting at the bottom - which is nothing to look at here, but it is why the row
+         must not be the fill child. -->
+    <DockPanel Margin="16" LastChildFill="False">
+        <!-- Title -->
+        <TextBlock DockPanel.Dock="Top"
+                   Text="Gateway Statistics"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"/>
+
+        <!-- Connection Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Connection"
+                           Foreground="{DynamicResource SectionHeader1Brush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"/>
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Emulator:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="EmulatorStatus" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Disk Worker:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="DiskWorkerStatus" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Uptime:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Name="UptimeLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Terminal I/O Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Terminal I/O"
+                           Foreground="{DynamicResource SectionHeader2Brush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"/>
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" Margin="4,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Input (to emu):" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="TermInputLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Output (from emu):" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="TermOutputLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Disk I/O Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Disk I/O"
+                           Foreground="{DynamicResource SectionHeader3Brush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"/>
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Read:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="DiskReadLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Write:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="DiskWriteLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Errors:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Name="DiskErrorLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Clients Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,12">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Clients"
+                           Foreground="{DynamicResource SectionHeader4Brush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"/>
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" Margin="4,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Connects:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="ClientConnectsLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Disconnects:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="ClientDisconnectsLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Bottom buttons -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Classes="Secondary" Content="Reset Counters"
+                    Click="OnResetClick"
+                    Padding="16,6"/>
+            <Button Classes="Primary" Content="Close"
+                    Click="OnCloseClick"
+                    Padding="16,6"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

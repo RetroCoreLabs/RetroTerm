@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32">
+  <!-- Shaft: vertical segment (24 units, -10%) -->
+  <path d="M21 3 L21 27" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+  <!-- Shaft: horizontal segment (17 units, was 13) -->
+  <path d="M21 27 L4 27" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+  <!-- Arrowhead: closed filled triangle -->
+  <path d="M8 23 L4 27 L8 31 Z" fill="#000" stroke="#000" stroke-width="2" stroke-linejoin="round"/>
+</svg>

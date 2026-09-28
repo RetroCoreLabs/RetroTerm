@@ -1,0 +1,137 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:RetroTerm.Desktop.Views"
+        x:Class="RetroTerm.Desktop.Views.LogViewerWindow"
+        Title="Log Viewer"
+        Width="1100" Height="640"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <!-- Toolbar: actions -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Classes="Primary" Name="CopyAllButton"
+                        Content="Copy All"
+                        Click="OnCopyAllClick"
+                        Padding="10,4"
+                        ToolTip.Tip="Copy every visible (filtered) line to the clipboard"/>
+                <Button Classes="Primary" Name="CopySelectedButton"
+                        Content="Copy Selected"
+                        Click="OnCopySelectedClick"
+                        Padding="10,4"
+                        ToolTip.Tip="Copy only the selected lines (Ctrl+C). Shift/Ctrl click to multi-select."/>
+                <Button Classes="Secondary" Name="ClearButton"
+                        Content="Clear"
+                        Click="OnClearClick"
+                        Padding="10,4"/>
+                <Button Classes="Secondary" Name="RefreshButton"
+                        Content="Refresh"
+                        Click="OnRefreshClick"
+                        Padding="10,4"/>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2"/>
+
+                <Button Classes="Secondary" Name="FileLogButton"
+                        Content="Start File Log"
+                        Click="OnFileLogClick"
+                        Padding="10,4"
+                        ToolTip.Tip="Write every entry to %AppData%\RetroTerm\logs\ (unbounded)"/>
+
+                <CheckBox Name="AutoScrollCheck"
+                          Content="Follow"
+                          IsChecked="True"
+                          Foreground="{DynamicResource PrimaryTextBrush}"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Keep the newest entry in view"/>
+
+                <CheckBox Name="ShowRawBytesCheck"
+                          Content="Raw bytes"
+                          IsChecked="False"
+                          Click="OnFilterChanged"
+                          Foreground="{DynamicResource PrimaryTextBrush}"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Append the hex dump attached to each entry"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Toolbar: filters -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Level:"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           VerticalAlignment="Center"/>
+                <ComboBox Name="LevelCombo"
+                          Width="110"
+                          SelectionChanged="OnLevelChanged"
+                          ToolTip.Tip="Entries below this level are not recorded at all"/>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2"/>
+
+                <TextBlock Text="Categories:"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           VerticalAlignment="Center"/>
+                <CheckBox Name="CatNetworkCheck"  Content="net"     IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatTelnetCheck"   Content="telnet"  IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatSessionCheck"  Content="session" IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatParserCheck"   Content="parser"  IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatEmulatorCheck" Content="emul"    IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatKeyboardCheck" Content="kbd"     IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatUiCheck"       Content="ui"      IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox Name="CatGeneralCheck"  Content="general" IsChecked="True" Click="OnCategoryChanged" Foreground="{DynamicResource PrimaryTextBrush}"/>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2"/>
+
+                <TextBox Name="SearchBox"
+                         Width="200"
+                         Watermark="Search text..."
+                         TextChanged="OnSearchChanged"
+                         VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="8,3">
+            <TextBlock Name="StatusText"
+                       Text=""
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       FontSize="11"/>
+        </Border>
+
+        <!-- Log list: multi-select so individual lines can be copied -->
+        <ListBox Name="LogListBox"
+                 SelectionMode="Multiple"
+                 Background="{DynamicResource SectionBackgroundBrush}"
+                 BorderThickness="0"
+                 FontFamily="Consolas, Courier New, monospace"
+                 FontSize="11">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="views:LogLineRow">
+                    <TextBlock Text="{Binding Text}"
+                               Foreground="{Binding Brush}"
+                               FontFamily="Consolas, Courier New, monospace"
+                               FontSize="11"
+                               TextWrapping="NoWrap"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+            <ListBox.Styles>
+                <!-- Tight rows: a protocol log is only readable when many lines fit on screen -->
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="6,0"/>
+                    <Setter Property="MinHeight" Value="16"/>
+                </Style>
+            </ListBox.Styles>
+        </ListBox>
+    </DockPanel>
+</Window>

@@ -1,0 +1,36 @@
+Best Options for Emitting Tek Codes (Host Side)
+PGPLOT
+The most useful for your purposes. It's a scientific graphics library that has a Tek4014 output driver (/TEK4010, /XTERM etc.) and will emit real, correct Tektronix escape sequences to stdout/a terminal. You can pipe or capture the output stream.
+
+Source: https://sites.astro.caltech.edu/~tjp/pgplot/
+Has drivers for multiple Tek variants including 4105 color
+Open source, still builds on Linux
+
+gnuplot
+Has a tek40xx and tek410x terminal type. Just do:
+gnuplot> set terminal tek40xx
+gnuplot> plot sin(x)
+It will emit raw Tek4014 bytes to stdout. Very easy to capture and inspect. Probably the most accessible option for you today.
+GNU Octave / Matplotlib (via gnuplot backend)
+Both can drive gnuplot's Tek backend — another source of real output streams.
+
+Terminal Emulators (Receiver Side — for visual verification)
+xterm — the reference implementation
+Launch with xterm -t to open in Tek 4014 mode, or switch from VT Options menu. Set TERM=4014 or TERM=tek4014. Oregon State University This is the most well-studied Tek emulator and effectively the reference for what correct output looks like.
+rricharz/Tek4010 (GitHub)
+A more faithful emulator for Linux/macOS/Windows/RPi that attempts to replicate the storage tube look and feel, including GIN mode — which xterm does not fully support. GitHub Useful if you need to test GIN responses specifically.
+Seyon (X11)
+An X Window communications program that can emulate a Tektronix 4014 terminal Linuxdoc — older but another data point.
+
+Most Practical Test Setup for Your Case
+Since you're likely trying to validate the detection protocol / TDV 2200 emulator work, I'd suggest:
+
+gnuplot → emit known-good Tek4014 byte stream
+Capture it with a simple pipe or script session
+Feed it into your emulator / detection code
+Cross-check the byte values against the manual
+
+bash# Capture raw Tek bytes gnuplot emits
+gnuplot -e "set terminal tek40xx; plot sin(x)" > tek_output.bin
+xxd tek_output.bin | head -40
+That gives you a real, verifiable byte stream to test against without needing actual 1970s hardware.

@@ -1,0 +1,384 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RetroTerm.Desktop.Views.OpcomDebugWindow"
+        Title="ND-100 OPCOM Debug"
+        Width="920" Height="720"
+        MinWidth="750" MinHeight="550"
+        Background="{DynamicResource ControlBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <DockPanel Margin="8">
+
+        <!-- ==================== TOOLBAR ==================== -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,0,0,6">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Status:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Name="StatusLabel" Text="Disconnected" Foreground="Gray"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text="  CPU:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Name="CpuStateLabel" Text="UNKNOWN" Foreground="Gray"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="Secondary" Name="StopButton" ToolTip.Tip="Sends STOP CR to OPCOM: halts the CPU where it is. In NDBoot mode this first leaves that mode, so the window is back to plain OPCOM." Content="STOP" Click="OnStopClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <Button Classes="Secondary" Name="MclButton" ToolTip.Tip="Sends MACL CR: master clear. Resets the CPU and all I/O controllers; memory contents are kept. Leaves NDBoot mode first." Content="MACL" Click="OnMclClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <TextBox Name="StepCountBox" ToolTip.Tip="How many instructions one press of Step executes." Text="1" Width="30" FontSize="11"
+                             FontFamily="Consolas, Courier New, monospace"
+                             Padding="4,3" VerticalContentAlignment="Center"/>
+                    <Button Classes="Secondary" Name="StepButton" ToolTip.Tip="Sends Z CR once per instruction: single-steps the CPU from the current P. Press Refresh afterwards to read the registers." Content="Step" Click="OnStepClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <TextBox Name="StartAddressBox" ToolTip.Tip="Octal address for Start! and BP. Leave empty to start at the current P." Text="" Watermark="addr" Width="55" FontSize="11"
+                             FontFamily="Consolas, Courier New, monospace"
+                             Padding="4,3" VerticalContentAlignment="Center"/>
+                    <Button Classes="Secondary" Name="StartButton" ToolTip.Tip="Sends addr! : starts the CPU at that address. Asks for confirmation first, because on a real ND nothing in this window can stop it again - only the panel or a physical reset." Content="Start!" Click="OnStartClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <Button Classes="Secondary" Name="BreakpointButton" ToolTip.Tip="Sends addr. : RUNS the CPU until it reaches that address, then stops there. If the address is never reached the machine keeps running. Asks for confirmation, same as Start!." Content="BP" Click="OnBreakpointClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <Button Classes="Secondary" Name="EscButton" ToolTip.Tip="Sends one ESC character to OPCOM (its escape key). The window then treats the CPU state as unknown. Try it when a command has timed out." Content="ESC" Click="OnEscClick"
+ Padding="8,4" FontSize="11"
+/>
+                    <CheckBox Name="PassThroughCheckBox" ToolTip.Tip="Pass-through: what the ND sends while this window is open is ALSO drawn on the terminal screen. Unticked, the console traffic goes only to this window (still visible in the Log tab). It is switched off automatically during uploads and in NDBoot mode, and restored afterwards." Content="Pass-through"
+                              IsChecked="True"
+                              FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"
+                              Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== STATUS BAR ====================
+             Docked to the bottom so it is visible whichever lower tab is showing, and
+             NOT a modal dialog: a dump of any size takes seconds on a real machine and
+             blocking the window while it runs would stop you looking at anything else.
+             The bar carries a message and a progress bar. The progress bar only appears
+             while something is running, so an idle window is not decorated with an empty
+             one. -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10,5" Margin="0,6,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Name="ProgressMessageLabel"
+                           Grid.Column="0"
+                           Text="Ready"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Name="ProgressCountLabel"
+                           Grid.Column="1"
+                           Text=""
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontFamily="Consolas, Courier New, monospace"
+                           FontSize="11"
+                           Margin="8,0"
+                           VerticalAlignment="Center"/>
+                <ProgressBar Name="OperationProgressBar"
+                             Grid.Column="2"
+                             Width="180" Height="8"
+                             Minimum="0" Maximum="100" Value="0"
+                             IsVisible="False"
+                             VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- ==================== REGISTER PANEL (always visible) ==================== -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,6">
+            <StackPanel Spacing="6">
+                <!-- Working Registers -->
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="Working Registers" Grid.Column="0"
+                               Foreground="{DynamicResource SectionHeader1Brush}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Level:" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <ComboBox Name="LevelSelector" ToolTip.Tip="Program level (octal 00-17) whose working registers are shown and edited below." Width="60" FontSize="11"
+                                  FontFamily="Consolas, Courier New, monospace"
+                                  SelectedIndex="0" Padding="4,2"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">
+                        <Button Classes="Secondary" Name="RefreshRegsButton" ToolTip.Tip="Reads the eight working registers of the selected level, one OPCOM exchange each." Content="Refresh" Click="OnRefreshRegistersClick" Padding="6,3" FontSize="11"
+/>
+                        <Button Classes="Secondary" Name="DumpAllLevelsButton" ToolTip.Tip="Sends 0&lt;17RD: dumps the working registers of all sixteen levels in one go." Content="Dump All" Click="OnDumpAllLevelsClick" Padding="6,3" FontSize="11"
+/>
+                    </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="36,90,36,90,36,90,36,90" RowDefinitions="Auto,Auto"
+                      Margin="4,0" Name="WorkingRegsGrid">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="S:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Name="RegS" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="D:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="0" Grid.Column="3" Name="RegD" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="P:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="0" Grid.Column="5" Name="RegP" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="6" Text="B:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="0" Grid.Column="7" Name="RegB" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="L:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Name="RegL" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="A:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="3" Name="RegA" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="4" Text="T:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="5" Name="RegT" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="6" Text="X:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="12" Margin="8,0,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="7" Name="RegX" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="3,2" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                </Grid>
+
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,2"/>
+
+                <!-- Internal Registers with TRA/TRR button tabs -->
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="Internal Registers" Grid.Column="0"
+                               Foreground="{DynamicResource SectionHeader1Brush}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <Button Name="TraTabBtn" Content="TRA (Read)" Classes="OpcomTab active"/>
+                        <Button Name="TrrTabBtn" Content="TRR (Write)" Classes="OpcomTab"/>
+                    </StackPanel>
+                    <Button Classes="Secondary" Grid.Column="3" Name="RefreshInternalButton" ToolTip.Tip="Reads every internal (TRA) register one command at a time. Takes a few seconds; the status bar shows progress." Content="Refresh Internal" Click="OnRefreshInternalClick" Padding="6,3" FontSize="11"
+/>
+                </Grid>
+                <!-- TRA (Read) panel -->
+                <Grid ColumnDefinitions="60,80,60,80,60,80,60,80" RowDefinitions="Auto,Auto,Auto,Auto"
+                      Margin="4,4,4,0" Name="TraRegsGrid">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="PANS:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="TraPANS" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="STS:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Name="TraSTS" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="OPR:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="0" Grid.Column="5" Name="TraOPR" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="6" Text="PGS:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="0" Grid.Column="7" Name="TraPGS" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="PVL:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="TraPVL" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="IIC:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="1" Grid.Column="3" Name="TraIIC" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="4" Text="PID:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="1" Grid.Column="5" Name="TraPID" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="6" Text="PIE:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="1" Grid.Column="7" Name="TraPIE" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="CSR:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Name="TraCSR" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="ACTL:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="2" Grid.Column="3" Name="TraACTL" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="4" Text="ALD:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="2" Grid.Column="5" Name="TraALD" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="6" Text="PES:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="2" Grid.Column="7" Name="TraPES" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="PCR:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Name="TraPCR" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="PEA:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBlock Grid.Row="3" Grid.Column="3" Name="TraPEA" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="3" Grid.Column="4" Grid.ColumnSpan="4" Name="AldDecodeLabel" Text=""
+                               Foreground="{DynamicResource AccentBrush}" FontSize="11" FontStyle="Italic" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                </Grid>
+                <!-- TRR (Write) panel - hidden by default, write on LostFocus -->
+                <Grid ColumnDefinitions="60,80,60,80,60,80,60,80" RowDefinitions="Auto,Auto,Auto"
+                      Margin="4,4,4,0" Name="TrrRegsGrid" IsVisible="False">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="PANC:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Name="TrrPANC" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="STS:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="0" Grid.Column="3" Name="TrrSTS" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="LMP:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="0" Grid.Column="5" Name="TrrLMP" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="6" Text="PCR:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="0" Grid.Column="7" Name="TrrPCR" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="IIE:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Name="TrrIIE" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="PID:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="1" Grid.Column="3" Name="TrrPID" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="4" Text="PIE:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="1" Grid.Column="5" Name="TrrPIE" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="6" Text="CCL:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="1" Grid.Column="7" Name="TrrCCL" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="LCIL:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Name="TrrLCIL" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="UCIL:" Foreground="LightGreen" VerticalAlignment="Center" FontFamily="Consolas, Courier New, monospace" FontSize="11"/>
+                    <TextBox Grid.Row="2" Grid.Column="3" Name="TrrUCIL" Text="------" FontFamily="Consolas, Courier New, monospace" FontSize="11" Padding="2,1" Margin="0,1" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ==================== TABBED LOWER AREA ==================== -->
+        <DockPanel>
+            <!-- Tab Header Buttons -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="0" Margin="0,0,0,4">
+                <Button Name="MemoryTabBtn" Content="Memory" Classes="OpcomTab active"/>
+                <Button Name="UploadTabBtn" Content="File Upload" Classes="OpcomTab"/>
+                <Button Name="IoBootTabBtn" Content="I/O &amp; Boot" Classes="OpcomTab"/>
+                <Button Name="LogTabBtn" Content="OPCOM Log" Classes="OpcomTab"/>
+            </StackPanel>
+
+            <!-- ===== MEMORY PANEL ===== -->
+            <DockPanel Name="MemoryPanel">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                        <TextBlock Text="Addr:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox Name="MemoryAddressBox" ToolTip.Tip="Octal word address for Examine; also the first address of the view." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                        <Button Classes="Secondary" Content="Examine" Click="OnMemoryExamineClick" ToolTip.Tip="Sends addr/ : reads one word at the address. In NDBoot mode it reads the whole 128-word page through the monitor instead." Padding="6,3" FontSize="11"
+/>
+                        <TextBlock Text="  From:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox Name="MemoryDumpFromBox" ToolTip.Tip="First octal address of the range to dump." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="To:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox Name="MemoryDumpToBox" ToolTip.Tip="Last octal address of the range to dump (inclusive)." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                        <Button Classes="Secondary" Content="Dump" Click="OnMemoryDumpClick" ToolTip.Tip="Sends from&lt;to CR: reads every word From..To into the view. Slow over OPCOM (about 16 ms per character); fast in NDBoot mode (128 words per frame)." Padding="6,3" FontSize="11"
+/>
+                        <Button Classes="Secondary" Content="Prev" Click="OnMemoryPrevClick" ToolTip.Tip="Moves the view 128 words back. Shows what is already cached; does not read the machine." Padding="6,3" FontSize="11"
+/>
+                        <Button Classes="Secondary" Content="Next" Click="OnMemoryNextClick" ToolTip.Tip="Moves the view 128 words forward. Shows what is already cached; does not read the machine." Padding="6,3" FontSize="11"
+/>
+                    </StackPanel>
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <TextBlock Name="MemoryDisplayText"
+                                       FontFamily="Consolas, Courier New, monospace"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       Padding="8,6"
+                                       Text="(No memory data loaded)"/>
+                        </ScrollViewer>
+                    </Border>
+                </DockPanel>
+            </DockPanel>
+
+            <!-- ===== FILE UPLOAD PANEL ===== -->
+            <DockPanel Name="UploadPanel" IsVisible="False">
+                <DockPanel Margin="8">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="File:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox Name="UploadFilePathBox" Width="400" IsReadOnly="True" FontSize="11" Padding="4,3" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                            <Button Classes="Secondary" Content="Browse..." Click="OnUploadBrowseClick" ToolTip.Tip="Choose a BPUN or a.out16 file to send to the ND." Padding="8,3" FontSize="11"
+/>
+                        </StackPanel>
+                        <Border Background="{DynamicResource SectionBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Format:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Name="UploadFormatLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Load Address:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Name="UploadAddressLabel" Text="-" FontFamily="Consolas, Courier New, monospace" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Word Count:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Name="UploadWordCountLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Entry Point:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="UploadEntryLabel" Text="-" FontFamily="Consolas, Courier New, monospace" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Checksum:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Name="UploadChecksumLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ComboBox Name="UploadMethodCombo" ToolTip.Tip="Deposit loop: one OPCOM deposit per word (14 characters and a round trip each), always works. NDBoot fast transfer: 3 characters per word streamed through the NDBoot monitor, which is installed automatically if it is not running." Width="180" FontSize="11" Padding="4,3" SelectedIndex="0"
+                                      VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                            <Button Classes="Primary" Name="UploadButton" ToolTip.Tip="Sends the selected file to the ND with the chosen method, then (fast transfer only) starts it at its boot address." Content="Upload" Click="OnUploadClick" Padding="12,4" FontSize="11"
+ IsEnabled="False"/>
+                            <Button Classes="Secondary" Name="UploadCancelButton" ToolTip.Tip="Aborts the upload in progress." Content="Cancel" Click="OnUploadCancelClick" Padding="12,4" FontSize="11"
+ IsEnabled="False"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button Classes="Secondary" Name="NdBootCheckButton" Content="Check / install NDBoot monitor" Click="OnNdBootCheckClick" Padding="12,4" FontSize="11"
+ ToolTip.Tip="PING the NDBoot monitor on the ND; if it does not answer, deposit the built-in copy at 170000 through OPCOM and start it. Works without a file selected."/>
+                            <TextBlock Name="NdBootStatusLabel" Text="NDBoot monitor: not checked" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                        </StackPanel>
+                        <ProgressBar Name="UploadProgressBar" Height="8" Minimum="0" Maximum="100" Value="0"
+                                     Foreground="{DynamicResource TransferIndicatorBrush}"
+                                     Background="{DynamicResource SecondaryButtonBrush}" Margin="0,2,0,0"/>
+                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Progress:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Name="UploadProgressLabel" Text="0 / 0 words" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Current Address:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Name="UploadCurrentAddrLabel" Text="-" FontFamily="Consolas, Courier New, monospace" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Est. Remaining:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Name="UploadTimeLabel" Text="-" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11"/>
+                        </Grid>
+                    </StackPanel>
+                </DockPanel>
+            </DockPanel>
+
+            <!-- ===== I/O & BOOT PANEL ===== -->
+            <DockPanel Name="IoBootPanel" IsVisible="False" Margin="8">
+                    <StackPanel Spacing="10">
+                        <!-- IOX Section -->
+                        <Border Background="{DynamicResource SectionBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="IOX Device Access" Foreground="{DynamicResource SectionHeader1Brush}" FontSize="13" FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Device:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <TextBox Name="IoxDeviceBox" ToolTip.Tip="Octal I/O device register address, e.g. 300 for console input data." Width="60" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="dddd" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="OPR:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <TextBox Name="IoxOprBox" ToolTip.Tip="Octal value written for IOX Write (it is placed in OPR first)." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    <Button Classes="Secondary" Content="IOX Read" Click="OnIoxReadClick" ToolTip.Tip="Sends devIO/ : executes IOX dev and shows the value the device returned." Padding="8,3" FontSize="11"
+/>
+                                    <Button Classes="Secondary" Content="IOX Write" Click="OnIoxWriteClick" ToolTip.Tip="Sets OPR to the value, then executes IOX dev so the device receives it." Padding="8,3" FontSize="11"
+/>
+                                    <TextBlock Text="Result:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <TextBlock Name="IoxResultLabel" Text="------" FontFamily="Consolas, Courier New, monospace"
+                                               FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <!-- Boot Section -->
+                        <Border Background="{DynamicResource SectionBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Boot Device" Foreground="{DynamicResource SectionHeader1Brush}" FontSize="13" FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <ComboBox Name="BootDeviceCombo" ToolTip.Tip="Boot device for the &amp; command; the ALD value decoded above shows what the machine would boot from on its own." Width="380" FontSize="11" Padding="4,3" SelectedIndex="0"/>
+                                    <Button Classes="Primary" Content="Boot &amp;" Click="OnBootClick" ToolTip.Tip="Sends dev&amp; : loads and starts the bootstrap from the selected device." Padding="8,3" FontSize="11"
+/>
+                                    <Button Classes="Secondary" Content="MACL + Boot" Click="OnMclBootClick" ToolTip.Tip="MACL first, then dev&amp; : a clean boot from the selected device." Padding="8,3" FontSize="11"
+/>
+                                </StackPanel>
+                                <TextBlock Name="AldInfoLabel" Text="ALD: (not read)"
+                                           Foreground="{DynamicResource AccentBrush}" FontSize="11" FontStyle="Italic"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+            </DockPanel>
+
+            <!-- ===== OPCOM LOG PANEL ===== -->
+            <DockPanel Name="LogPanel" IsVisible="False">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                        <Button Classes="Secondary" Content="Clear" Click="OnLogClearClick" ToolTip.Tip="Empties the OPCOM traffic log." Padding="6,3" FontSize="11"
+/>
+                        <Button Classes="Secondary" Content="Copy" Click="OnLogCopyClick" ToolTip.Tip="Copies the whole OPCOM traffic log to the clipboard." Padding="6,3" FontSize="11"
+/>
+                        <CheckBox Name="LogAutoScrollCheckBox" Content="Auto-scroll" IsChecked="True"
+                                  FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                        <CheckBox Name="LogHexCheckBox" Content="Show hex"
+                                  FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    </StackPanel>
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <ScrollViewer Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <TextBlock Name="LogDisplayText"
+                                       FontFamily="Consolas, Courier New, monospace"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       Padding="8,6"
+                                       Text=""/>
+                        </ScrollViewer>
+                    </Border>
+                </DockPanel>
+            </DockPanel>
+        </DockPanel>
+    </DockPanel>
+</Window>
