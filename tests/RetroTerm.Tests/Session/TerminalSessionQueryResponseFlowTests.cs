@@ -87,7 +87,7 @@ public class TerminalSessionQueryResponseFlowTests
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
 
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert - Response MUST be sent if event is wired
         var sentData = connection.GetSentData();
@@ -134,7 +134,7 @@ public class TerminalSessionQueryResponseFlowTests
         connection.ClearSentData();
         var testQuery = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(testQuery);
-        await Task.Delay(100);
+        await session.FlushAsync();
         var testResponse = connection.GetSentData();
         Assert.True(testResponse.Any(),
             "OnResponseReady MUST be wired. If this fails, event handler is not attached.");
@@ -149,7 +149,7 @@ public class TerminalSessionQueryResponseFlowTests
         connection.SimulateReceive(query);
 
         // Wait for processing
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Check what was sent
         var sentData = connection.GetSentData();
@@ -214,7 +214,7 @@ public class TerminalSessionQueryResponseFlowTests
         connection.ClearSentData();
         var testQuery = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(testQuery);
-        await Task.Delay(100);
+        await session.FlushAsync();
         var testResponse = connection.GetSentData();
         Assert.True(testResponse.Any(), "OnResponseReady MUST be wired for Secondary DA");
         connection.ClearSentData();
@@ -223,7 +223,7 @@ public class TerminalSessionQueryResponseFlowTests
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 }; // ESC [ > c
         connection.SimulateReceive(query);
 
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         var sentData = connection.GetSentData();
         if (sentData.Any())
@@ -265,7 +265,7 @@ public class TerminalSessionQueryResponseFlowTests
         // Move cursor to known position
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 }; // ESC [ 5 ; 10 H
         connection.SimulateReceive(moveCursor);
-        await Task.Delay(50);
+        await session.FlushAsync();
 
         connection.ClearSentData();
 
@@ -273,7 +273,7 @@ public class TerminalSessionQueryResponseFlowTests
         var query = new byte[] { 0x1B, 0x5B, 0x36, 0x6E }; // ESC [ 6 n
         connection.SimulateReceive(query);
 
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         var sentData = connection.GetSentData();
         if (sentData.Any())
@@ -306,7 +306,7 @@ public class TerminalSessionQueryResponseFlowTests
         // Send query - if event is wired in constructor, response will be sent
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert - Response MUST be sent if event was wired in constructor
         var sentData = connection.GetSentData();
@@ -334,7 +334,7 @@ public class TerminalSessionQueryResponseFlowTests
         // Send query
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert
         var sentData = connection.GetSentData();
@@ -358,7 +358,7 @@ public class TerminalSessionQueryResponseFlowTests
         // Send query
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert
         var sentData = connection.GetSentData();
@@ -382,7 +382,7 @@ public class TerminalSessionQueryResponseFlowTests
         // Send query
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert
         var sentData = connection.GetSentData();
@@ -478,7 +478,7 @@ public class TerminalSessionQueryResponseFlowTests
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
         connection.SimulateReceive(query);
 
-        await Task.Delay(200);
+        await session.FlushAsync();
 
         // Assert
         var sentData = connection.GetSentData();

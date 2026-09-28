@@ -167,7 +167,7 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
     /// <summary>
     /// Waits for a response to be sent by the client connection with timeout and polling
     /// </summary>
-    private async Task<List<byte[]>> WaitForResponseAsync(int timeoutMs = 2000)
+    private async Task<List<byte[]>> WaitForResponseAsync(int timeoutMs = 2000, int minCount = 1)
     {
         var startTime = DateTime.UtcNow;
 
@@ -182,7 +182,7 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
 
             System.Diagnostics.Debug.WriteLine($"[WaitForResponseAsync] Polling: clientSentHistory={clientSentHistoryCount}, elapsed={(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
 
-            if (clientSentHistoryCount > 0)
+            if (clientSentHistoryCount >= minCount)
             {
                 System.Diagnostics.Debug.WriteLine($"[WaitForResponseAsync] Response detected after {(DateTime.UtcNow - startTime).TotalMilliseconds}ms (count: {clientSentHistoryCount})");
                 // Get all data that client sent (responses)
@@ -210,9 +210,6 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         var query = TDVSequenceBuilder.BuildDAQuery();
         System.Diagnostics.Debug.WriteLine($"[Test] Sending Primary DA query: {BitConverter.ToString(query)}");
         await _telnetSession!.WriteBytesAsync(query);
-
-        // Give emulator time to process query and generate response
-        await Task.Delay(100);
 
         // Wait for response with polling
         var responses = await WaitForResponseAsync(2000);
@@ -313,10 +310,12 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         // Act - TestServer sends Secondary DA query
         var query = TDVSequenceBuilder.BuildSecondaryDAQuery();
         await _telnetSession!.WriteBytesAsync(query);
-        await Task.Delay(300);
+
+        // Wait for the reply itself, not for a number of milliseconds: on the hosted GitHub
+        // runner 300 ms was not always enough and the tag build went red.
+        var responses = await WaitForResponseAsync(2000);
 
         // Assert - Check what client sent (response)
-        var responses = _clientConnection!.GetAllSentData();
         Assert.NotEmpty(responses);
 
         var response = Encoding.UTF8.GetString(responses[responses.Count - 1]);
@@ -342,9 +341,6 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         var query = TDVSequenceBuilder.BuildCPRQuery();
         await _telnetSession!.WriteBytesAsync(query);
 
-        // Give emulator time to process query and generate response
-        await Task.Delay(100);
-
         // Wait for response with polling
         var responses = await WaitForResponseAsync(2000);
 
@@ -369,9 +365,6 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         var query = TDVSequenceBuilder.BuildDSRQuery();
         await _telnetSession!.WriteBytesAsync(query);
 
-        // Give emulator time to process query and generate response
-        await Task.Delay(100);
-
         // Wait for response with polling
         var responses = await WaitForResponseAsync(2000);
 
@@ -394,9 +387,6 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         var query = TDVSequenceBuilder.BuildTerminalIDQuery();
         await _telnetSession!.WriteBytesAsync(query);
 
-        // Give emulator time to process query and generate response
-        await Task.Delay(100);
-
         // Wait for response with polling
         var responses = await WaitForResponseAsync(2000);
 
@@ -417,14 +407,13 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         // Act - Send multiple queries
         var daQuery = TDVSequenceBuilder.BuildDAQuery();
         await _telnetSession!.WriteBytesAsync(daQuery);
-        await Task.Delay(200);
 
         var cprQuery = TDVSequenceBuilder.BuildCPRQuery();
         await _telnetSession!.WriteBytesAsync(cprQuery);
-        await Task.Delay(100); // Give emulator time to process
 
-        // Wait for responses with polling
-        var responses = await WaitForResponseAsync(2000);
+        // Both queries went down one TCP stream in order, so the replies come back in order;
+        // wait until both are there instead of hoping the clock was generous enough.
+        var responses = await WaitForResponseAsync(2000, 2);
 
         // Assert - Check what client sent (responses)
         Assert.True(responses.Count >= 2, $"Expected at least 2 responses, got {responses.Count}");
