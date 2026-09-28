@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/RetroTerm-DarkCRT-256.png" width="160" alt="RetroTerm logo: a dark CRT screen with a green cursor.">
+  <img src="assets/RetroTerm-solid-512.png" width="160" alt="RetroTerm logo: a green prompt on a dark rounded square.">
 </p>
 
 # RetroTerm

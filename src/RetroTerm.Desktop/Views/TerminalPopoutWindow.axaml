@@ -4,7 +4,7 @@
         Title="RetroTerm"
         Width="800" Height="600"
         Background="#1E1E1E"
-        Icon="/Assets/RetroTerm-icon.png">
+        Icon="/Assets/RetroTerm-solid-512.png">
     <DockPanel>
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom"

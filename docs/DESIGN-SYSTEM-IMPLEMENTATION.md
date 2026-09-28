@@ -240,7 +240,7 @@ SelectionForegroundBrush: #00FF88
 ```
 
 **Rationale:**  
-Terminal uses authentic CRT phosphor colors from the RetroTerm-DarkCRT logo design, maintaining the vintage aesthetic while UI chrome follows modern design system standards.
+Terminal uses the green-on-dark phosphor colours of the RetroTerm logo, maintaining the vintage aesthetic while UI chrome follows modern design system standards.
 
 **Status:** ✅ Implemented
 
@@ -385,7 +385,7 @@ All deviations are intentional and maintain the "vintage soul" philosophy while 
 ## Documentation References
 
 - [RETRO-FAMILY-UI-DESIGN-SYSTEM.md](../RETRO-FAMILY-UI-DESIGN-SYSTEM.md) - Master design specification
-- [LOGO-DESIGN-GUIDE.md](../LOGO-DESIGN-GUIDE.md) - CRT logo and color rationale
+- [LOGO-DESIGN-GUIDE.md](../LOGO-DESIGN-GUIDE.md) - logo files and colours
 - [ICON-INTEGRATION.md](ICON-INTEGRATION.md) - Asset integration details
 - [TODO-PLAN.md](../TODO-PLAN.md) - Implementation roadmap
 

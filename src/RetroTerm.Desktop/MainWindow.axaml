@@ -8,7 +8,7 @@
         Title="RetroTerm"
         Width="800" Height="600"
         Background="{DynamicResource ControlBackgroundBrush}"
-        Icon="/Assets/RetroTerm-icon.png">
+        Icon="/Assets/RetroTerm-solid-512.png">
     <DockPanel Name="MainDockPanel">
         <!-- Menu Bar - Following Design System Dark Theme -->
         <Menu DockPanel.Dock="Top">
