@@ -22,6 +22,8 @@ did, and let a script or an LLM do the typing when you would rather not.**
 
 ![RetroTerm on Windows showing its welcome screen: the RETROTERM banner in green block letters, the list of emulated terminals, protocols, graphics and features, and the build stamp.](docs/images/welcome-screen.png)
 
+![The TDV2200 virtual keyboard window, Norwegian layout: every key of the ND 246 keyboard drawn as a button, with the function key rows, the editing block and the numeric pad.](docs/images/virtual-keyboard.png)
+
 ## Why it exists
 
 A Norsk Data ND-100 or ND-500 does not talk to a PC. It talks to a **Tandberg TDV terminal** -
