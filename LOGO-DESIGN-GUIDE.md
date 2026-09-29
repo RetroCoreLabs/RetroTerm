@@ -50,16 +50,17 @@ Also measured from the SVG, on a 512 x 512 canvas.
 | `assets/RetroTerm-solid.svg` | The master. Edit this, then regenerate the rest. |
 | `assets/RetroTerm-solid-512.png` | The README logo, and the window icon inside the app. |
 | `assets/RetroTerm-solid-1024.png` | For anything that needs a larger raster. |
-| `assets/RetroTerm-solid.ico` | The Windows executable icon, 16 to 256 px in nine sizes. |
+| `assets/RetroTerm-solid.ico` | The solid mark as a Windows icon, 16 to 256 px in nine sizes. Not used by the application. |
 
 The application project carries its own copies under `src/RetroTerm.Desktop/Assets/`:
 `RetroTerm-solid-512.png` is the window icon named in `MainWindow.axaml` and
-`TerminalPopoutWindow.axaml`, and `RetroTerm-solid.ico` is the `ApplicationIcon` in
+`TerminalPopoutWindow.axaml`, and `RetroTerm.ico`, the ring variant, is the `ApplicationIcon` in
 `RetroTerm.Desktop.csproj`. When the master changes, regenerate both copies.
 
 `assets/RetroTerm.svg`, `RetroTerm.ico` and the `RetroTerm-512.png` and `RetroTerm-1024.png`
 rasters are a second variant of the same mark with a bright green ring around a transparent
-outside. The application does not use it.
+outside. `RetroTerm.ico` is the executable's icon; the solid set is used for the window icon and
+the README.
 
 ---
 

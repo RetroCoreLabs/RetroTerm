@@ -31,7 +31,7 @@
     <!-- Windows-only properties -->
     <BuiltInComInteropSupport Condition="'$(IsWindowsTarget)' == 'true'">true</BuiltInComInteropSupport>
     <ApplicationManifest Condition="'$(IsWindowsTarget)' == 'true'">app.manifest</ApplicationManifest>
-    <ApplicationIcon Condition="'$(IsWindowsTarget)' == 'true'">Assets\RetroTerm-solid.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(IsWindowsTarget)' == 'true'">Assets\RetroTerm.ico</ApplicationIcon>
 
     <!-- Define WINDOWS_TARGET so platform-specific code can compile-out on non-Windows. -->
     <DefineConstants Condition="'$(IsWindowsTarget)' == 'true'">$(DefineConstants);WINDOWS_TARGET</DefineConstants>
