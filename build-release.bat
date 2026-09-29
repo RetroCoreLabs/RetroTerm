@@ -33,38 +33,11 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-:: Proactively copy native DLLs into publish root (SDK may place them under runtimes/*)
-for %%F in (libSkiaSharp.dll libHarfBuzzSharp.dll av_libglesv2.dll) do (
-    if not exist "%PUBLISH_DIR%\%%F" (
-        for /r "%PUBLISH_DIR%" %%S in (%%F) do (
-            copy /Y "%%S" "%PUBLISH_DIR%" >nul
-        )
-        if not exist "%PUBLISH_DIR%\%%F" (
-            for /r ".\src\RetroTerm.Desktop\bin\Release" %%S in (%%F) do (
-                copy /Y "%%S" "%PUBLISH_DIR%" >nul
-            )
-        )
-    )
-)
-
-:: Verify native DLLs are present
-echo Verifying native libraries...
-if not exist "%PUBLISH_DIR%\libSkiaSharp.dll" (
-    echo ERROR: libSkiaSharp.dll missing!
-    pause
-    exit /b 1
-)
-if not exist "%PUBLISH_DIR%\av_libglesv2.dll" (
-    echo ERROR: av_libglesv2.dll missing!
-    pause
-    exit /b 1
-)
-if not exist "%PUBLISH_DIR%\libHarfBuzzSharp.dll" (
-    echo ERROR: libHarfBuzzSharp.dll missing!
-    pause
-    exit /b 1
-)
-echo Native libraries OK
+:: The exe is a self-contained single file (PublishSingleFile + IncludeNativeLibrariesForSelfExtract
+:: in RetroTerm.Desktop.csproj), so libSkiaSharp, libHarfBuzzSharp and av_libglesv2 are inside it
+:: and unpacked at first start. Nothing is copied beside it. Until 29 September 2026 this script
+:: copied those three DLLs in from bin\Release and refused to finish without them, which left
+:: three files from 2024 and 2025 next to every new exe that never loaded them.
 
 echo.
 echo [OK] RetroTerm.Desktop.exe published successfully
