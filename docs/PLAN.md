@@ -436,7 +436,32 @@ Nothing here should be started to look busy.
       CTRL+STOP PRINT on G51 and CTRL+START PRINT on G52 - a screen print to a local printer.
       `TDV2200KeyRegistry.cs` gives G52 `ESC[44_` and G51 `ESC[42_` and has no CTRL column for
       either. Read 2215 sections 4.2.14, 7.4 and 8.7 before building anything; DEC media copy
-      (`CSI 4 i` / `CSI 5 i`) is already in the base emulator.
+      (`CSI 4 i` / `CSI 5 i`) is already in the base emulator. Two more pieces of the same job,
+      from Ronny's notes of February 2026: the TDV LOG mode (a running transcript, each line
+      printed as the cursor leaves it, finished on disconnect or stop), and the PFF switch that
+      places the form feed (none, before, after, both). The real terminal sent only 0x20 to 0x7E
+      to the printer and double-width lines at double spacing.
+
+- [ ] **Control-mode keys on the virtual keyboard.** Ronny's notes name BREAK on Ctrl+SLUTT
+      (a real line break, which needs a `SendBreak` on the connection layer; nothing in `src`
+      has one today), CLEAR on Ctrl+F4 (reset the L1 to L4, WAIT, CAR and ERROR lamps), SI on
+      Ctrl+F2 (0x0F) and SO on Ctrl+F3 (0x0E), and Ctrl+End mapped to Ctrl+SLUTT. The registry
+      disagrees on F2 and F3: it gives Ctrl+F52 `ESC[54_` and Ctrl+F53 `ESC[57_` (lines 350 to
+      353). Settle it with the 2200 guide section 8 open before changing either.
+
+- [ ] **Host programming of PUSH keys over DCS is built on no source.** The user side is done:
+      the Configure PUSH Keys window, `push-keys.json`, the 12/32/48 capacities, and a click on
+      the virtual keyboard sends the stored string. But `TDVDCSHandlerFeature` (line 90) accepts a
+      payload that starts with the word `PUSH` followed by a digit, a shape no manual gives.
+      Ronny's notes say the host form is `ESC P P nn <hex pairs> ESC \` with nn = 01 to 16 and
+      forbidden bytes 0x00, 0xA0 to 0xAF and 0xF8 to 0xFF; the 2200 guide line 822 names a hex
+      lead-in for PUSH programming. Find the format in the 2215 spec or the guide, cite it, fix
+      the parser, test red before green. Needs nobody.
+
+- [ ] **Two of Ronny's ideas, not decided:** import and export of a PUSH key set as JSON, and a
+      window to type a series of hex bytes and send them to the host for testing (the MCP
+      `terminal_sendraw` does this from a script, the UI has nothing). Ronny decides whether
+      either is wanted.
 
 - [ ] **A pixel test for the ReGIS glyph fix.** On 17 August the built-in ReGIS letters were
       quantised to ten rows before scaling, so `e` drew as `c` and `i` lost its dot; the fix samples
