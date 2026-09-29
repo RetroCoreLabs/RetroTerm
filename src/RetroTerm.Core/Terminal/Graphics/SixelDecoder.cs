@@ -460,6 +460,12 @@ public sealed class SixelDecoder
             // whatever register was current instead of the one named. That reading is ours and is
             // not in the manual - see SixelShortColourIntroducerTests for where it is pinned, and
             // for what the cat-vt240 hardware capture does that we cannot explain.
+            //
+            // The opposite reading WAS tried and reverted (28 August 2026): ignoring the whole
+            // introducer, selection included, whenever Pu is unknown. It went because the cat-vt240
+            // fixture re-selects "#1" bare 28 times, and hackerb9's sixelcomments.md records early
+            // VT240 firmware mishandling sixel palettes - so the photograph may be a record of that
+            // firmware rather than a rule to copy.
             return next;
         }
 

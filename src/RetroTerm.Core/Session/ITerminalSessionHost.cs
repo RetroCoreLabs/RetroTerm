@@ -36,7 +36,8 @@ public sealed class SessionInfo
 /// Sessions opened through this interface are PERSISTENT: they survive across many
 /// MCP calls and LLM turns, and are closed only by an explicit CloseSessionAsync —
 /// reconnecting to a RetroCore terminal port mid-program wedges the line
-/// (HANDOVER-MCP-TERMINAL-CONTROL.md rule 1).
+/// (rule 1 of the MCP terminal-control rules in docs\MCP-AND-SCRIPTING.md, under
+/// "Rules the design enforces").
 /// </summary>
 public interface ITerminalSessionHost
 {

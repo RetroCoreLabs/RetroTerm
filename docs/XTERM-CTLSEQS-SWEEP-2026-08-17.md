@@ -4,7 +4,8 @@
 
 This is the P1.4 deliverable: every sequence in `spec\DEC\xterm-ctlseqs.txt` marked **implemented**,
 **deliberately not**, or **missing**. 224 sequences were pulled out of the document — 117 CSI, 93
-ESC, 14 DCS/OSC. **The CSI section is done; ESC and DCS/OSC are still to walk.**
+ESC, 14 DCS/OSC. **All three sections are walked**: the CSI, ESC and DCS/OSC lists below each
+carry an implemented, deliberately-not and missing list.
 
 Two things it found are already fixed and are recorded in
 `docs\EMULATOR-VALIDATION-STATUS-2026-08-11.md`:

@@ -242,7 +242,9 @@ Then:
 1. Update `TDV2200KeyRegistry` / `TDV2200KeyboardMapper` if wire bytes differ.
 2. Add regression tests with captured hex strings.
 3. Note confirmed behaviour in `spec/Keyboards/keyboard-spec.md` §6.8 footnotes.
-4. Refresh `docs/archive/TDV2200-VALIDATION-MATRIX.md` keyboard rows.
+4. Record the confirmed rows in `docs/TDV-KEYBOARD-COMPLETE-REFERENCE.md`, the document the
+   registry test pins. (The separate validation matrix this step used to name was retired in
+   August 2026.)
 
 ---
 

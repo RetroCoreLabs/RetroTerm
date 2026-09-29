@@ -21,7 +21,8 @@ namespace RetroTerm.Core.Scripting;
 /// The parser is GENERIC: verbs resolve against the live CommandRegistry, positional
 /// values map onto the command's parameters in declared order, and required-parameter
 /// checks come from the command metadata. A newly registered command is a new script
-/// verb with zero parser changes (PLAN-MCP-SCRIPTING.md phase 2.5).
+/// verb with zero parser changes (the "one class + one registration" rule: CommandRegistry.cs
+/// and docs\MCP-AND-SCRIPTING.md section 4).
 ///
 /// Quoted strings support escapes: \" \\ \r \n \t \e (ESC) \xHH (hex) \NNN (octal)
 /// — the same dialect as the programmable keys (EscapeSequenceFormatter). Errors

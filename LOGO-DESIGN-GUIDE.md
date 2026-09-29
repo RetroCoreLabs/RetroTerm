@@ -26,8 +26,9 @@ Measured from `assets/RetroTerm-solid.svg`, which is the authority.
 | Inner rim | `#00E676` at 32 % opacity, 10 px stroke |
 | Prompt `>_` | `#00E676` |
 
-The terminal theme's default phosphor green is the same family of colour; see
-`docs/DESIGN-SYSTEM-IMPLEMENTATION.md`.
+The terminal theme's default phosphor green is the same family of colour; the values actually
+applied are in `src/RetroTerm.Desktop/Themes/BuiltInThemes.cs` and
+`src/RetroTerm.Desktop/Styles/DarkTheme.axaml`.
 
 ---
 

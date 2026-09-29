@@ -14,7 +14,8 @@ namespace RetroTerm.Tests.Commands;
 
 /// <summary>
 /// Tests for the command registry (P2.5) and the generated help (P2.6).
-/// Done-criterion from PLAN-MCP-SCRIPTING.md: a dummy command registered in one line
+/// Done-criterion of the "one class + one registration" rule (CommandRegistry.cs and
+/// docs\MCP-AND-SCRIPTING.md section 4): a dummy command registered in one line
 /// is callable through the generic dispatch path, and its generated help shows
 /// description, params and example without any help-specific code.
 /// </summary>

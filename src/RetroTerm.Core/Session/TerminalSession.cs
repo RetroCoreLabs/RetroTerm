@@ -22,7 +22,7 @@ public partial class TerminalSession : IDisposable
     private ISessionDataLogger? _dataLogger;
 
     // Traffic counters for diagnosis ("time since last byte" tells busy from broken —
-    // see HANDOVER-MCP-TERMINAL-CONTROL.md). Interlocked because receive counting
+    // see docs\MCP-AND-SCRIPTING.md, "Rules the design enforces"). Interlocked because receive counting
     // happens on the network thread while status readers are on UI/MCP threads.
     private long _bytesReceived;
     private long _bytesSent;
@@ -539,7 +539,8 @@ public partial class TerminalSession : IDisposable
     /// <summary>
     /// Sends raw bytes to the remote host. This is the first-class way to send control
     /// bytes: ESC (0x1B) wakes a SINTRAN line and recovers a wedged one, so scripts and
-    /// MCP need bare-byte sending, not just text (handover rule 2).
+    /// MCP need bare-byte sending, not just text (rule 2 of the MCP terminal-control rules
+    /// in docs\MCP-AND-SCRIPTING.md).
     /// </summary>
     public async Task SendBytesAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
@@ -596,6 +597,15 @@ public partial class TerminalSession : IDisposable
     /// <summary>
     /// Value-returning variant of <see cref="RunOnSessionThreadAsync(Action)"/>.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Overload trap, found 4 August 2026</b></para>
+    /// An expression lambda whose body returns a value binds to THIS generic overload, not to the
+    /// Action one, even when the caller only wanted the side effect. The case that found it was a
+    /// one-line lambda calling <c>tcs.TrySetResult(x)</c> passed to <c>RunAsync</c>: TrySetResult
+    /// returns bool, so the call bound to the generic overload again and the stack overflowed.
+    /// When the job is meant to run for its effect, write it as a statement lambda with braces so
+    /// it is an Action.
+    /// </remarks>
     public Task<T> RunOnSessionThreadAsync<T>(Func<T> job) => _pump.RunAsync(job);
 
     /// <summary>

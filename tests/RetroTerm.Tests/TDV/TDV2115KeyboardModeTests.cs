@@ -223,9 +223,10 @@ public class TDV2115KeyboardModeTests
         // This test used to assert the opposite - that CAN must NOT move the cursor outside 2115
         // mode - and carried no source for it. Two documents say otherwise and agree with each
         // other: the TDV 2215 manual (spec\TDV2115\TDV2115.md section 8.4) lists the C0 set and
-        // marks only HT and ESC as affected by the extended-control switch, and
-        // docs\TDV-COMPREHENSIVE-REFERENCE.md says a TDV moves its cursor by C0 code rather than
-        // by escape sequence. The keyboard is the third witness: a TDV2200's arrow keys send these
+        // marks only HT and ESC as affected by the extended-control switch, and the same
+        // section (spec\TDV2215\TDV2215.md section 8.4, lines 2380-2396) gives BS, VT, CAN, FS and
+        // GS as the cursor movements - a TDV moves its cursor by C0 code rather than by escape
+        // sequence. The keyboard is the third witness: a TDV2200's arrow keys send these
         // very bytes in every mode, so a host echoing them back has to move the cursor.
         var emulator = new TDV2200Emulator(80, 24);
         emulator.Cursor.Row = 10;

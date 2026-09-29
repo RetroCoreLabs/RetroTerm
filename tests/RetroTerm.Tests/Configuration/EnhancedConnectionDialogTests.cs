@@ -503,7 +503,7 @@ public class EnhancedConnectionDialogTests
         if (!File.Exists(sourcePath))
         {
             // Try alternative path resolution
-            sourcePath = @"E:\Dev\Ronny\RetroTerm\src\RetroTerm.Desktop\Helpers\ConnectionDisplayHelper.cs";
+            sourcePath = @"src\RetroTerm.Desktop\Helpers\ConnectionDisplayHelper.cs";
         }
 
         if (File.Exists(sourcePath))

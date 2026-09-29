@@ -1,9 +1,7 @@
 # M6 — Sixel and ReGIS graphics
 
 **Full path:** `docs\manual-tests\M6-SIXEL-AND-REGIS.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M6
-**Backs:** `docs\FINISH-PLAN-2026-08-11.md` P2
+**Parent:** `docs\manual-tests\INDEX.md`
 **Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M6SixelAndRegisTests.cs`
 
 Graphics is the area where **looking is the test**. Three defects shipped here that every assertion
@@ -19,7 +17,7 @@ written by the suite; you do not need a host for M6.1, M6.4 or M6.5.
 
 Run the suite once, so every artefact below is current:
 
-    dotnet test RetroTerm.sln
+    dotnet test src\RetroTerm.slnx
 
 Everything lands in `tests\RetroTerm.Tests\Avalonia\images\rendered\`.
 
@@ -386,10 +384,11 @@ the channels swap, and both look green.
 
 ## M6.4 — ReGIS
 
-**Nine of ReGIS's ten commands are implemented**: S (screen), W (write controls), P (position),
-V (vector), C (curve), F (polygon fill), `@` (macrographs), and — since 2026-08-18 — **T (text) and
-L (load)**. Only **R (report)** is missing, and it needs a live host rather than a picture: it is a
-query and response path with nothing here to judge it against.
+**All ten of ReGIS's commands are implemented**: S (screen), W (write controls), P (position),
+V (vector), C (curve), F (polygon fill), `@` (macrographs), T (text) and L (load) since 2026-08-18,
+and **R (report)**, which answers instead of drawing. R is the one command with no picture to look
+at, so its case (M6.4g) needs a live host that asks; note there that `R(E)` always answers `"0,0"`
+because parse errors are not tracked.
 
 Within T, three options are deliberately not built and are counted rather than pretended: PV spacing
 (subscripts and superscripts), temporary text control, and temporary write control.
@@ -515,6 +514,12 @@ has regressed to writing colours instead of codes.
 **Machine cover:** `M6_4f_TheWriteControlsEachDrawTheirOwnPanel` draws the sheet and asserts the
 distinguishing fact of each panel — the crossing colour, the filled centre, the inverted pattern, the
 erased gap, and the changed colour. Those assertions cannot tell you the sheet is legible.
+
+**Panel 5, measured 2026-08-18** when replace writing was built: the pattern's 0 bits write the
+background instead of skipping, so a dashed line in replace mode ERASES its own gaps. On this sheet
+the overlay gaps read `(204,204,204)`, the bar underneath showing through; the replace gaps read
+`(0,0,0)`. The test samples both at x=140, a gap column, because sampling a dash compares two
+identical pixels and says nothing.
 **Judge:** eye.
 **Result:** ______  **Date:** ______  **By:** ______
 

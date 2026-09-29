@@ -2,12 +2,12 @@
 
 **Full path:** `docs\manual-tests\INDEX.md`
 **Started:** 2026-08-17
-**Parent:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` — the one-page overview.
-**Grandparent:** `docs\FINISH-PLAN-2026-08-11.md` — why each area matters.
+**Parent:** this file is the top. The one-page overview and the finish plan that used to sit above
+it were retired on 29 September 2026; `docs\PLAN.md` holds the open work.
 
-The overview says *what* to test in a table. These documents say *how*: the exact keystrokes, the
-exact bytes, what a pass looks like, and — for every case — whether a machine already checks it or
-whether it needs Ronny's eyes, ears or hardware.
+These documents say *how* to test: the exact keystrokes, the exact bytes, what a pass looks like,
+and — for every case — whether a machine already checks it or whether it needs Ronny's eyes, ears or
+hardware.
 
 ---
 
@@ -23,10 +23,10 @@ whether it needs Ronny's eyes, ears or hardware.
 | M6 | Sixel and ReGIS — the hardware comparison sheets, and graphics input by hand | nothing | `docs\manual-tests\M6-SIXEL-AND-REGIS.md` |
 | M7 | Norsk Data `ESC "` graphics — produces a work list | a real ND machine | `docs\manual-tests\M7-NORSK-DATA.md` |
 | M8 | The terminal as a whole — resize, zoom, scrollback, copy/paste, bell, changing the emulation | nothing | `docs\manual-tests\M8-WHOLE-TERMINAL.md` |
+| M9 | Kermit file transfer — menu, Preferences, progress window, and end to end against nd-kermit and C-Kermit | a host running Kermit | `docs\manual-tests\M9-KERMIT.md` |
 
-**The set is complete.** There is no M0 document: the overview's setup table is short enough to
-stay where it is, and no section for the printer beyond M6.6 or for IBM 3270, because one has no
-manual pass of its own and the other has no code.
+**The set is complete.** There is no M0 document, and no section for the printer beyond M6.6 or
+for IBM 3270, because one has no manual pass of its own and the other has no code.
 
 ## Running a pass with Ronny — start here
 
@@ -127,8 +127,8 @@ manual pass is *for*, and no amount of test writing will shorten it.
    (`terminal_snapshot`). Only the bytes can be turned into a test.
 4. **Anything a document settles becomes an automated test the same day.** The manual pass exists to
    FIND those, not to stand in for them.
-5. **Anything no document settles** goes in `docs\NEEDS-A-REAL-HOST-2026-08-11.md`
-   with the reason.
+5. **Anything no document settles** goes in `docs\PLAN.md` with the reason. (It used to go in a
+   separate needs-a-real-host list, retired 29 September 2026.)
 
 ---
 

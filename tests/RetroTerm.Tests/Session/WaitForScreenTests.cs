@@ -12,7 +12,8 @@ namespace RetroTerm.Tests.Session;
 /// <summary>
 /// Tests for WaitForScreenAsync (P1.4) and the P1.3 session additions
 /// (SendBytesAsync, DataReceived event, byte counters).
-/// The scenarios mirror the failures in HANDOVER-MCP-TERMINAL-CONTROL.md:
+/// The scenarios mirror the failures behind the MCP terminal-control rules in
+/// docs\MCP-AND-SCRIPTING.md ("Rules the design enforces", the 28-minute login):
 /// prompts split across chunks, prompts echoed mid-listing, timeouts that
 /// must still return the screen.
 /// </summary>

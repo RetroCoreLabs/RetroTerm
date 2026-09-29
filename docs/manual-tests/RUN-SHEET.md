@@ -1,15 +1,15 @@
 # Run sheet — the by-hand pass, you and me together
 
 **Full path:** `docs\manual-tests\RUN-SHEET.md`
-**Updated:** 2 September 2026
+**Updated:** 29 September 2026
 **This sheet holds outstanding work only.** What earlier sessions found is in
 `docs\manual-tests\FINDINGS-2026-08-20.md`.
 **The cases themselves:** `docs\manual-tests\INDEX.md` and the M1–M8 documents
 beside it. This sheet says **what order, which machine, and who does what**.
 
-**Four items left: three that need a real machine, plus one decision that needs no machine at all.**
-Session 1 and Session 2 are both closed. You can stop after any one of them; they do not depend on
-each other.
+**Two items left, and both need the real D100:** the rest of the TDV key sheet (11) and s3-config
+(12). Session 1 and Session 2 are both closed, and the one decision this sheet carried (13, Sixel and
+ReGIS scrolling) was made on 9 September 2026 and built.
 
 ---
 
@@ -137,7 +137,7 @@ split here is the opposite of everywhere else on this sheet, and you chose it:
 without changing anything? If the answer is no we skip it and say so — an unrun case is better than
 a reconfigured machine.
 
-### 3c — the watch item: CAUGHT, 2 September 2026
+### 3c — the watch item: CAUGHT and FIXED, 2 September 2026
 
 **It reproduced, and the raw block settled it.** Pressing RIGHT showed in the decoded pane as
 `TX 1B 18  ESC.  Unrecognised sequence` — an ESC glued to the cursor-right byte. The RAW block for
@@ -148,18 +148,23 @@ attached a stale pending ESC to the next byte in the DECODED view only, so this 
 trace-rendering defect rather than a terminal one — which is exactly why the raw block had to be
 read before anything was written down.
 
-The remaining question is why the one-second abandon rule did not fire when the two entries were
-seconds apart. That is now an item in `docs\PLAN.md`. Nothing to watch for here any more.
+**Fixed the same day.** The one-second abandon rule was not the hole: the two keystrokes were a
+fraction of a second apart, inside the second it waits. On the TX side one send is always one
+complete byte string, so a sequence still pending when a send ends can never be finished by the
+next one, and it is now flushed at the end of every TX feed. RX keeps the carry-over, because a
+host's sequence really does arrive split across two reads. Pinned by
+`WireScannerGluedKeystrokeTests`; the full account is `docs\PLAN.md` Phase 1. Nothing to watch for
+here any more.
 
 ---
 
 ## Decisions — no machine, no session
 
-These are yours to settle whenever you like. Nothing is blocked behind them except the work itself.
-
-| # | Decision | What hangs on it |
-|---|---|---|
-| 13 | **Do Sixel and ReGIS pictures scroll or clear with the text?** A real VT340 shares one bitmap, so they would. Ours do neither — `ScrollUp` and `ED` never touch the planes | A known divergence, not an oversight. Faithful costs real work; the question is whether it is worth it |
+None open. The one this sheet carried — **13, do Sixel and ReGIS pictures scroll or clear with the
+text?** — Ronny decided on 9 September 2026: faithfully, as a real VT340 does with its one shared
+bitmap. A whole-screen scroll moves the picture and `ED` mode 2 wipes it; a scroll REGION leaves the
+planes alone, and `ED` modes 0, 1 and 3 do not clear them. Built and pinned by
+`GraphicsScrollAndClearTests`; the reasoning is in `docs\PLAN.md` under the standing judgement calls.
 
 ---
 
@@ -190,9 +195,10 @@ sheet** — the ones below are still open.
 | 10 | M4.2d + M4.2b, the simple ASCII half | 3a | **PASS** - HOME and all four arrows identical in 2115 and extended mode. The "confirmed by DECRQM" part was withdrawn 11 Sept, see above | 2026-09-02 |
 | 11 | M4.x, the rest of the key sheet | 3a | PART - M4.2b, M4.2c, HOME all PASS in extended mode | 2026-09-01/02 |
 | 12 | s3-config graphics | 3b | ______ | ______ |
-| 13 | Sixel and ReGIS scrolling | — | ______ | ______ |
 
-**Closed since this sheet was last written, and off it:** M6.1a, the fifteen hardware sheets - PASS,
+**Closed since this sheet was last written, and off it:** decision 13, Sixel and ReGIS scrolling —
+decided 9 September 2026 and built, `GraphicsScrollAndClearTests`. The 3c watch item, the glued ESC
+in the trace — fixed 2 September 2026, `WireScannerGluedKeystrokeTests`. M6.1a, the fifteen hardware sheets - PASS,
 1 September 2026, and it found the extremeratio renderer defect on the way. M7.1, the ND UNHANDLED sweep — run
 28 August against nine SINTRAN programs, produced a six-key list, and turned up a real defect in our
 own mode handling. M6.5c and M6.5e, both PASS. M8.4a, the bell, PASS. M5.1a, the five dash masks,
@@ -207,8 +213,8 @@ Not optional, and short:
 1. **Every failure becomes a test**, from the captured bytes rather than from the description.
 2. **Every pass gets written into its case** with the date.
 3. **Anything neither** — an odd-looking thing we decided not to chase — goes in
-   `docs\NEEDS-A-REAL-HOST-2026-08-11.md` with the reason, so it is a
-   recorded decision rather than something forgotten.
+   `docs\PLAN.md` with the reason, so it is a recorded decision rather than something forgotten.
+   (The separate needs-a-real-host list it used to go in was retired on 29 September 2026.)
 4. **This sheet's results table gets the one-line version, and the finished row leaves the sheet.**
 
 The rule the whole pass exists for: **the manual pass is for finding things that should have been

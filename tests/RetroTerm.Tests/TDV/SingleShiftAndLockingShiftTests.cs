@@ -148,8 +148,11 @@ public class SingleShiftAndLockingShiftTests
         //     So on a 2215 a raw SO could not change the font even if G1 were a graphics set.
         //
         // Demonstrating the difference needs G1 designated as a graphics set, which needs the TDV
-        // designation sequence, which I have not verified against
-        // docs\TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md. Guessing a sequence to make a test look
+        // designation sequence, which I have not verified against the manuals. (The retired
+        // reference document's ESC 1-9 table was partly invented; the manual is
+        // spec\TDV1200\ND-12054-1-EN_combined.md section 5.54, which has ESC 1-6, 9, : and ;
+        // only, and docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md section 7 weighs the
+        // manuals against each other.) Guessing a sequence to make a test look
         // conclusive would be worse than saying plainly that it is not.
         var tdv2200 = new TDV2200Emulator(80, 24);
         var tdv2215 = new TDV2215Emulator(80, 24);

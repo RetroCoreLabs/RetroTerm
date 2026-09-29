@@ -18,9 +18,14 @@
     "             APPS-TABLE",
     "",
     "STATE OF THIS REPOSITORY, 2026-09-12: README.md, CONTRIBUTING.md and SECURITY.md",
-    "pass every check. The waivers below cover the working notes, plans, handoffs and",
+    "pass every check. The waivers below cover the working notes and plans in docs/ and",
     "the scanned manuals in spec/, all written before the standard existed. They are",
     "DEFERRED, not approved - each entry says so.",
+    "",
+    "2026-09-29: the root-level guides, plans and handoffs that used to be waived here",
+    "(QUICK-START, USER-MANUAL, FEATURE-STATUS, the design-system documents and the rest)",
+    "were retired, so their waivers are gone with them. A waiver for a file that does",
+    "not exist is a check nobody can see is switched off.",
     "",
     "ABSPATH IS DELIBERATELY NOT WAIVED ANYWHERE. 179 absolute paths remain in tracked",
     "files - drive letters and, in four files, a user profile directory - and this",
@@ -31,27 +36,19 @@
 
   "waivers": [
     {
-      "files": ["docs/", "CLAUDE.md", "CROSS-PLATFORM-GUIDE.md", "DOCUMENTATION-GUIDE.md", "FEATURE-STATUS.md", "MERMAID-COLOR-STANDARDS.md",
-                "HANDOVER-MCP-TERMINAL-CONTROL.md", "LOGO-DESIGN-GUIDE.md", "OPEN-QUESTIONS.md",
-                "PLAN-MCP-SCRIPTING.md", "QUICK-START.md", "RETRO-FAMILY-UI-DESIGN-SYSTEM.md",
-                "TODO-PLAN.md", "USER-MANUAL.md"],
+      "files": ["docs/", "CLAUDE.md", "LOGO-DESIGN-GUIDE.md"],
       "checks": ["EMOJI-HEADING", "HAND-TOC", "NEW-HEADING"],
-      "reason": "Working notes, plans, handoffs and guides written before the standard. Some emoji carry status meaning inside tables and cannot be stripped blind. Deferred to a pass of their own. Not approved as-is."
+      "reason": "Working notes, plans and guides written before the standard. Some emoji carry status meaning inside tables and cannot be stripped blind. Deferred to a pass of their own. Not approved as-is."
     },
     {
-      "files": ["MERMAID-COLOR-STANDARDS.md", "RETRO-FAMILY-UI-DESIGN-SYSTEM.md", "docs/", "CROSS-PLATFORM-GUIDE.md", "DOCUMENTATION-GUIDE.md"],
+      "files": ["docs/"],
       "checks": ["MERMAID"],
-      "reason": "Diagrams written before the shared palette, and this repository's own MERMAID-COLOR-STANDARDS.md is an older, different document from the one in repo-standards. Re-colouring is mechanical but each diagram needs reading to keep its meaning; reconciling the two palette documents is a decision. Deferred. Not approved as-is."
+      "reason": "Diagrams written before the shared palette. Re-colouring is mechanical but each diagram needs reading to keep its meaning. Deferred. Not approved as-is."
     },
     {
       "files": ["spec/"],
       "checks": ["ALT-TEXT", "LINK", "EMOJI-HEADING", "HAND-TOC"],
       "reason": "spec/ holds transcriptions of the original terminal manuals - 93 images without alt text and 14 links into pages that were never transcribed. They are source material, kept as faithful to the paper as possible; adding alt text to 93 scanned figures is a documentation project in its own right. Deferred."
-    },
-    {
-      "files": ["QUICK-START.md", "USER-MANUAL.md", "DOCUMENTATION-GUIDE.md", "CROSS-PLATFORM-GUIDE.md", "docs/DOC-CATALOG.md", "docs/DESIGN-SYSTEM-IMPLEMENTATION.md"],
-      "checks": ["LINK"],
-      "reason": "Links to documents that were planned and never written (FAQ.md, docs/architecture.md, docs/api-reference.md, docs/contributing.md, TEST-PLAN.md, retroterm_emulator_plan.md), and one to ICON-INTEGRATION.md which was moved to the untracked garbage/docs-archive folder. Each is either a page to write or a line to delete, and that is an editorial decision per link. Deferred."
     }
   ]
 }

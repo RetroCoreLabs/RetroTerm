@@ -1,8 +1,7 @@
 # M8 — the terminal as a whole
 
 **Full path:** `docs\manual-tests\M8-WHOLE-TERMINAL.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M8
+**Parent:** `docs\manual-tests\INDEX.md`
 **Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M8WholeTerminalTests.cs`
 
 These cases belong to no single emulator. They are the things that go wrong in the program around
@@ -18,8 +17,8 @@ because the TDV path uses a bitmap font renderer and the VT path does not.
 Nothing outside the app for M8.1 to M8.5. M8.6 wants a real host that goes quiet for a while — a
 SINTRAN login left sitting does the job.
 
-    Build:   dotnet publish src\RetroTerm.Desktop\RetroTerm.Desktop.csproj -c Release -r win-x64
-    Run:     publish\RetroTerm.Desktop.exe
+    Build:   .\scripts\publish.ps1        (works while the old build is still running)
+    Run:     publish\current\RetroTerm.Desktop.exe
 
 ---
 

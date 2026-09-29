@@ -9,7 +9,7 @@ like, and what will get a change sent back.
 
 | # | Requirement | How to check |
 |---|---|---|
-| 1 | The .NET SDK. The projects target .NET 9; the repository is built with SDK 10.0.302 | `dotnet --info` |
+| 1 | The .NET SDK. The projects target .NET 10 (`net10.0`); the repository is built with SDK 10.0.401 | `dotnet --info` |
 | 2 | A Windows desktop session - the UI is Avalonia and `RetroTerm.Tests` targets `net10.0-windows` | not usable over a plain SSH session |
 
 Everything RetroTerm depends on comes from nuget.org. There is no private feed and no sibling
@@ -21,7 +21,7 @@ dotnet build src\RetroTerm.slnx -nodeReuse:false
 dotnet test  src\RetroTerm.slnx -nodeReuse:false
 ```
 
-The main suite is large - 6,906 tests, about two minutes - so `--filter` while you
+The main suite is large - 6,913 tests, about two minutes, plus 123 in the Kermit suite - so `--filter` while you
 work on one area, and the full run before you open a pull request:
 
 ```powershell
@@ -79,8 +79,11 @@ python eng\check-docs.py
 ```
 
 It must exit 0. It fails on a relative link that does not resolve, a relative link that escapes
-the repository root, a machine-specific absolute path, and a Mermaid diagram that is malformed or
-breaks the shared Mermaid colour standard - this repository carries its own copy as `MERMAID-COLOR-STANDARDS.md`.
+the repository root, a machine-specific absolute path, and a Mermaid diagram whose structure is
+wrong: a node style missing its `fill`, `stroke` or `color`, an unbalanced block, or a forced
+theme. It checks structure only; the colours themselves follow the RetroCore Labs repo-standards
+document `MERMAID_COLOR_STANDARDS`, which lives in the RetroCore Labs standards repository, not
+here.
 
 > [!WARNING]
 > **Never put an absolute path in anything committed here.** A drive letter or a home directory is

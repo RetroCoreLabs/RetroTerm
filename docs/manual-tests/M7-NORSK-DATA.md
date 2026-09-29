@@ -1,9 +1,7 @@
 # M7 — Norsk Data `ESC "` graphics, on a real machine
 
 **Full path:** `docs\manual-tests\M7-NORSK-DATA.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M7
-**Backs:** `docs\FINISH-PLAN-2026-08-11.md` P4.2, and it **is** P5.3
+**Parent:** `docs\manual-tests\INDEX.md`
 
 **This section produces a work list rather than a verdict**, and that makes it different from every
 other one here. Six of the thirty ND graphics modes are implemented. The other twenty-four are
@@ -31,7 +29,8 @@ not to assume.**
    `mode:final`.
 
 **Pass:** you come away with a **list**. That single reading turns the largest remaining ND item
-from guesswork into a work list, which is why it sits third in the `NEEDS-A-REAL-HOST` order.
+from guesswork into a work list, which is why it was placed early in the order of things that
+need a real host.
 
 **Machine cover:** `NorskDataGraphicsRenderingTests` and the rendered `nd-graphics-*.png` files
 cover the six modes that are built — the rectangle, drawing over text, hiding and clearing. Nothing
@@ -115,4 +114,4 @@ can be turned into a test.
 - **Everything, without a machine.** This is the one section where the whole content is blocked on
   hardware being up.
 - **The two ND model identification bytes** are a separate item and need a machine that may never
-  appear — `docs\NEEDS-A-REAL-HOST-2026-08-11.md` §1.
+  appear — `docs\PLAN.md`, Phase 4.

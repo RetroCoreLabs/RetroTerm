@@ -1,3 +1,52 @@
+=====================================================================================
+ ABOUT THIS FILE (header added 29 September 2026; everything below the line is the
+ original posting, unchanged)
+
+ WHAT IT IS: a no.linux newsgroup posting from 8 May 1998 by Jon Kaare Hellan, carrying
+ three things: the termcap and terminfo entries ND itself shipped with the Unix version
+ of NOTIS (dated 11.7.90, version 1.0: tdv1200, tdv2200, nd224, nd242, nd246, nd320),
+ and a second, independent tdv2200 termcap posted by Jan Marius Evang in July 1997.
+ It is primary evidence: two people who used the real terminals wrote down what the
+ keys sent and what the host had to send to set the terminal up.
+
+ WHY IT IS KEPT: it is an independent witness for the key registry. Every key code in
+ the nd246/tdv2200 terminfo entries that was checked against
+ src\RetroTerm.Core\Terminal\Emulators\TDV\TDV2200KeyRegistry.cs matches, about 30 in
+ all - among them kf1..kf8 = ESC[50_..ESC[66_ (F1..F8, VK 112..119), khlp/kHLP =
+ ESC[46_/ESC[47_ (HJELP), kext = ESC[48_ (SLUTT), kprt/kPRT = ESC[44_/ESC[45_ (SKRIV),
+ kcmd/kCMD = ESC[42_/ESC[43_ (FUNK), khts = ESC[16_ (TAB), kdch1 = ESC[10_ (delete),
+ kich1 = ESC[82_ (insert), kpp = ESC[28_, knp = ESC[32_, kcbt = ESC[38_, kund = ESC[30_,
+ kcpy = ESC[12_, kmov = ESC[14_, kclr = ESC[34_, kll = ESC[36_. The registry was written
+ from the manuals, not from this file, so the agreement is real.
+
+ WHAT THE SET-UP STRINGS MEAN (things earlier notes on this file called "unknown"):
+
+  \E[1U and \E[5U  - "Set national character generator n" (1 to 11), TDV 2200/9 S User's
+                     Guide section 11.2. 1 is the Norwegian set, 5 is US ASCII, which is
+                     why the "-us" entries end in \E[5U.
+  \E[62;36;7;60;80l then \E[62;36h  - Set Mode / Reset Mode with the TDV private numbers,
+                     TDV 2215 Functional Specifications section 8.7.1:
+                       62 = GRM, graphic rendition mode (ATTR / UND / SGR)
+                       36 = EOL, end-of-line wrap (STOP / WRAP)
+                        7 = VEM, vertical editing mode (FOL / PRE)
+                       60 = RT, roll type (STEP / SMOOTH)
+                       80 = numeric pad Function / Numeric mode - not in the 2215 at all,
+                            it is a 2200 addition, User's Guide section 11.2 (CSI 80 h = pad
+                            to Function mode, CSI 80 l = pad to Numeric mode). The "-fun"
+                            entries set it, the others reset it.
+  \EQ              - appears in every is= string; the manuals held here do not name it.
+  GC..GV = \E15, \E10, \E14 ... \E1.  - the box-drawing capabilities are NDSS1 (ESC 1,
+                     "single shift to alternate character set 1", ND-1200 section 5.54)
+                     followed by ONE glyph from set 1. So \E15 is "the next character, 5,
+                     comes from set 1", which on the TDV is a box corner.
+  is= on tdv1200 uses \E[66h, and the 2200 entry RESETS 66 (\E[62;36;66l). Which mode 66 is
+                     on each terminal is not settled by the manuals held here.
+
+ KNOWN OCR/TRANSMISSION DAMAGE IN THE POSTING: Norwegian letters in the prose are
+ partly mangled (r|de = røde, gr|nne = grønne). The termcap strings themselves are ASCII
+ and were left exactly as posted.
+=====================================================================================
+
  From: Jon Kaare Hellan (hellan@idt.ntnu.no)
  Subject: Re: Tandberg Terminaler
  Newsgroups: no.linux

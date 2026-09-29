@@ -20,8 +20,9 @@ Every running RetroTerm hosts an MCP server on **localhost only**:
   Changes take effect the next time RetroTerm starts.
 - Preferences is the ONLY place the port comes from. The `RETROTERM_MCP_PORT` environment
   variable used to override it and was removed on 27 August 2026: a setting the dialog cannot
-  show is a setting nobody can debug. Pinned by `NoEnvironmentVariableConfigurationTests`
-  (precedence: env var > preference > default 5715).
+  show is a setting nobody can debug. Pinned by `NoEnvironmentVariableConfigurationTests`, which
+  fails if any environment variable comes back into the app's configuration. The port is the
+  preference if one is set, otherwise 5715.
 - Starts with the app, stops with the app. Failure to bind (port in use) is logged and
   shown in the status bar; the app runs fine without it.
 
@@ -253,6 +254,15 @@ Four ways:
 
 ### Rules the design enforces (learned the hard way)
 
+**The failure that started all of this.** The script this replaced logged in to a SINTRAN
+machine with fixed 1500 ms delays: send ESC, wait, send the user name, wait, send the password.
+The ND had just restarted XMSG and its banner came late, so the user name went out before the
+`ENTER` prompt existed, and from then on the login loop ran one step out of phase - the first
+real command answered the `PASSWORD:` prompt and the machine went back to `ENTER`. The 13
+configuration commands that followed each waited their full 120-second timeout: 28 minutes,
+nothing applied, and a transcript that read as though the ND was broken. Every rule below
+comes from that half hour.
+
 1. **One persistent connection per session** — reconnecting mid-program wedges the line.
 2. **ESC is a first-class operation** — it wakes and recovers SINTRAN lines.
 3. **Never guess a duration** — `WAITFOR` is the normal way to sequence; `SLEEP` is the exception.
@@ -295,12 +305,13 @@ the errors are fixed.
 
 ## 4. How it works / extending it
 
-Threading and architecture are documented in `PLAN-MCP-SCRIPTING.md` (repo root) and
-in the source:
+Threading and architecture are documented in the source:
 
-- `src\RetroTerm.Core\Session\SessionPump.cs` — the single-writer threading rule:
-  the network thread produces, one pump task per session owns the emulator, UI and
-  MCP consume snapshots and events.
+- `src\RetroTerm.Core\Session\SessionPump.cs` lines 16 to 30 — the single-writer threading
+  rule and the reasons for it: the network thread produces, one pump task per session owns
+  the emulator and buffer and is the only code allowed to change them, UI and MCP consume
+  snapshots and events or run a job on the pump through `RunAsync`. One consumer means no
+  locks on the hot path; the bounded channel gives backpressure instead of unbounded growth.
 - `src\RetroTerm.Core\Commands\` — `ISessionCommand` + `CommandRegistry`: **one new
   command class + one registration = a new script verb + a new MCP tool + generated
   help.** Registration rejects commands with missing documentation.
@@ -308,5 +319,5 @@ in the source:
 - `src\RetroTerm.Mcp\` — the MCP server (official `ModelContextProtocol` C# SDK).
 - `src\RetroTerm.Desktop\MainWindow.Mcp.cs` — desktop hosting: tabs as sessions.
 
-The original requirements document, with the field failures that motivated the design:
-`HANDOVER-MCP-TERMINAL-CONTROL.md` (repo root).
+The field failure that motivated the design is told above, at the top of "Rules the design
+enforces" in section 2.

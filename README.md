@@ -127,12 +127,13 @@ dependency, not preference, so each one reuses what the ones above it forced int
 
 ## Status
 
-Version `1.10.26.9`. No tagged GitHub release yet, so the release and download badges above stay
-empty until the first `v*` tag.
+Version `1.10.26.9`, tagged and released as
+[v1.10.26.9](https://github.com/RetroCoreLabs/RetroTerm/releases/tag/v1.10.26.9) with four
+binaries: Windows x64, Linux x64, macOS Intel and macOS Apple silicon.
 
 - **The whole solution builds in Release with no errors**, and the test suites pass:
-  **7,029 passed, 1 skipped, 0 failed** on 2026-09-28 (6,906 in `RetroTerm.Tests`, 123 in the
-  Kermit suite; the main suite takes about two minutes in Release).
+  **6,913 tests in `RetroTerm.Tests` and 123 in the Kermit suite, 1 skipped, 0 failed**,
+  measured 2026-09-28 (the main suite takes about two minutes in Release).
 - **Fourteen terminal types are selectable and tested**; the table above says exactly what each
   one claims and what it deliberately does not.
 - **Telnet, SSH and serial connections work.** IBM 3270 is not started, for the reason the table
@@ -140,7 +141,7 @@ empty until the first `v*` tag.
 - **Not yet settled**: the things only a real host or a human eye can - mouse reporting driven by
   a program that actually tracks the pointer, bracketed paste in a real shell, and the flagged
   assumptions in the ND graphics protocol. Each is listed with what would settle it in
-  [`docs/NEEDS-A-REAL-HOST-2026-08-11.md`](docs/NEEDS-A-REAL-HOST-2026-08-11.md).
+  [`docs/PLAN.md`, Phase 4](docs/PLAN.md#phase-4--cannot-be-settled-yet).
 
 ## Prerequisites
 
@@ -246,27 +247,24 @@ the graphics VT240 and VT340 followed, and **xterm** is the modern program that 
 their language. The **Tektronix 4014** was a storage-tube graphics terminal: it drew vectors
 onto a phosphor that held the image until erased.
 
-For the TDV, the manuals are in `spec/` and the escape sequences are written up in
-[`docs/TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md`](docs/TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md).
+For the TDV, the manuals are in `spec/` and the modes, queries and reports are written up, with
+the manual page for each, in
+[`docs/TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`](docs/TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md).
 
 ## Roadmap
 
-**v1.0**: documentation cleanup; TDV emulators to a 100% test pass rate; desktop UI polish
-(settings, tabs, profiles); and the items in `docs/NEEDS-A-REAL-HOST-2026-08-11.md`.
-
-**v2.0**: IBM 3270 block-mode emulators; a Blazor web UI; file transfer over SFTP/SCP and
-Zmodem; SINTRAN/XOT protocols.
+The open work is in [`docs/PLAN.md`](docs/PLAN.md): what needs nobody, what needs a person to
+judge it, what needs a real ND machine, and what cannot be settled yet. IBM 3270 block-mode
+emulation is not started, for the reason the terminal table gives.
 
 ## Documentation
 
 - **[MCP and Scripting](docs/MCP-AND-SCRIPTING.md)** - drive RetroTerm from an LLM or with stored scripts
 - **[Running the published exe](docs/DISTRIBUTION-README.md)** - the README that ships beside the exe: what it writes where, and MCP setup for Claude Code or any client
-- **[User manual](USER-MANUAL.md)** and **[Quick start](QUICK-START.md)**
-- **[Feature status](FEATURE-STATUS.md)** - what is implemented, component by component
+- **[Plan](docs/PLAN.md)** - the open work, grouped by what it needs
 - **[ND-100 gateway](docs/ND100-GATEWAY.md)** and **[OPCOM command reference](docs/OPCOM-COMMAND-REFERENCE.md)**
-- **[TDV escape sequence reference](docs/TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md)** and **[TDV keyboard reference](docs/TDV-KEYBOARD-COMPLETE-REFERENCE.md)**
-- **[Open questions](OPEN-QUESTIONS.md)** - design decisions still open
-- **[Documentation guide](DOCUMENTATION-GUIDE.md)** - how the documents in this repository fit together
+- **[TDV modes and reports](docs/TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md)** and **[TDV keyboard reference](docs/TDV-KEYBOARD-COMPLETE-REFERENCE.md)**
+- **[Manual tests](docs/manual-tests/INDEX.md)** - the by-hand cases, with what each needs and who judges it
 
 ## Contributing
 

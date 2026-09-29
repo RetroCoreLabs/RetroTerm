@@ -9,8 +9,9 @@ with the right page size on it.
 
 **What is left is not code.** Whether the printed page LOOKS right is a P5 question for Ronny —
 see "How it gets judged" at the end. Also still open: the ReGIS hardcopy command, which waits on
-ReGIS `S(H)`, and a real printer port, which was always out of scope. Built in **P4** of
-`docs\FINISH-PLAN-2026-08-11.md`.
+ReGIS `S(H)`, and a real printer port, which was always out of scope. Built as item P4 of the
+August 2026 finish plan, a document since retired; the code is under
+`src\RetroTerm.Core\Terminal\Printing\` and `src\RetroTerm.Desktop\Printing\`.
 
 ## What started this
 

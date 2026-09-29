@@ -2,7 +2,13 @@
 
 **Full path:** `docs\TEXT-BITMAP-STUDY.md`
 **Plan item:** `docs\PLAN.md`, Phase 1.1
-**Written:** 19 August 2026. **Status: a study. No code has been written.**
+**Written:** 19 August 2026, as a study, before any code.
+**Status, 29 September 2026:** the per-cell approach (option A below, the text grid kept and
+recoloured cell by cell) was built. hackerb9's `faketextcolor` fixture recolours the letters it
+passes over, and the result matches the photograph of a real VT340: see
+`docs\manual-tests\M6-SIXEL-AND-REGIS.md`, case M6.4h, and the test
+`M6_4h_TheFakeTextColourTrickRecoloursTheLettersItPassesOver` in `M6SixelAndRegisTests`. Text
+was NOT moved into the bitmap; the rest of this document is the reasoning behind that choice.
 
 Ronny asked for this before anything is built. It says what the change would buy, what it would
 break, roughly what it would cost, and which of the three ways forward I would take.

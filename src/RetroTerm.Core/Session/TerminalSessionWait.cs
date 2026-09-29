@@ -76,7 +76,8 @@ public sealed class ScreenWaitOptions
 
     /// <summary>
     /// Give up after this long. The result still carries the screen at that moment and
-    /// the elapsed time — a timeout must return what the machine said (handover rule 4).
+    /// the elapsed time — a timeout must return what the machine said (rule 4 of the MCP
+    /// terminal-control rules in docs\MCP-AND-SCRIPTING.md).
     /// </summary>
     public int TimeoutMs { get; set; } = 30_000;
 
@@ -91,7 +92,8 @@ public sealed class ScreenWaitOptions
 /// Outcome of <see cref="TerminalSession.WaitForScreenAsync"/>. Always carries the
 /// screen and the elapsed wait time, whatever happened — partial output on a timeout
 /// is the most valuable thing the caller has, and knowing the wait took 23 s instead
-/// of 200 ms is often the whole diagnosis (handover rules 4 and 5).
+/// of 200 ms is often the whole diagnosis (rules 4 and 5 of the MCP terminal-control
+/// rules in docs\MCP-AND-SCRIPTING.md).
 /// </summary>
 public sealed class ScreenWaitResult
 {
@@ -147,7 +149,8 @@ public partial class TerminalSession
     /// This matches against the emulated screen buffer, NOT the raw byte stream:
     /// escape sequences, cursor moves and repaints have already been applied, so
     /// "does the screen end with X-C:" has an exact answer here (the whole reason
-    /// this lives in RetroTerm — see HANDOVER-MCP-TERMINAL-CONTROL.md §2.2).
+    /// this lives in RetroTerm — matching raw bytes is guesswork, the screen is the truth;
+    /// see the intro of docs\MCP-AND-SCRIPTING.md and ScreenMatchWhere.ScreenTail above).
     ///
     /// Evaluation runs on the session pump thread (race-free); the wait itself does
     /// not block the pump. Never throws on timeout or disconnect — the result says

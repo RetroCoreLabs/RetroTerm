@@ -38,7 +38,9 @@ public class TDVIndicatorLampTests
     }
 
     // ---- Keyboard lamps in TDV-NATIVE mode (2115 compatibility OFF) ----
-    // Documented in docs/TDV-COMPREHENSIVE-REFERENCE.md under "All Models".
+    // Documented in the TDV 2215 manual, spec\TDV2215\TDV2215.md section 8.4 "Accepted Codes in
+    // the C0-set": ENQ = light 1 (line 2377), ACK = light 2 (2378), NAK = light 3 (2389),
+    // SYN = all three lamps off (2390).
 
     [Fact]
     public void Lamps_StartAllOff()

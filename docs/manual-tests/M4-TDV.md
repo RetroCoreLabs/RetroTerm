@@ -1,8 +1,7 @@
 # M4 — TDV1200 / TDV2215 / TDV2200
 
 **Full path:** `docs\manual-tests\M4-TDV.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M4
+**Parent:** `docs\manual-tests\INDEX.md`
 **Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M4TdvTests.cs`
 **Generated artefact:** `tests\RetroTerm.Tests\Avalonia\images\rendered\tdv2200-key-sheet.md`
 
@@ -300,6 +299,6 @@ largest remaining ND item from guesswork into a work list.
 
 - **The real TDV keyboard**, until a machine appears. M4.2 is written so that day is one afternoon
   rather than one week.
-- **The two ND model identification bytes**, recorded in
-  `docs\NEEDS-A-REAL-HOST-2026-08-11.md` §1.
+- **The two ND model identification bytes**, recorded in `docs\PLAN.md` (Phase 4, blocked on a
+  machine).
 - **HOME in simple ASCII mode** — M4.2d, one press.

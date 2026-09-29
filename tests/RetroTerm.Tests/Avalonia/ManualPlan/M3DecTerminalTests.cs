@@ -10,7 +10,7 @@ namespace RetroTerm.Tests.Avalonia.ManualPlan;
 
 /// <summary>
 /// The machine half of the by-hand pass in
-/// <c>E:\Dev\Ronny\RetroTerm\docs\manual-tests\M3-DEC-TERMINALS.md</c>, and the identity half of
+/// <c>docs\manual-tests\M3-DEC-TERMINALS.md</c>, and the identity half of
 /// M1 and M2 with it.
 /// </summary>
 /// <remarks>
@@ -65,7 +65,7 @@ public class M3DecTerminalTests
         sheet.AppendLine("by asking every emulator every question and capturing what it sends back.");
         sheet.AppendLine("Do not edit by hand — change the emulator and run the suite.");
         sheet.AppendLine();
-        sheet.AppendLine("Belongs to `E:\\Dev\\Ronny\\RetroTerm\\docs\\manual-tests\\M3-DEC-TERMINALS.md`, case M3.1.");
+        sheet.AppendLine("Belongs to `docs\\manual-tests\\M3-DEC-TERMINALS.md`, case M3.1.");
         sheet.AppendLine();
         sheet.AppendLine("A blank reply means the terminal stayed silent. Silence is a valid answer for a");
         sheet.AppendLine("question a terminal does not support — and it is also what a swallowed sequence looks");

@@ -20,7 +20,8 @@ namespace RetroTerm.Core.Logging;
 /// </para>
 /// <para>
 /// Sources: ECMA-48 5th edition; DEC STD 070 / VT220 Programmer Reference;
-/// docs/TDV2200 TERMCAP REFERENCE.md for the TDV private finals.
+/// docs\TermCap.txt (the 1998 posting of ND's own termcap and terminfo entries; the header at
+/// its top decodes the sequences) for the TDV private finals.
 /// </para>
 /// </remarks>
 public static class EscapeSequenceDecoder

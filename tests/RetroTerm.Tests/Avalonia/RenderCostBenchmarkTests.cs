@@ -33,6 +33,52 @@ namespace RetroTerm.Tests.Avalonia;
 /// through <see cref="RenderedScreenshot"/> that this emulator and renderer really put ink on real
 /// pixels.
 /// </summary>
+/// <remarks>
+/// <para><b>What it measured, 9 August 2026</b></para>
+/// Fastest frame of 200, best of three runs, on a box that was also running Visual Studio, Unity
+/// and a live emulator. Kept here because the numbers decided what got built next, and a later
+/// reading of this harness should be compared against them:
+///
+///     VT100 80x24, every cell text             15.0 ms   (90% of a 60 Hz frame)
+///     TDV2200 80x24, every cell text            9.2 ms   (55%)
+///     VT100 80x24, every cell text + colour     8.0 ms   (48%)
+///     VT100 80x24, ONE line of text             0.29 ms  (1.7%)
+///     Blit a cached 80x24 screen bitmap         0.29 ms  (1.7%)
+///     PublishFrame 80x24 (not a render)         0.039 ms (0.2%)
+///
+/// Read the minimum, not the mean; the method comment on MillisecondsPerFrame says why.
+///
+/// <para><b>What dirty-row painting changed</b></para>
+/// Same harness, before and after TerminalRenderer started caching the screen bitmap and
+/// repainting only the rows whose appearance changed:
+///
+///     Full screen, nothing changing              11.2 ms  to  0.28 ms
+///     Full screen, one row changes (common case) 11.2 ms  to  0.91 ms
+///     Full screen, whole screen scrolls (worst)  11.2 ms  to  6.0 ms
+///
+/// No case got worse, which was the thing to check.
+///
+/// <para><b>Three caveats that travel with the numbers</b></para>
+/// First: the earlier frame-batching change was justified by PublishFrame copying 1,920 cells.
+/// Measured, that copy is 0.039 ms, two tenths of one percent of a frame, and not on the UI thread
+/// anyway. The real saving of batching was avoiding twenty-one REPAINT REQUESTS per chunk, each a
+/// full render at 8 to 23 ms. Right change, wrong headline reason.
+///
+/// Second: the plain full-text screen came out consistently SLOWER than the coloured one (15.0
+/// against 8.0 ms fastest) although the coloured screen draws the same 1,920 glyphs plus a
+/// background rectangle behind each. Nobody has explained this. It does not change the
+/// conclusion, but it means the absolute figures are an order of magnitude, not precision.
+///
+/// Third: this harness renders into a RenderTargetBitmap in one call, so it times recording and
+/// rasterising TOGETHER on one thread. The running app splits them - Render records a display
+/// list on the UI thread and the compositor rasterises on its own thread. So 11.2 ms is an upper
+/// bound on the combined work, not a measurement of how long the UI thread stalls. The relative
+/// figures (a full screen is about 40 times a blit) are unaffected; the headline is weaker.
+///
+/// The whole-screen-scroll case at 6.0 ms is also below the 11.2 ms an uncached full screen cost,
+/// and that is unexplained too. Clipping each band may let Skia reject work cheaply, or the two
+/// screens may not be quite comparable. Nothing above rests on it.
+/// </remarks>
 [Collection("Avalonia")]
 public class RenderCostBenchmarkTests
 {

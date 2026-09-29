@@ -1,9 +1,7 @@
 # M3 — VT220 / VT320 / VT340 / VT420, and the identity of all fourteen
 
 **Full path:** `docs\manual-tests\M3-DEC-TERMINALS.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M3
-**Backs:** `docs\FINISH-PLAN-2026-08-11.md` P1
+**Parent:** `docs\manual-tests\INDEX.md`
 **Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M3DecTerminalTests.cs`
 **Generated artefact:** `tests\RetroTerm.Tests\Avalonia\images\rendered\terminal-answers.md`
 

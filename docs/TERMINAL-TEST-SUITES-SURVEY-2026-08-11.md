@@ -1,7 +1,7 @@
 # Terminal test suites and conformance corpora — survey for RetroTerm
 
 Date: 2026-08-11
-Consumer: RetroTerm (C# / .NET 9), emulating DEC VT52/VT100/VT102/VT220/VT240/VT320/VT340/VT420,
+Consumer: RetroTerm (C# / .NET 10), emulating DEC VT52/VT100/VT102/VT220/VT240/VT320/VT340/VT420,
 xterm, Tektronix 4014, and Tandberg TDV.
 
 ## How to read this document

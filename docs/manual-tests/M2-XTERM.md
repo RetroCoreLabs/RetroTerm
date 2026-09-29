@@ -1,10 +1,8 @@
 # M2 — xterm and xterm-256color
 
 **Full path:** `docs\manual-tests\M2-XTERM.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M2
-**Backs:** `docs\FINISH-PLAN-2026-08-11.md` P1.4, and the sweep at
-`docs\XTERM-CTLSEQS-SWEEP-2026-08-17.md`
+**Parent:** `docs\manual-tests\INDEX.md`
+**Backs:** the sweep at `docs\XTERM-CTLSEQS-SWEEP-2026-08-17.md`
 
 `ctlseqs.txt` has been walked end to end and every sequence is marked implemented, deliberately not,
 or missing. **So this pass is not about the document. It is about real programs**, which is the one
@@ -110,8 +108,8 @@ rendered as `colour-red-blue-yellow.png`.
 **Needs:** a real shell.
 **Do:** copy a **multi-line** command and paste it into bash.
 **Pass:** it appears on one line and **does not run** until you press Enter.
-**Why it is called out:** it is item 1 of
-`docs\NEEDS-A-REAL-HOST-2026-08-11.md`, it costs one paste, and until it is
+**Why it is called out:** it was item 1 of the needs-a-real-host list (retired 29 September 2026;
+open items of that kind live in `docs\PLAN.md` now), it costs one paste, and until it is
 done the feature is untested outside unit tests.
 **Machine cover:** `BracketedPasteAndFocusTests`, including the case that matters for safety — a
 paste containing the end-of-paste marker must not be able to end its own bracket and run the rest
@@ -119,6 +117,9 @@ as commands.
 **Judge:** eye. **This is the cheapest open item in the whole plan.**
 **Result:** PASS, driven live over MCP against a real Ubuntu shell on 31 August 2026. A three-line paste (`echo LINE-ONE` / `echo LINE-TWO` / `echo LINE-THREE`) held as unrun text across all three lines - Ronny confirmed on his own screen - and ran only after Enter, all three together in order. First try was confounded by a Sixel picture left on screen from an earlier VT340 test (the graphics-plane-doesn't-clear gap, see PLAN.md); a fresh VT100 session settled it cleanly. The cheapest open item in the plan is CLOSED.  **Date:** 2026-08-31  **By:** Ronny
 
+## M2.7 — Focus reporting
+
+**Needs:** a real shell.
 **Do:** with mode 1004 on, click away to another window and back, watching `cat -v`.
 **Pass:** the host sees focus in and focus out.
 **Machine cover:** `FocusReportingTests` drives real focus events on the real control.

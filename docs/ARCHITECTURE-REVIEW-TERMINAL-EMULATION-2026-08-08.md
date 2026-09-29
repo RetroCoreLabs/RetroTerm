@@ -4,6 +4,16 @@
 **Scope:** Whole emulation stack — parser, emulators, screen model, cells, character sets, colors, scrolling, renderer, input, host responses, modes, testing, performance, graphics readiness.
 **Method:** Direct source inspection. Every claim carries a `file:line` reference. The critical claims (parser C1 handling, DCS handling, the `DataToSend` wiring) were verified twice — once during the sweep and once by hand. Nothing in this document is guessed; where something could not be verified it is marked **[NOT VERIFIED]**.
 
+**How to read this document today (note added 29 September 2026).** It is a snapshot of 8 and
+9 August 2026. Every `file:line` reference is to the source as it stood then, and many have
+moved since. The appendices (0 to 0w) are a ledger of the work done in those two days, in the
+order it was done, not a status list: a defect named in the body may be marked fixed only in a
+later appendix, and the "verified live bugs" list at the end records what was found, with the
+strike-through showing what that list itself was updated for. The documents it cites under
+`docs\TDV-*` were deleted in September 2026; the surviving reference for TDV modes and reports is
+`docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`. The open work is tracked in `docs\PLAN.md`, not
+here.
+
 **The main question answered up front:** the current architecture is NOT the right long-term foundation for 10–15 terminal profiles **as it stands**, but it does **not** need a rewrite. The outer layering (Core → Protocols → UI, the session pump, the headless test approach) is correct and worth keeping. What breaks at scale is the *inside* of each layer: a parser with real defects that block every graphics protocol, a base emulator class that secretly *is* the VT100, mode state as loose bools, screen operations duplicated per emulator, a renderer with no caching and TDV type-checks inside it, and two host-response channels of which the VT one is dead. Section C proposes the target architecture; Section F shows how to get there incrementally.
 
 ---
@@ -424,9 +434,11 @@ CR`, and `ESC D/E/M`) while doing nothing, so entering 2115 mode disabled all cu
 movement and erase on that model. The stub is deleted; mode entry, the `?40`/`?66` numbers
 and `ESC Q` are resolved once in `TDVEmulatorBase`; `TDV2115ModeParityTests` runs identical
 byte streams against all three models. Note the doc conflict found on the way:
-`TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md:342` and `TDV-COMPREHENSIVE-REFERENCE.md` say
+`TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md:342` and `TDV-COMPREHENSIVE-REFERENCE.md` (both retired
+29 September 2026; the manual's answer is in `docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`) say
 `CSI ? 40 h`, while `TDV-QUERY-COMMANDS.md` and the (superseded) `TDV-IMPLEMENTATION-
-REFERENCE.md` say `?66`. Both numbers are accepted; ?40 is treated as canonical.
+REFERENCE.md` (both retired 29 September 2026, same place for the manual's answer) say `?66`.
+Both numbers are accepted; ?40 is treated as canonical.
 
 **Closing the renderer-testability gap (§A.11, §B.8).** The review recorded that the real
 `TerminalRenderer.Render` path was never pixel-tested, because the existing screenshot
@@ -864,7 +876,8 @@ returns before the base handler sees it. On that model, DECCKM is unreachable by
 number — the sequence a VT100 uses to switch its arrow keys means something else entirely.
 
 **Whether that is correct depends on the TDV2215 specification, which I have not verified.**
-`docs\TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md` is where to settle it. The test
+`docs\TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md` (retired 29 September 2026; the manual's answer is
+in `docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`) is where to settle it. The test
 `OnTheTdv2215PrivateModeOneIsExtendedMode_NotDeccKm` documents the behaviour as observed and says
 plainly that it does not endorse it; if a real 2215 uses mode 1 for DECCKM, that test should fail
 and the emulator should change. It exists so the collision is visible rather than a surprise to
@@ -1149,8 +1162,9 @@ VT-style `ActiveCharacterSet`, a *different variable* from the `_lockedCharacter
 byte cannot.
 
 Whether a real TDV2215 responds to raw SI/SO is a question for
-`docs\TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md`, which I have not verified — so this is **recorded,
-not fixed**.
+`docs\TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md` (retired 29 September 2026; the manual's answer is
+in `docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`), which I have not verified — so this is
+**recorded, not fixed**.
 
 ### A test of mine that looked like proof and was not
 

@@ -16,7 +16,7 @@ internal delegate void PumpDataHandler(ReadOnlySpan<byte> data);
 /// <summary>
 /// Single-writer processing pump for a terminal session.
 ///
-/// THE THREADING RULE (see PLAN-MCP-SCRIPTING.md phase 1):
+/// THE THREADING RULE (this header is where it lives; docs\MCP-AND-SCRIPTING.md section 4 points here):
 ///   - The network receive thread PRODUCES: it only copies bytes into this pump and returns.
 ///   - The pump task is the ONLY code allowed to mutate the emulator/buffer.
 ///   - UI, MCP and scripts CONSUME: they get events/snapshots, or run a job on the pump

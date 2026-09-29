@@ -11,7 +11,7 @@ namespace RetroTerm.Core.Logging;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Design notes (see docs/LOGGING-REDESIGN-PLAN.md):
+/// Design, decided in the August 2026 logging redesign:
 /// </para>
 ///   A fixed-size ring buffer replaces the old <c>Queue</c>: no per-entry dequeue churn and
 ///   no reallocation once steady state is reached.

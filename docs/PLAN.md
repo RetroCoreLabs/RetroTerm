@@ -4,7 +4,8 @@
 **Updated:** 11 September 2026
 **Next:** parked on 11 September 2026 at Ronny's call - "these are not very important right now".
 When it resumes, the TDV thread's next step is the GRM rendered test (Phase 4), and everything
-else needs Ronny or a machine. `docs\HANDOFF.md` has the day's summary.
+else needs Ronny or a machine. The two code defects found in the September document audit are in
+`BUGS.md` at the repo root.
 
 **What this program is, in one line:** a Windows desktop terminal emulator (C#, Avalonia) that
 speaks VT100/VT220/xterm, the DEC VT240/VT340 graphics terminals with Sixel and ReGIS, Tektronix
@@ -18,19 +19,18 @@ or through its own MCP server.
    drive a real machine over the `retroterm` MCP tools, and the traps that have each cost real
    time. It loads automatically, but read it rather than skim it: nearly every line is there
    because somebody broke the thing it warns about.
-2. This file — what is outstanding, in priority order.
-3. `docs\HANDOFF.md` — the state at the end of the last session, and the standing instructions
-   about what NOT to touch.
+2. This file — what is outstanding, in priority order. The standing instructions about what NOT
+   to touch are in Phase 3 (the virtual keyboard and its VK codes) and under "Standing judgement
+   calls".
 
 **This is the living plan, and the only one.** It holds outstanding work ONLY. Finished work is not
 listed here — it is in the git history, and the evidence is in the M1–M8 documents beside
 `docs\manual-tests\INDEX.md`. The order and who-does-what for by-hand work is in
 `docs\manual-tests\RUN-SHEET.md`.
 
-**State:** full `dotnet test src\RetroTerm.slnx` - 6867 passing, 1 skipped, 0 failed, plus 123 in the
-Kermit project. Published `1.0.26.2-1`. Working tree clean, in sync with the remote.
-One branch only: `master`. `linux-build` is merged; the `backup/pre-rebase-logging` snapshot was
-deleted after checking every one of its commits was already in master.
+**State:** full `dotnet test src\RetroTerm.slnx` - 6913 passing, plus 123 in the Kermit project.
+Published `1.10.26.9`. One branch only: `main`, on GitHub under RetroCoreLabs since 28 September
+2026.
 
 ---
 
@@ -293,13 +293,6 @@ Nothing here should be started to look busy.
       see section 6.5 of `docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`. Needs a cleaner scan of
       ND-12054 or a real terminal.
 
-- [ ] **The numpad ENTER has no Function-mode code.** TDV 2200/9 S User's Guide section 9.2 and
-      `spec\Keyboards\keyboard-spec.md` both give B54 ENTER as `CSI 81 _` when the Numeric Pad
-      switch is set to Function and Extended Control is on. `TDV2200KeyRegistry` gives B54 only
-      carriage return, with `AlwaysSameCode`, so in Function mode it sends the wrong thing. The
-      other thirteen numpad keys all have their Function-mode codes and all thirteen match.
-      Needs Ronny, because it is a key-registry change.
-
 - [ ] **GRM's semantics - START WITH THE RENDERED TEST.** Mode 62 itself is built and walks its
       three positions; nothing acts on the position yet. On a real 2215 (section 4.2.3): ATTR makes
       the terminal ignore SGR entirely and turns `SO Y SI` into an invisible attribute cell that
@@ -383,6 +376,82 @@ Nothing here should be started to look busy.
 
 - [ ] **IBM 3270.** No manual and no data-stream reference is held here. Building one from
       recollection would invent EBCDIC orders, AID codes and structured fields.
+
+- [ ] **ND graphics mode 8 reads its rectangle-fill coordinates as logical space - an assumption.**
+      `src\RetroTerm.Core\Terminal\Graphics\NorskDataGraphicsModule.cs` lines 242 to 249 flag it:
+      the spec names "4 coords" without saying which space. By-hand case M7.2a has no result.
+      Needs one `ESC "8;...h` from a real ND host and a look at where the rectangle lands.
+
+- [ ] **Mode 24 draws the circle when it is defined, and mode 30 "execute draw" is taken to serve
+      polygons only - both assumptions.** Same file, lines 271 to 296. By-hand case M7.2b has no
+      result. Needs a real host drawing a circle; if it turns out to need mode 30, the fix is one
+      line - store the circle and let 30 draw it.
+
+- [ ] **Which Tektronix coordinate bytes a host may leave out came from the 4010/4014 manuals, not
+      from the ND document.** `src\RetroTerm.Core\Terminal\Graphics\TektronixVectorDecoder.cs`
+      lines 51 to 53 say so. gnuplot's output agrees with the rule; no hardware has confirmed it.
+
+- [ ] **DECDLD 94-versus-96 character set offset: the source and a status document disagree.**
+      `SystemFontRenderer.cs` lines 144 to 146 say the set-size parameter is read and not acted on,
+      so a 94-character set would draw one place out. `docs\EMULATOR-VALIDATION-STATUS-2026-08-11.md`
+      (the Pcss paragraph near line 135) says that was fixed on 17 August. One of the two is stale.
+      Read `SoftFont` and the renderer and correct whichever is wrong.
+
+- [ ] **Two test-only properties on `TDV2200Emulator`.** `ResetWasCalled` and
+      `OnEscapeDispatchInvoked`, `TDV2200Emulator.cs` lines 57 to 63, exist for tests alone.
+      `Tdv2200TektronixRenderingTests` lines 191 to 211 assert on `ResetWasCalled`, so taking them
+      out needs a test change first. Small and self-contained.
+
+- [ ] **`SessionPreflightTests` was recommended on 26 August and never built.** One test per
+      by-hand session, checking before Ronny is asked anything that every picture the session shows
+      him exists and carries ink, that every case names its terminal type, machine and build, and
+      that the published binary is newer than the last commit touching `src\`. Ronny decides
+      whether wanted.
+
+- [ ] **Two MCP roadmap items never built:** an attribute-aware screen read (colours and protected
+      fields, not just text) and a headless console MCP host reusing the Core code without the
+      desktop window. Ronny decides whether wanted.
+
+- [ ] **Six of 42 bytes came back as `?` on the nexys serial link, clustered.** A 7E1 against 8N1
+      framing mismatch would fail parity on nearly every odd-population character and shred the
+      whole line, so this is unexplained. Needs COM11 free and the nexys board.
+
+- [ ] **Transmit pacing is wired for serial only.** The msec-per-character and msec-per-line
+      pacing is set on serial connections in `ConnectionFactory.cs` (near line 611); telnet has
+      none. The gap is general, not a serial one.
+
+- [ ] **Three SINTRAN protocol bytes are UNSOURCED.** A `0x21 0x13` packet marker, TAD protocol
+      0xDD and routing protocol 0xDE were written in the old OPEN-QUESTIONS.md, and PAD 0xDA in the
+      old TODO-PLAN.md, with no manual, capture or source behind any of them. Carry them as
+      "find the capture or drop", never as facts.
+
+- [ ] **STX, ETX and EOT outside 2115 mode.** 2215 section 8.4 (`spec\TDV2215\TDV2215.md` lines
+      2367 to 2396) lists them in the general accepted C0 set - video off, video on, erase line -
+      with no Extended Control qualifier, while the test
+      `TDV2200_NormalMode_LeavesTheGenuinelyTwoOneOneFiveOnlyCodesAlone` keeps EOT off in normal
+      mode. Decide with the manual open, and change the test with the citation in it.
+
+- [ ] **TDV printing from the keyboard.** The 2200 guide
+      (`spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md` lines 805 to 809) gives
+      CTRL+STOP PRINT on G51 and CTRL+START PRINT on G52 - a screen print to a local printer.
+      `TDV2200KeyRegistry.cs` gives G52 `ESC[44_` and G51 `ESC[42_` and has no CTRL column for
+      either. Read 2215 sections 4.2.14, 7.4 and 8.7 before building anything; DEC media copy
+      (`CSI 4 i` / `CSI 5 i`) is already in the base emulator.
+
+- [ ] **A pixel test for the ReGIS glyph fix.** On 17 August the built-in ReGIS letters were
+      quantised to ten rows before scaling, so `e` drew as `c` and `i` lost its dot; the fix samples
+      the ROM at draw height (`docs\REGIS-GAP-2026-08-17.md` lines 154 to 161, M6.4 in
+      `docs\manual-tests\M6-SIXEL-AND-REGIS.md`). No test pins it: `RegisTextAndLoadTests` says
+      "nothing here asserts what a letter looks like", and `M6SixelAndRegisTests` only counts lit
+      pixels. Write one that asserts an `e` at S1 or above has its middle bar. Needs nobody.
+
+- [ ] **Two leftovers from the 8 August architecture review, not re-verified since.**
+      `TerminalCanvas` tears the old renderer down on every `SetEmulator` (line 512 onwards) but
+      has no end-of-life cleanup of its own: no `OnDetachedFromVisualTree`, so the last renderer
+      and its blink timer live until the process ends. And the review's appendix 0q says
+      `FontTDV2200` has no guard for codepoints above 0x7F; `GetFontBits` at line 18436 still
+      hands anything outside the national remap straight to the base lookup. Check both against
+      the source before touching either. Needs nobody.
 
 ---
 
@@ -489,10 +558,9 @@ time and five minutes of it.
 
 ## Standing judgement calls
 
-Not tasks. Recorded so that changing one is a deliberate act rather than a drift.
+Not tasks. Recorded so that changing one is a deliberate act rather than a drift. Three of them
+were made in prose on 11 September and sit here as paragraphs; the rest are in the table below.
 
-| Call | Where it lives |
-|
 **The message lamps are four, not three - Ronny, 11 September 2026.** ND-1200 section 5.52 gives
 EXPAND, APPEND, BUSY and MESSAGE, and NDSLED/NDBLED/NDCLED are three operations on them. He asked
 "I assume #1 is following spec? if yes, then do it", and it does. Built the same day, including the
@@ -516,7 +584,8 @@ is only what no test can reach - whether a sound is audible, whether motion look
 colour looks right on his monitor, and real hardware. When the answer is a CHOICE rather than a
 fact, he gets two rendered PNGs to pick between, not a paragraph.
 
----|---|
+| Call | Where it lives |
+|---|---|
 | Serial parity errors are REPORTED, not hidden — the port keeps its real 7E1 framing and `ParityReplace` is 0 | Decided 31 August 2026, Ronny's call. .NET's `SerialPort` substitutes `?` for any byte failing the OS parity check; `c91f39a` turns that substitution off, so a suspect byte arrives as received and `OnSerialError` still fires. Opening the port 8N1 and masking bit 7 in software was PROPOSED by the RTC session and REJECTED: it makes substitution impossible but also stops us detecting a genuinely corrupt byte, and it would change framing for every serial connection |
 | Shift-drag keeps the gesture local while a program tracks the mouse | M2.3, pinned by `MousePointerWiringTests.ShiftKeepsTheGestureForSelection` |
 | The five Tektronix dash mask lengths | **JUDGED AND KEPT, 25 Aug 2026.** Ronny confirmed all five by eye on the 1:1 plane sheet and none changed — including the pair I expected to fail, dotted (1 on / 1 off) against short dash (2 on / 2 off), which reads as two clearly different styles. Still a reading of five words rather than a measurement: if a real 4014 turns up, photograph it |

@@ -1,9 +1,7 @@
 # M1 — ANSI and VT100, the core
 
 **Full path:** `docs\manual-tests\M1-ANSI-AND-VT100.md`
-**Index:** `docs\manual-tests\INDEX.md`
-**Overview row:** `docs\MANUAL-TEST-PLAN-2026-08-17.md` §M1
-**Backs:** `docs\FINISH-PLAN-2026-08-11.md` P0
+**Parent:** `docs\manual-tests\INDEX.md`
 
 **This is the best-evidenced area in the program, and that changes what the pass is for.** 76
 xterm.js screens captured from a real xterm all match exactly, and 393 libvterm assertions run

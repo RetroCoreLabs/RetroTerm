@@ -238,29 +238,6 @@ Format: `<1B 5B XX XX 5F>` (CSI nn _) where:
 | **C99** | `<1B 5B 38 34 5F>` (CSI 84 _) | `<1B 5B 38 35 5F>` (CSI 85 _) | Squiggle (≈) |
 | **D48** | `<1B 5B 33 30 5F>` (CSI 30 _) | `<1B 5B 33 31 5F>` (CSI 31 _) | ANGRE/CANCEL |
 
-## Implementation Notes
-
-### Current Code Status (as of latest commit)
-
-The keyboard layout is implemented in:
-- **File**: `src/RetroTerm.Desktop/Models/TDV2200KeyLayout.cs`
-- **Enum**: `NationalKeyboardLayout` in `src/RetroTerm.Desktop/Models/KeyboardLayout.cs`
-
-### Key Positions Implemented:
-
-✅ **C99**: MODE (orange key, leftmost in C-row)
-✅ **C0**: LOCK with LED (1.5x width, toggle key)
-✅ **D99**: INNS/EXPS (orange key, leftmost in D-row)
-✅ **D0**: CTRL (main keyboard area)
-✅ **National character mappings**: Æ/Ø/Å (Nordic), Ä/Ö/Ü (German), etc.
-
-### Areas for Improvement:
-
-1. **Number row (E-row)**: Verify all shifted characters match specification
-2. **B-row**: Verify < > positioning and AZERTY variants
-3. **Special characters**: Verify § ¤ £ positions across all layouts
-4. **CSI sequences**: Not yet implemented for special keys
-
 ## References
 
 1. **TDV-2200/9 User's Guide (ND)**, Part no. 408356, Publication no. 5599, November 1984

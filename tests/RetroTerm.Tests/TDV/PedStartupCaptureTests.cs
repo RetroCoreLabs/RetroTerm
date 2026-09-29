@@ -22,8 +22,9 @@ namespace RetroTerm.Tests.TDV;
 /// a reason that matters, and no amount of specification reading would have caught it.
 /// <para><b>The shape is corroborated</b></para>
 /// A real TDV2200 termcap's <c>is</c> (initialisation) string is
-/// <c>\E[62;36;66l \EQ \E[36;62;62h \E[0m</c> - see the <c>is</c> capability in
-/// <c>docs\TDV2200 TERMCAP REFERENCE.md</c>. PED sends the same three-part ritual with different
+/// <c>\E[62;36;66l \EQ \E[36;62;62h \E[0m</c> - see the <c>is=</c> capability of the tdv2200
+/// entry in <c>docs\TermCap.txt</c> line 102 (the 1998 posting of ND's own termcap entries).
+/// PED sends the same three-part ritual with different
 /// numbers: an <c>ESC Q</c>, a reset list, then a set list. Mode 62 appears in both sources.
 /// What neither source states is what mode 62 DOES, so nothing here asserts a behaviour for it -
 /// it is counted as unhandled, which is the honest answer.

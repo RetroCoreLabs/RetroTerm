@@ -1,105 +1,36 @@
-# Kermit File Transfer — Manual Test Plan
+# M9 — Kermit file transfer
 
-## Implementation Summary
+**Full path:** `docs\manual-tests\M9-KERMIT.md`
+**Parent:** `docs\manual-tests\INDEX.md`
+**Machine cover:** `tests\RetroTerm.Core.Protocols.Kermit.Tests` — 123 tests over encoding, the
+three block-check types, Send-Init negotiation, 7-bit channels, nd-kermit patterns and the engine
+state machine. The transfer settings live in **Preferences, Kermit tab**; there is no separate
+transfer settings window, and Send and Receive read the preferences as they are when clicked.
 
-Add Kermit file transfer integration with UI, settings, and protocol engine.
+The protocol engine is `src\RetroTerm.Core.Protocols.Kermit\KermitEngine.cs`. It negotiates the
+block check type in the Send-Init exchange (the lower of the two sides, falling back to type 1) and
+then computes and verifies type 1, 2 or 3 on every packet; `KermitFileTransfer.cs` runs the timeout
+timer and the file-collision handling. So nothing in this document depends on engine work that is
+still to come.
 
-Full in-band file transfer support via the Kermit protocol:
+---
 
-**Core layer:**
-- `IFileTransferHandler` interface with `TransferProgress`, `TransferState`,
-  `SendBytesAsync` delegate for protocol-agnostic transfer abstraction
-- `TerminalSession` transfer mode: data routing intercept during active
-  transfer, `StartFileTransferAsync`/`CancelFileTransfer`, progress events
+## nd-kermit SET commands and where each lives here
 
-**Kermit protocol engine (`RetroTerm.Core.Protocols.Kermit`):**
-- State machine: Send-Init/FileHeader/Data/EOF/Break handshake
-- `KermitEncoding`: control char quoting, 8th-bit quoting for 7-bit channels
-- `KermitParameters`: Send-Init field negotiation (MAXL, TIME, QBIN, CHKT)
-- `KermitChecksum`: type 1 (6-bit), type 2 (12-bit), type 3 (CRC-CCITT)
-- Parity support: Even/Odd/Mark/Space with apply/strip on wire bytes
-- `KermitFileTransfer` bridge: wires `IFileTransferHandler` to `KermitEngine`,
-  implements `IKermitFileHandler` for disk I/O, timeout timer, file collision
-  handling (rename/overwrite/skip), sender delay, filename sanitization
-
-**Desktop UI:**
-- Transfer menu (Send/Receive/Cancel/Settings) between Connection and Keyboard
-- `TransferSettingsWindow`: channel (parity, force 8-bit quoting), timing
-  (delay, timeout, retries), file handling (collision mode), advanced
-  (block check type, max packet size) — settings persist across transfers
-- `FileTransferProgressWindow`: non-modal progress with state, filename,
-  progress bar, byte count, file count, error display, cancel/close
-- XFR status bar indicator during active transfer
-- Menu state management: send/receive enabled when connected, cancel
-  enabled when transferring
-
-**Tests:** 106 Kermit protocol tests covering encoding, checksums, parameters,
-7-bit channel scenarios, nd-kermit patterns, engine state machine
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────┐
-│  Desktop UI (Avalonia)                      │
-│  TransferSettingsWindow → KermitOptions     │
-│  MainWindow (menu, XFR indicator)           │
-│  FileTransferProgressWindow                 │
-├─────────────────────────────────────────────┤
-│  Session Layer                              │
-│  TerminalSession.StartFileTransferAsync()   │
-│  Data routing: transfer mode ↔ emulator     │
-├─────────────────────────────────────────────┤
-│  Integration Layer                          │
-│  KermitFileTransfer : IFileTransferHandler  │
-│  Timeout timer, file collision, delay       │
-│  IKermitFileHandler disk I/O                │
-├─────────────────────────────────────────────┤
-│  Protocol Layer                             │
-│  KermitEngine (state machine)               │
-│  KermitEncoding, KermitParameters           │
-│  KermitChecksum, KermitPacket               │
-└─────────────────────────────────────────────┘
-```
-
-### Settings Flow
-
-```
-UI TransferSettingsWindow
-    ↓ populates
-KermitOptions (parity, force8BitQuoting, timeout, maxRetries, blockCheckType, delay, maxPacketSize)
-    ↓ passed to
-KermitFileTransfer (also receives FileCollisionMode)
-    ↓ creates
-KermitEngine(options, fileHandler)
-    ↓ negotiates via
-KermitParameters.FromOptions() → Send-Init S/Y packet exchange
-```
-
-### nd-kermit SET Command Mapping
-
-| nd-kermit SET | UI Field | KermitOptions Property | Wired To |
-|---------------|----------|----------------------|----------|
-| SET DELAY | Send delay spinner | `.Delay` | `KermitFileTransfer.StartSendAsync()` — `Task.Delay()` |
-| SET FILE-WARNING | If file exists dropdown | N/A (on `KermitFileTransfer`) | `OpenFileForWrite()` collision logic |
-| SET RECEIVE TIMEOUT | Timeout spinner | `.Timeout` | Send-Init TIME field + timeout timer → `NotifyTimeout()` |
-| SET SEND PACKET-LENGTH | Max packet size spinner | `.MaxReceivePacketSize` | Send-Init MAXL field, negotiated |
-| SET USE-8-BIT-QUOTE | Force 8-bit quoting checkbox | `.Force8BitQuoting` | Send-Init QBIN field = '&', negotiated |
-| SET BLOCK-CHECK | Block check dropdown | `.BlockCheckType` | Send-Init CHKT field, negotiated |
-
-### Known Gaps (for core Kermit team)
-
-- **Block check type 2/3 in engine**: `BuildPacket()` and `TryExtractPacket()` use `ComputeType1` only.
-  The CHKT field is advertised correctly in Send-Init, but the engine doesn't switch checksum
-  computation after negotiation. Need to use negotiated type for all packets after S/Y exchange.
-- **Padding on send**: Engine doesn't prepend NPAD×PADC before packets (low priority, TCP doesn't need it).
-- **Batch send**: Engine handles one file per `BeginSend()`. Multi-file batch requires new engine per file
-  or extending the engine to support F→D→Z→F→D→Z→B sequences.
+| nd-kermit SET | Preferences, Kermit tab | KermitOptions Property | Wired To |
+|---------------|-------------------------|----------------------|----------|
+| SET DELAY | Send delay | `.Delay` | `KermitFileTransfer.StartSendAsync()` — `Task.Delay()` |
+| SET FILE-WARNING | If file exists | N/A (on `KermitFileTransfer`) | `OpenFileForWrite()` collision logic |
+| SET RECEIVE TIMEOUT | Timeout | `.Timeout` | Send-Init TIME field + timeout timer → `NotifyTimeout()` |
+| SET SEND PACKET-LENGTH | Max packet size | `.MaxReceivePacketSize` | Send-Init MAXL field, negotiated |
+| SET USE-8-BIT-QUOTE | Force 8-bit quoting | `.Force8BitQuoting` | Send-Init QBIN field = '&', negotiated |
+| SET BLOCK-CHECK | Block check | `.BlockCheckType` | Send-Init CHKT field, negotiated, then used on every packet |
 
 ---
 
 ## Prerequisites
 
-- RetroTerm built and running
+- RetroTerm built and running (`.\scripts\publish.ps1`, then `publish\current\RetroTerm.Desktop.exe`)
 - A Telnet/SSH host available for connection testing (or TestServer)
 - A host running Kermit (nd-kermit, C-Kermit, or G-Kermit) for end-to-end tests
 - A few test files of varying sizes (e.g., small.txt 100B, medium.bin 50KB, large.dat 5MB)
@@ -107,27 +38,26 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 1. Menu Visibility and Placement
+## M9.1 — Menu visibility and placement
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
 | 1.1 | Launch RetroTerm, inspect menu bar | "Transfer" menu appears between "Connection" and "Keyboard" | |
-| 1.2 | Click "Transfer" menu | Five items visible: "Send File(s)...", "Receive File(s)...", separator, "Cancel Transfer", separator, "Settings..." | |
+| 1.2 | Click "Transfer" menu | Three items: "Send File(s)...", "Receive File(s)...", separator, "Cancel Transfer". Settings are NOT here; they are in Preferences, Kermit tab | |
 
 ---
 
-## 2. Menu State — Disconnected
+## M9.2 — Menu state, disconnected
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
 | 2.1 | With no connection, open Transfer menu | "Send File(s)..." is disabled (greyed out) | |
 | 2.2 | | "Receive File(s)..." is disabled | |
 | 2.3 | | "Cancel Transfer" is disabled | |
-| 2.4 | | "Settings..." is always enabled | |
 
 ---
 
-## 3. Menu State — Connected, No Transfer Active
+## M9.3 — Menu state, connected, no transfer active
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -137,7 +67,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 4. Menu State — After Disconnect
+## M9.4 — Menu state, after disconnect
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -146,7 +76,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 5. Status Bar — XFR Indicator
+## M9.5 — Status bar, XFR indicator
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -157,24 +87,23 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 6. Transfer Settings Dialog — Layout
+## M9.6 — Preferences, Kermit tab: layout
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 6.1 | Click Transfer > Settings... | Settings dialog opens with title "Transfer Settings" | |
-| 6.2 | Channel section visible | Parity dropdown (None/Even/Odd/Mark/Space) and "Force 8-bit quoting" checkbox | |
-| 6.3 | Timing section visible | Send delay (0-30), Timeout (1-60), Max retries (0-99) spinners | |
-| 6.4 | File Handling section visible | "If file exists" dropdown: Rename/Overwrite/Skip | |
-| 6.5 | Advanced section visible | Block check dropdown (1/2/3 CRC), Max packet size (20-94) spinner | |
-| 6.6 | Buttons | OK and Cancel at bottom-right | |
+| 6.1 | Open Preferences, pick the Kermit tab | Two groups: "File Transfer" and "Kermit Settings" | |
+| 6.2 | Channel settings | Parity dropdown (None/Even/Odd/Mark/Space) and "Force 8-bit quoting" checkbox | |
+| 6.3 | Timing settings | Send delay (0-30 s), Timeout (1-60 s), Max retries (0-99) spinners | |
+| 6.4 | File handling | "If file exists" dropdown: Rename/Overwrite/Skip | |
+| 6.5 | Advanced | Block check dropdown (1 / 2 / 3 (CRC)), Max packet size (20-94) spinner | |
 
 ---
 
-## 7. Transfer Settings Dialog — Defaults
+## M9.7 — Preferences, Kermit tab: defaults
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 7.1 | Open settings for the first time | Parity = None | |
+| 7.1 | Open the tab on a fresh preferences file | Parity = None | |
 | 7.2 | | Force 8-bit quoting = unchecked | |
 | 7.3 | | Send delay = 0 | |
 | 7.4 | | Timeout = 8 | |
@@ -185,52 +114,53 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 8. Transfer Settings Dialog — Persistence Within Session
+## M9.8 — Preferences, Kermit tab: persistence
+
+The values are written to the preferences file as `kermit-*` lines the moment they change, so they
+survive a restart, not just the session.
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 8.1 | Change settings, click OK, reopen settings | All changed values are preserved | |
-| 8.2 | Change settings, click Cancel, reopen settings | Previous values are preserved (changes discarded) | |
-| 8.3 | Change settings via Settings..., then use Send File(s)... | Settings dialog in Send flow shows the last-saved values | |
-| 8.4 | Change settings during Send flow, then use Receive | Settings dialog in Receive flow shows values from the Send flow | |
+| 8.1 | Change settings, close Preferences, reopen | All changed values are preserved | |
+| 8.2 | Change settings, close the app, start it again, open Preferences | Values still preserved | |
+| 8.3 | Change Block check to 3, then Send a file to a host that supports CRC | The transfer negotiates CRC — the new value was used, no dialog in between | |
 
 ---
 
-## 9. Transfer Settings Dialog — Before Send/Receive
+## M9.9 — Send and Receive start straight away
+
+There is no settings dialog before a transfer. Send opens the file picker at once, Receive opens the
+folder picker at once, and both use whatever the Kermit tab holds at that moment.
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 9.1 | Click Send File(s)... while connected | Settings dialog appears FIRST, before file picker | |
-| 9.2 | Click OK in settings dialog | File picker opens after settings dialog closes | |
-| 9.3 | Click Cancel in settings dialog | No file picker appears, transfer does not start | |
-| 9.4 | Click Receive File(s)... while connected | Settings dialog appears FIRST, before folder picker | |
-| 9.5 | Click OK in settings dialog | Folder picker opens after settings dialog closes | |
-| 9.6 | Click Cancel in settings dialog | No folder picker appears, transfer does not start | |
+| 9.1 | Click Send File(s)... while connected | The file picker opens directly | |
+| 9.2 | Click Receive File(s)... while connected | The folder picker opens directly | |
 
 ---
 
-## 10. Send File(s) — File Picker
+## M9.10 — Send File(s): file picker
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 10.1 | After settings OK, file picker opens | Title says "Select Files to Send", multi-select is enabled | |
+| 10.1 | File picker opens | Title says "Select Files to Send", multi-select is enabled | |
 | 10.2 | Cancel the file picker without selecting | No progress window opens, no error, terminal resumes normally | |
 | 10.3 | Select one file and confirm | Progress window opens, transfer begins | |
 | 10.4 | Select multiple files and confirm | Progress window opens with batch transfer | |
 
 ---
 
-## 11. Receive File(s) — Folder Picker
+## M9.11 — Receive File(s): folder picker
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
-| 11.1 | After settings OK, folder picker opens | Title says "Select Save Directory" | |
+| 11.1 | Folder picker opens | Title says "Select Save Directory" | |
 | 11.2 | Cancel the folder picker without selecting | No progress window opens, no error | |
 | 11.3 | Select a folder and confirm | Progress window opens, receiver enters waiting state | |
 
 ---
 
-## 12. Progress Window — Layout and Initial State
+## M9.12 — Progress window: layout and initial state
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -245,7 +175,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 13. Progress Window — During Transfer
+## M9.13 — Progress window: during transfer
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -260,7 +190,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 14. Progress Window — Completion States
+## M9.14 — Progress window: completion states
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -277,7 +207,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 15. Cancel Transfer
+## M9.15 — Cancel transfer
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -288,7 +218,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 16. Transfer Mode — Data Routing
+## M9.16 — Transfer mode: data routing
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -298,7 +228,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 17. Tab Switching During Transfer
+## M9.17 — Tab switching during transfer
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -308,7 +238,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 18. 8-Bit Quoting — Channel Settings
+## M9.18 — 8-bit quoting: channel settings
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -321,7 +251,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 19. Sender Delay
+## M9.19 — Sender delay
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -331,7 +261,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 20. File Collision (Receive)
+## M9.20 — File collision (receive)
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -344,7 +274,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 21. Timeout and Retries
+## M9.21 — Timeout and retries
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -353,11 +283,9 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 | 21.3 | Settings: Max retries=0 (unlimited). Remote temporarily unresponsive | Transfer retries indefinitely until remote recovers or user cancels | |
 | 21.4 | Timeout value sent in Send-Init TIME field | Verify with protocol trace: TIME field matches configured timeout | |
 
-*Note: Timeout timer implementation is the core Kermit team's responsibility. These tests depend on that being complete.*
-
 ---
 
-## 22. Block Check Type
+## M9.22 — Block check type
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -367,11 +295,9 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 | 22.4 | Introduce bit errors on link with type 1 | Errors occasionally missed (6-bit checksum is weak) | |
 | 22.5 | Introduce bit errors on link with type 3 (CRC) | Errors reliably detected, packets retransmitted | |
 
-*Note: Block check type 2/3 negotiation in the engine is the core Kermit team's responsibility. Tests 22.2–22.5 depend on that being complete.*
-
 ---
 
-## 23. Packet Size
+## M9.23 — Packet size
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -382,7 +308,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 24. End-to-End: RetroTerm ↔ nd-kermit
+## M9.24 — End to end: RetroTerm and nd-kermit
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -395,7 +321,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 25. End-to-End: RetroTerm ↔ C-Kermit / G-Kermit
+## M9.25 — End to end: RetroTerm and C-Kermit / G-Kermit
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -406,7 +332,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 26. Edge Cases
+## M9.26 — Edge cases
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -421,7 +347,7 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ---
 
-## 27. Byte Formatting in Progress Window
+## M9.27 — Byte formatting in progress window
 
 | # | Test | Expected | Pass? |
 |---|------|----------|-------|
@@ -434,7 +360,5 @@ KermitParameters.FromOptions() → Send-Init S/Y packet exchange
 
 ## Notes
 
-- Sections 21 (timeout timer) and 22 (block check 2/3) depend on core Kermit engine work that is the engine team's responsibility.
-- The settings dialog appears before every Send/Receive to give the user a chance to adjust channel settings. Settings persist within the session (remembered between transfers).
 - For nd-kermit interop testing: the ND-100 serial line uses 7-bit even parity at the hardware level. When connecting through a TCP-to-serial gateway, set `Force 8-bit quoting = ON` on our side (not `Parity = Even`, because the gateway handles parity). On the nd-kermit side: `SET USE-8-BIT-QUOTE`.
-- File collision only affects receive operations. The dropdown is visible but irrelevant when sending.
+- File collision only affects receive operations. The setting is visible but irrelevant when sending.

@@ -112,9 +112,10 @@ public class TDV2115CompatibilityHandler
     ///    Compare section 3.1, which lists what a terminal accepts with EC OFF: the same set minus
     ///    those two. So turning extended control on ADDS escape sequences; it does not take the C0
     ///    meanings away.
-    ///  - <c>docs\TDV-COMPREHENSIVE-REFERENCE.md</c>, the table headed "Standard ISO 6429 C0
-    ///    Codes - All Models", which says the same thing and adds "Cursor Movement: uses C0 codes
-    ///    (0x08, 0x0B, 0x18, 0x1C, 0x1D), NOT ESC sequences".
+    ///  - <c>docs\TDV-KEYBOARD-COMPLETE-REFERENCE.md</c>, the "Control Keys" table (the keyboard
+    ///    side of the same C0 set), which says the same thing: the arrow keys send C0 codes
+    ///    (0x08, 0x0B, 0x18, 0x1C, 0x1D) in every mode, never escape sequences. The code table
+    ///    itself is the switch in <see cref="ProcessTDV2115ControlCharacter"/> below.
     ///
     /// <para><b>What changed, and what it replaced</b></para>
     /// Only the four lamp codes used to be live in native mode. A comment here recorded that the
@@ -335,9 +336,10 @@ public class TDV2115CompatibilityHandler
     ///   e.g. <c>DLE 0x83 0x82</c> = row 4, col 3 (1-based) = row 3, col 2 (0-based).
     ///   Masking off the 0x80 bias yields the same 0-based value.
     /// <para>
-    /// NOTE: docs/TDV-COMPLETE-ESCAPE-SEQUENCE-REFERENCE.md states a 5-bit mask for the COLUMN.
-    /// That is wrong on its face - 5 bits cannot express the documented column range 0-79 - so
-    /// the 7-bit mask used here is retained. Row genuinely is 5 bits (0-24 fits in 0-31).
+    /// NOTE: an earlier reference document, now retired, stated a 5-bit column mask; the manual
+    /// (<c>spec\TDV2215\TDV2215.md</c> line 2186, columns 0 to 79) and the measured bytes say
+    /// 7-bit. 5 bits cannot express the documented column range 0-79, so the 7-bit mask used
+    /// here is retained. Row genuinely is 5 bits (0-24 fits in 0-31).
     /// </para>
     /// </remarks>
     public void HandleDLEByte(byte b)
@@ -384,9 +386,9 @@ public class TDV2115CompatibilityHandler
     /// <remarks>
     /// <para>
     /// Deliberately NOT gated on <see cref="Is2115CompatibilityMode"/>. DLE is part of the
-    /// TDV native C0 set - docs/TDV-COMPREHENSIVE-REFERENCE.md lists
-    /// "0x10 DLE Direct Line Entry (cursor load)" in the table headed
-    /// "Standard ISO 6429 C0 Codes - All Models".
+    /// TDV native C0 set - the TDV 2215 manual, <c>spec\TDV2215\TDV2215.md</c> section 8.4
+    /// "Accepted Codes in the C0-set" (line 2388), lists "DLE CURSOR LOAD 10: lead-in for direct
+    /// cursor addressing; next two characters are line (0-24) and column (0-79)".
     /// </para>
     /// <para>
     /// Before this method existed, 0x10 was only recognised inside

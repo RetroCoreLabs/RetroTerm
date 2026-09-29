@@ -2,6 +2,14 @@
 
 Extracted from microcode listing `ND110Compile/uCode/ND-110-RASK.LISTING.TXT`.
 
+**Read this first.** That listing, and the `Uart.cs` / `Cpu.cs` files named in the "Emulator
+Implementation" and "Files modified" parts below, belong to another repository (the ND-110
+microcode and emulator work), not to RetroTerm. Nothing in this repository is modified by those
+sections; they are kept because this document is the only record here of the BPUN serial wire
+protocol and of the STS mask switch. One number in it has been measured against a real machine
+and found wrong: `IRD` prints 15 values, not the 16 given below. The measurement is in
+`OPCOM-COMMAND-REFERENCE.md`, 6 September 2026.
+
 The ND-110 MOPC (Micro Operator Communication) is a built-in operator console implemented entirely in microcode. It communicates via the CPU's UART serial port. MOPC runs during the 20ms timer interrupt (MS20) or when the CPU is in STOP mode, processing characters from the terminal.
 
 ## Architecture Overview
@@ -259,7 +267,8 @@ The dump continues until `CURNR` reaches `UPPNR`. Each line prints up to 10 word
 - `SCRAM` = scramble of "R" -> Register dump
 - `SCRAM` = scramble of "U" (125 octal check) -> Auxiliary register dump (RDE)
 
-**Response**: 16 octal values on formatted lines.
+**Response**: 16 octal values on formatted lines, according to the listing. Measured on a real
+ND-120/CX on 6 September 2026 (`OPCOM-COMMAND-REFERENCE.md`): `IRD` prints 15.
 
 ---
 
@@ -781,7 +790,8 @@ The microcode uses two independent mechanisms to handle 7-bit ASCII and 8-bit bi
 
 #### Emulator Implementation
 
-The emulator's `COMM,SIOC` handler in Cpu.cs extracts UART configuration from IOControl bits 11-14 and passes them to `Uart.ConfigureFromSIOC()`. The Uart class applies:
+This section and the "Files modified" line under it describe the ND-110 emulator in another
+repository, not RetroTerm. The emulator's `COMM,SIOC` handler in Cpu.cs extracts UART configuration from IOControl bits 11-14 and passes them to `Uart.ConfigureFromSIOC()`. The Uart class applies:
 
 - **Word length masking**: `DataMask` is set to 0x7F (7-bit) or 0xFF (8-bit) based on IOControl bit 12. The mask is applied in `try_read_next()` when a byte is dequeued from the KeyboardQueue into the IOR data bits.
 - **Parity error detection**: When parity is enabled (IOControl bit 14 = 0), the UART computes even parity over the data bits and sets IOR bit 9 (PARITY_ERROR) if the parity bit in the received byte doesn't match.

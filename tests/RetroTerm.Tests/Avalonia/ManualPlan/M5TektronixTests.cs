@@ -10,7 +10,7 @@ namespace RetroTerm.Tests.Avalonia.ManualPlan;
 
 /// <summary>
 /// The machine half of the by-hand pass in
-/// <c>E:\Dev\Ronny\RetroTerm\docs\manual-tests\M5-TEKTRONIX.md</c>.
+/// <c>docs\manual-tests\M5-TEKTRONIX.md</c>.
 /// </summary>
 /// <remarks>
 /// <para><b>Why these draw sheets rather than assert</b></para>

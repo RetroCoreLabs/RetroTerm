@@ -7,7 +7,8 @@ namespace RetroTerm.Core.Commands;
 
 /// <summary>
 /// One self-contained session operation — THE extensibility seam of the MCP/scripting
-/// architecture (PLAN-MCP-SCRIPTING.md phase 2.5). A new capability is one class
+/// architecture (the "one class + one registration" rule: CommandRegistry.cs and
+/// docs\MCP-AND-SCRIPTING.md section 4). A new capability is one class
 /// implementing this, registered once in CommandRegistry; it then automatically
 /// appears as a script DSL verb, as an MCP tool, and in the generated help.
 ///

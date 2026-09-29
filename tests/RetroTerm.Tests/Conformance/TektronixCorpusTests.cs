@@ -82,6 +82,10 @@ public class TektronixCorpusTests
     [InlineData("points.tek40xx")]
     public void ARealPlotDrawsSomething(string name)
     {
+        // NOT A DEFECT, recorded 2026-08-10 so it is not chased again: in box.tek40xx the four
+        // parametric lines coincide exactly with the plot border, because gnuplot auto-ranged the
+        // axes to the box. A rendered picture of it shows a border and nothing inside. Nothing is
+        // missing.
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(new byte[] { 0x1B, (byte)'"', (byte)'1', (byte)'7', (byte)'h' });
 

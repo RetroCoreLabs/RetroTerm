@@ -132,7 +132,8 @@ p3, the ND private modes:
 Report type 5 carries framing error, parity error, line buffer overflow, cursor addressing error
 and CSI parameter error. Report type 6 carries magnetic card reader, graphics, mouse and printer.
 
-**NDRQ is not implemented in this program.** The TDV2200 firmware analysis in
+**NDRQ is implemented in this program**, pinned by
+`tests\RetroTerm.Tests\TDV\NdrqTerminalParameterReportTests.cs`. The TDV2200 firmware analysis in
 `spec\TDV2200\Testing2200_9S\tdv2200_escape_sequence_table.md` lists it as `ESC [ 120 x`, "NDREQ -
 Request terminal parameters", "Not found" - that "not found" is about the firmware disassembly, not
 about our code.
@@ -266,9 +267,9 @@ Mode 66 was the only one with the right number, and it was inverted and carried 
 
 ## 5. The two documents that were wrong
 
-Neither cites a source. Both are kept, with a warning at the top pointing here, rather than deleted,
-because code and tests were written from them and a reader who finds an old reference to one needs
-to be able to see what happened.
+Neither cited a source. Both were deleted in the documentation clean-up of September 2026, so the
+record of what they got wrong stays here: code and tests were written from them, and a reader who
+finds an old reference to one needs to be able to see what happened.
 
 **`docs\TDV-QUERY-COMMANDS.md`**
 

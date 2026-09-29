@@ -35,8 +35,9 @@ public sealed class ScriptStepResult
 /// Outcome of a script run: per-step transcript with timings, and — when it stopped
 /// early — which step failed and why. The session is ALWAYS left live: when a step
 /// misbehaves, the caller pokes at the same session one command at a time
-/// (HANDOVER-MCP-TERMINAL-CONTROL.md §4: "a script that stops on the failing step
-/// and hands the live session back is the ideal").
+/// ("a script that stops on the failing step and hands the live session back is the
+/// ideal" - the rule came from the 4 August 2026 handover for the MCP terminal control,
+/// now retired).
 /// </summary>
 public sealed class ScriptRunResult
 {

@@ -1,12 +1,3 @@
-
-**Other platforms.** The GitHub repository builds the same application for Linux x64 and for
-macOS on Intel and on Apple silicon, as single self-contained executables named
-`RetroTerm-linux-x64`, `RetroTerm-osx-x64` and `RetroTerm-osx-arm64`, attached to each release
-at `https://github.com/RetroCoreLabs/RetroTerm/releases`. They are built and unit-tested on
-those systems but nobody has yet watched them draw a screen there. The macOS ones are unsigned:
-after downloading, `xattr -d com.apple.quarantine <file>` and `chmod +x <file>`, then run it.
-Everything below about settings and MCP applies to them the same way, with `~/.config/RetroTerm`
-in place of `%APPDATA%RetroTerm` - not verified on a real Linux or macOS machine.
 # RetroTerm
 
 RetroTerm is a terminal emulator for the Norsk Data world and the DEC world: the Tandberg
@@ -17,11 +8,23 @@ into the application.
 
 This folder is a distribution. Everything in it is described below.
 
+## Other platforms
+
+The GitHub repository builds the same application for Linux x64 and for macOS on Intel and on
+Apple silicon, as single self-contained executables named `RetroTerm-linux-x64`,
+`RetroTerm-osx-x64` and `RetroTerm-osx-arm64`, attached to each release at
+`https://github.com/RetroCoreLabs/RetroTerm/releases` beside the Windows build,
+`RetroTerm-win-x64.exe`. They are built and unit-tested on those systems but nobody has yet
+watched them draw a screen there. The macOS ones are unsigned: after downloading,
+`xattr -d com.apple.quarantine <file>` and `chmod +x <file>`, then run it. Everything below
+about settings and MCP applies to them the same way, with `~/.config/RetroTerm` in place of
+`%APPDATA%\RetroTerm` - not verified on a real Linux or macOS machine.
+
 ## What is in this folder
 
 | File | What it is |
 |---|---|
-| `RetroTerm.Desktop.exe` | The whole application. Self-contained, single file, Windows x64. Nothing to install and no .NET runtime needed. |
+| `RetroTerm.Desktop.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release the same file is named `RetroTerm-win-x64.exe`; the Linux and macOS builds are separate files, see above). Nothing to install and no .NET runtime needed. |
 | `README.md` | This file. |
 | `.mcp.json` | A ready-made Claude Code project configuration that points at RetroTerm's MCP server. Copy it into the folder you run Claude Code from. |
 | `add-mcp-to-claude-code.ps1` | The same thing as a one-line script: registers the server with Claude Code for your user. |

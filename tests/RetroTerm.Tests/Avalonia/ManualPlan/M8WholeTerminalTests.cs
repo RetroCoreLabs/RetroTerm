@@ -15,7 +15,7 @@ namespace RetroTerm.Tests.Avalonia.ManualPlan;
 
 /// <summary>
 /// The machine half of the by-hand pass in
-/// <c>E:\Dev\Ronny\RetroTerm\docs\manual-tests\M8-WHOLE-TERMINAL.md</c>.
+/// <c>docs\manual-tests\M8-WHOLE-TERMINAL.md</c>.
 /// </summary>
 /// <remarks>
 /// <para><b>Why the names carry the case numbers</b></para>

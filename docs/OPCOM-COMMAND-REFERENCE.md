@@ -268,7 +268,7 @@ Execution starts at the octal address entered immediately before `!`. If no addr
 **Full cold start from disk:**
 ```
 #STOP
-#MCL
+#MACL
 (wait for ##)
 #&
 ```
@@ -801,7 +801,7 @@ The key should normally be in **LOCK** position. If in ON position, the computer
 
 4. **Always restore display** with `ACT/` before leaving OPCOM, as other operations change the display mode.
 
-5. **Wait for `##`** after MCL before issuing LOAD commands. A single `#` means MCL is still in progress.
+5. **Wait for `##`** after MACL before issuing LOAD commands. A single `#` means the master clear is still in progress.
 
 6. **ALD only loads from unit 0** - It is not possible to select any other disk drive than unit 0 for loading.
 

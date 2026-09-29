@@ -10,7 +10,7 @@ namespace RetroTerm.Tests.Avalonia.ManualPlan;
 
 /// <summary>
 /// The machine half of the by-hand pass in
-/// <c>E:\Dev\Ronny\RetroTerm\docs\manual-tests\M4-TDV.md</c>.
+/// <c>docs\manual-tests\M4-TDV.md</c>.
 /// </summary>
 /// <remarks>
 /// <para><b>The keyboard is the part that needs a person, and this is what it hands them</b></para>
@@ -53,7 +53,7 @@ public class M4TdvTests
         sheet.AppendLine("**Generated** by `M4TdvTests.M4_2a_TheKeyMapIsWrittenOutAsASheetToTickOff`");
         sheet.AppendLine("from `TDV2200KeyRegistry`. Do not edit it by hand — edit the registry and run the suite.");
         sheet.AppendLine();
-        sheet.AppendLine("Belongs to `E:\\Dev\\Ronny\\RetroTerm\\docs\\manual-tests\\M4-TDV.md`, case M4.2.");
+        sheet.AppendLine("Belongs to `docs\\manual-tests\\M4-TDV.md`, case M4.2.");
         sheet.AppendLine();
         sheet.AppendLine("`EXT` is extended mode, `SIMPLE` is simple ASCII mode. Bytes are hex.");
         sheet.AppendLine("A blank means the key sends nothing in that mode, which is itself worth checking.");

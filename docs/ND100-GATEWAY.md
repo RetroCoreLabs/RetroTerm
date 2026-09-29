@@ -35,11 +35,21 @@ ND-100 Emulator ──WebSocket──▸ GatewayListener (singleton, background)
 
 ## Configuration
 
-1. Open **Connection > Gateway Settings...**
+1. Open **Connection > Gateway Settings...**, or the **Gateway** tab of Preferences
+   (`src\RetroTerm.Desktop\Views\PreferencesWindow.axaml`). The Preferences tab holds the same
+   enable switch and port, plus the Ethernet mapping described below.
 2. Enable the gateway and set the port (default: 8765)
 3. Click Apply — the listener starts immediately
 
 Settings are persisted to `%AppData%\RetroTerm\gateway-settings.json`.
+
+### Ethernet
+
+Besides terminals and disks, the gateway carries the emulated machine's Ethernet (frame types
+`0x30`, `0x31` and `0x32`). How a frame leaves the machine is set in Preferences > Gateway: not
+mapped, a real host adapter (pcap), join a TCP/RETH segment, host a TCP/RETH segment, or a UDP
+multicast group. HDLC frame types (`0x10` to `0x12`) are not implemented. What has and has not
+been run against real hardware is listed in `docs\PLAN.md`, section "Gateway Ethernet".
 
 ## Connecting
 
@@ -126,7 +136,7 @@ The debug window shows timestamps, message types, identCodes, data sizes, and he
 ## Implementation Details
 
 ### No External Libraries
-Uses .NET 9 built-in APIs:
+Uses .NET 10 built-in APIs:
 - `TcpListener` for TCP accept
 - Manual HTTP upgrade handshake (~20 lines)
 - `WebSocket.CreateFromStream()` for WebSocket framing
@@ -148,9 +158,11 @@ The status bar shows gateway state in the rightmost column:
 
 ## Tests
 
-28 unit tests in `tests\RetroTerm.Tests\Gateway\`:
+40 unit tests in `tests\RetroTerm.Tests\Gateway\` (counted 29 September 2026), plus 4 in
+`tests\RetroTerm.Tests\Commands\GatewayCommandTests.cs` for the GATEWAY script and MCP command:
 - `GatewayListenerTests` — listener lifecycle, register parsing, message routing, exclusive emulator connection
 - `GatewayConnectionTests` — IConnection lifecycle, client-connected/disconnected messages, exclusive access, send/receive, emulator disconnect handling
+- `GatewayEthernetTests` — the RETH handshake and length prefix, the mapping spec and its backend factory, a hub and client carrying a frame between them
 - `GatewaySettingsTests` — default values, data storage
 
 Run with:

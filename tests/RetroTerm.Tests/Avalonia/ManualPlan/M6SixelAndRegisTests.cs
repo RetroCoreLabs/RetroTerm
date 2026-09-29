@@ -13,7 +13,7 @@ namespace RetroTerm.Tests.Avalonia.ManualPlan;
 
 /// <summary>
 /// The machine half of the by-hand pass in
-/// <c>E:\Dev\Ronny\RetroTerm\docs\manual-tests\M6-SIXEL-AND-REGIS.md</c>.
+/// <c>docs\manual-tests\M6-SIXEL-AND-REGIS.md</c>.
 /// </summary>
 /// <remarks>
 /// <para><b>What this adds that the corpus tests do not</b></para>

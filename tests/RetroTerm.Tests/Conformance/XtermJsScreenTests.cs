@@ -80,6 +80,10 @@ public class XtermJsScreenTests
         // eighth line of each fixture needed a second fix: a CSI that has already gone wrong now
         // falls into ParserState.CsiIgnore instead of dropping to Ground and printing its own
         // remains. See CancelAndSubstituteTests.
+        // Two things settled with those fixtures (2026-08-17): a real xterm shows NOTHING for SUB,
+        // so the plan's earlier note about a replacement character was wrong; and ESC SUB is a
+        // real Tektronix sequence, so the control byte is delivered BEFORE the ruined sequence is
+        // abandoned.
         // The two VPB fixtures are gone: CSI Pn k is not a sequence xterm has, so ignoring it is
         // what makes "d ESC[k e ESC[k f" one line of text instead of four rows of one letter.
         // REP is gone, and it took IRM with it: CSI Pn b was not implemented at all, so every

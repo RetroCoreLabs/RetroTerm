@@ -94,6 +94,19 @@ public static class TektronixGinEncoder
     /// A host that reads five bytes and stops is talking to a Tektronix; one that gets seven knows
     /// it has an ND and which one.
     /// </summary>
+    /// <remarks>
+    /// <para><b>A conflict in the spec, recorded rather than papered over (10 August 2026)</b></para>
+    /// The GIN section of <c>spec\Tektronix\nd-graphic-terminal-analysis.md</c> describes bytes 5
+    /// and 6 of an <c>ESC ENQ</c> reply as "CR (optional), EOT (optional)". Its detection section,
+    /// quoting the disassembled parsing code at <c>ram:c751-c775</c>, reads them as the two ND
+    /// extension bytes, and its own worked example ends <c>40 40</c>, which is neither CR
+    /// (<c>0x0D</c>) nor EOT (<c>0x04</c>). The parsing code and the example agree, and the
+    /// detection validator requires at least 7 bytes, so the extension-byte reading is what this
+    /// method implements. The "CR/EOT optional" line looks like generic Tek 4014 prose that
+    /// survived a copy.
+    ///
+    /// This seven-byte reading has NOT been confirmed against hardware.
+    /// </remarks>
     /// <param name="destination">
     /// At least <see cref="NorskDataReportLength"/> bytes.
     /// </param>

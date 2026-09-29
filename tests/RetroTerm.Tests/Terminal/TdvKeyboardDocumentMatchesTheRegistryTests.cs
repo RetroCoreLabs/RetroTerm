@@ -25,8 +25,12 @@ namespace RetroTerm.Tests.Terminal;
 /// byte in every mode. A document that says otherwise leads somebody to build an escape parser for
 /// a terminal that never sends one.
 ///
-/// It does not try to verify the whole document. A test that asserted every row would have to
-/// restate the registry, and then the test becomes the second copy that drifts.
+/// It does not try to verify the whole document by restating it - that would make the test the
+/// second copy that drifts. Since 29 September 2026 <c>TdvDocumentFunctionKeyRowsTests</c> does the
+/// row-by-row check the other way round: it reads every grid row OUT of the document and compares
+/// the VK code and every stated sequence against the registry, so nothing is restated anywhere.
+/// This class keeps the fixed-key claims and the banned sentences, because those were the rows
+/// that did the damage and they deserve a message of their own.
 /// </remarks>
 public class TdvKeyboardDocumentMatchesTheRegistryTests
 {
@@ -113,6 +117,11 @@ public class TdvKeyboardDocumentMatchesTheRegistryTests
             "Arrow keys send ESC [ A/B/C/D sequences",
             "| A48 | Down Arrow | 40 (VK_DOWN) | `ESC [ B` |",
             "| Arrow keys (extended) | `ESC [ <char>` | Up = `ESC[A` |",
+            // The three tables removed on 29 September 2026: VT220 function keys, PUSH keys with a
+            // fixed CSI ? sequence, and the Alt+key scheme that no longer exists. One row of each.
+            "| (F1) | F1 | 112 (VK_F1) | `ESC [ 11 ~` |",
+            "| G1 | P1 (PUSH1) | 0 | `ESC [ ? 1 ~` |",
+            "| Alt+H | HELP | `ESC [ 28 ~` |",
         };
 
         for (int i = 0; i < mustNotAppear.Length; i++)

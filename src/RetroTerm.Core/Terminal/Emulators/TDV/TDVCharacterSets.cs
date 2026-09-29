@@ -891,6 +891,12 @@ namespace RetroTerm.Core.Terminal.Emulators.TDV
         ///
         /// Returns false for plain ASCII, for International, and for characters the variant has no
         /// position for — in every one of those cases the caller should leave the character alone.
+        ///
+        /// The Ø/ø collision at 0x60 was the one-glance falsifier of that old table (found
+        /// 2026-08-09, replaced in commit ba4fada): no character generator puts two characters in
+        /// one slot. NationalGlyphPositionTests.UpperAndLowerCaseNeverShareAPosition pins that pair,
+        /// and TheMappingAgreesWithTheForwardIso646Table pins the round trip against the tables
+        /// above, which is what stops this mapping and the forward tables drifting apart again.
         /// </summary>
         public static bool TryMapUnicodeToRomPosition(char nationalChar, TDV2200ISO646Variant variant, out char romPosition)
         {
