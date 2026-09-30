@@ -9,6 +9,21 @@ using Avalonia.Skia;
 // invisible to the suite (found 2026-08-05).
 [assembly: AvaloniaTestApplication(typeof(RetroTerm.Tests.Avalonia.AvaloniaTestAppBuilder))]
 
+// ONE Application and ONE UI dispatcher for the whole test assembly - the model every headless
+// test here was written and proved under with Avalonia 11. Avalonia 12 changed the default to
+// PerTest, and PerTest has a race this suite hits: before each test the headless session calls
+// Dispatcher.ResetBeforeUnitTests(), which sets the process-wide UI dispatcher to null, and the
+// NEXT thread to read Dispatcher.UIThread becomes the UI thread (Avalonia 12.1.3,
+// Dispatcher.ThreadStorage.cs ResetGlobalState and the Dispatcher constructor). The suite runs
+// four collections at once and the app posts to Dispatcher.UIThread from background threads,
+// so now and then one of those threads took the UI thread in that gap, and the session's own
+// setup then failed in DefaultRenderLoop.Add with "The calling thread cannot access this object
+// because a different thread owns it". It failed the v1.10.26.9 tag run on 30 September 2026
+// (TDV2200ScreenshotTests.Screenshot_HiddenAttribute, a test that had passed everywhere else).
+// A real running RetroTerm never resets its UI dispatcher, so PerAssembly is also the model
+// that matches the app. UiDispatcherIsolationTests pins this.
+[assembly: AvaloniaTestIsolation(AvaloniaTestIsolationLevel.PerAssembly)]
+
 namespace RetroTerm.Tests.Avalonia;
 
 /// <summary>
