@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The Info.plist of RetroTerm.app. The release workflow copies it into
+     RetroTerm.app/Contents/ and replaces __VERSION__ with the version from Directory.Build.props.
+
+     CFBundleExecutable is the file in Contents/MacOS/ that macOS starts, and CFBundleIconFile is
+     RetroTerm.icns in Contents/Resources/, which the workflow builds from assets/RetroTerm-1024.png.
+     Without the bundle and this file a macOS executable has no icon at all: Finder and the Dock
+     only read an icon out of a .app.
+
+     The bundle identifier is reverse-DNS on the GitHub Pages host, because there is no domain of
+     our own (see NAMING.md in the RCL repository). -->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>RetroTerm</string>
+    <key>CFBundleDisplayName</key>
+    <string>RetroTerm</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.retrocorelabs.retroterm</string>
+    <key>CFBundleExecutable</key>
+    <string>RetroTerm</string>
+    <key>CFBundleIconFile</key>
+    <string>RetroTerm.icns</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>RetroCore Labs</string>
+</dict>
+</plist>

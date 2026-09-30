@@ -11,14 +11,21 @@ This folder is a distribution. Everything in it is described below.
 ## Other platforms
 
 The GitHub repository builds the same application for Linux x64 and for macOS on Intel and on
-Apple silicon, as single self-contained executables named `RetroTerm-linux-x64`,
-`RetroTerm-osx-x64` and `RetroTerm-osx-arm64`, attached to each release at
-`https://github.com/RetroCoreLabs/RetroTerm/releases` beside the Windows build,
-`RetroTerm-win-x64.exe`. They are built and unit-tested on those systems but nobody has yet
-watched them draw a screen there. The macOS ones are unsigned: after downloading,
-`xattr -d com.apple.quarantine <file>` and `chmod +x <file>`, then run it. Everything below
-about settings and MCP applies to them the same way, with `~/.config/RetroTerm` in place of
-`%APPDATA%\RetroTerm` - not verified on a real Linux or macOS machine.
+Apple silicon, attached to each release at `https://github.com/RetroCoreLabs/RetroTerm/releases`
+beside the Windows build, `RetroTerm-win-x64.exe`:
+
+- `RetroTerm-osx-arm64.zip` (Apple silicon) and `RetroTerm-osx-x64.zip` (Intel) each hold
+  `RetroTerm.app`, with its icon. Drag it into Applications. It is signed ad hoc but not
+  notarised, so the first time run `xattr -dr com.apple.quarantine /Applications/RetroTerm.app`.
+- `RetroTerm-linux-x64.tar.gz` unpacks to a `RetroTerm-linux-x64` folder holding the program,
+  a menu entry, the icon and `install.sh`. `./install.sh` puts all three under
+  `~/.local/share` so RetroTerm appears in the application menu with its icon; no root needed,
+  and `./install.sh --uninstall` takes it out again. `./RetroTerm` runs it without installing.
+
+They are built and unit-tested on those systems but nobody has yet watched them draw a screen
+there. Everything below about settings and MCP applies to them the same way, with
+`~/.config/RetroTerm` in place of `%APPDATA%\RetroTerm` - not verified on a real Linux or macOS
+machine.
 
 ## What is in this folder
 

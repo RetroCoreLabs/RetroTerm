@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=RetroTerm
+GenericName=Terminal Emulator
+Comment=Terminal emulator for Norsk Data TDV and DEC VT terminals
+Exec=__EXEC__
+Icon=retroterm
+Terminal=false
+Categories=System;TerminalEmulator;Development;

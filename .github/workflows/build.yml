@@ -27,9 +27,16 @@
 # retired, and the job sat queued with no runner until that was noticed on 28 September 2026.
 # The list of live images is the README of github.com/actions/runner-images.
 #
-# The macOS binaries are bare Mach-O executables, not .app bundles, and none of the binaries
-# is code-signed or notarised. macOS Gatekeeper will refuse an unsigned download until the
-# quarantine attribute is removed; the release notes say so.
+# What each platform gets, since 30 September 2026 (before that all four were bare binaries, and
+# macOS and Linux showed no icon anywhere):
+#   Windows  RetroTerm-win-x64.exe - the icon is compiled into the exe.
+#   macOS    RetroTerm-osx-*.zip holding RetroTerm.app - Info.plist from packaging/macos/ and an
+#            .icns rendered from assets/RetroTerm.svg. Signed ad hoc, not notarised: Gatekeeper
+#            refuses a downloaded copy until the quarantine attribute is removed; the release
+#            notes say so.
+#   Linux    RetroTerm-linux-x64.tar.gz - the program, retroterm.desktop, the icon at the hicolor
+#            sizes rendered from the same SVG, and install.sh from packaging/linux/.
+# The SVG is the one source for every icon size on macOS and Linux.
 name: build
 on:
   push:
@@ -58,18 +65,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # asset is the one file each runner hands to the release job.
           - os: windows-latest
             rid: win-x64
             binary: RetroTerm.Desktop.exe
+            asset: RetroTerm-win-x64.exe
           - os: ubuntu-latest
             rid: linux-x64
             binary: RetroTerm.Desktop
+            asset: RetroTerm-linux-x64.tar.gz
           - os: macos-15-intel
             rid: osx-x64
             binary: RetroTerm.Desktop
+            asset: RetroTerm-osx-x64.zip
           - os: macos-latest
             rid: osx-arm64
             binary: RetroTerm.Desktop
+            asset: RetroTerm-osx-arm64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -92,10 +104,72 @@ jobs:
             mv RetroTerm.Desktop RetroTerm-${{ matrix.rid }}
             chmod +x RetroTerm-${{ matrix.rid }}
           fi
+
+      # Windows ships the bare exe: its icon is compiled into it from RetroTerm.ico.
+      - name: Windows - the exe as it is
+        if: runner.os == 'Windows'
+        shell: bash
+        run: cp out/win-x64/RetroTerm-win-x64.exe out/${{ matrix.asset }}
+
+      # macOS only shows an icon for a .app bundle, so the binary goes into RetroTerm.app with an
+      # Info.plist and an .icns rendered from assets/RetroTerm.svg - every size of the iconset,
+      # 16 to 1024, is drawn from the SVG rather than scaled from a bitmap. The bundle is signed
+      # ad hoc (no identity), which is what Apple silicon needs to start it at all; it is NOT
+      # notarised, so a downloaded copy still carries the quarantine flag.
+      - name: macOS - build RetroTerm.app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          brew install librsvg
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1)
+          app=out/pkg/RetroTerm.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp out/${{ matrix.rid }}/RetroTerm-${{ matrix.rid }} "$app/Contents/MacOS/RetroTerm"
+          chmod +x "$app/Contents/MacOS/RetroTerm"
+          sed "s/__VERSION__/$version/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          iconset=out/RetroTerm.iconset
+          mkdir -p "$iconset"
+          for s in 16 32 128 256 512; do
+            rsvg-convert -w $s -h $s assets/RetroTerm.svg -o "$iconset/icon_${s}x${s}.png"
+            rsvg-convert -w $((s*2)) -h $((s*2)) assets/RetroTerm.svg -o "$iconset/icon_${s}x${s}@2x.png"
+          done
+          iconutil -c icns "$iconset" -o "$app/Contents/Resources/RetroTerm.icns"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" out/${{ matrix.asset }}
+          find "$app" -type f -exec ls -la {} \;
+
+      # Linux shows an icon through a .desktop file in the user's application menu, so the
+      # archive carries the program, the menu entry, the icon at the usual hicolor sizes (all
+      # rendered from assets/RetroTerm.svg, plus the SVG itself as the scalable one) and
+      # install.sh, which puts the three in place under ~/.local/share.
+      - name: Linux - build the tar.gz
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          sudo apt-get update -q
+          sudo apt-get install -y -q librsvg2-bin
+          pkg=out/pkg/RetroTerm-linux-x64
+          mkdir -p "$pkg"
+          cp out/linux-x64/RetroTerm-linux-x64 "$pkg/RetroTerm"
+          cp packaging/linux/retroterm.desktop packaging/linux/install.sh "$pkg/"
+          chmod +x "$pkg/RetroTerm" "$pkg/install.sh"
+          for s in 16 24 32 48 64 128 256 512; do
+            mkdir -p "$pkg/icons/${s}x${s}"
+            rsvg-convert -w $s -h $s assets/RetroTerm.svg -o "$pkg/icons/${s}x${s}/retroterm.png"
+          done
+          mkdir -p "$pkg/icons/scalable"
+          cp assets/RetroTerm.svg "$pkg/icons/scalable/retroterm.svg"
+          tar -C out/pkg -czf out/${{ matrix.asset }} RetroTerm-linux-x64
+          tar -tvzf out/${{ matrix.asset }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: RetroTerm-${{ matrix.rid }}
-          path: out/${{ matrix.rid }}/RetroTerm-${{ matrix.rid }}*
+          path: out/${{ matrix.asset }}
           if-no-files-found: error
 
   release:
@@ -108,7 +182,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Create the release with the four binaries
+      - name: Create the release with the four downloads
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -116,14 +190,14 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --title "RetroTerm ${{ github.ref_name }}" \
-            --notes "Self-contained single-file builds. Nothing to install.
+            --notes "Self-contained builds, no .NET runtime needed.
 
-          - RetroTerm-win-x64.exe: Windows x64.
-          - RetroTerm-linux-x64: Linux x64. Run: chmod +x RetroTerm-linux-x64 && ./RetroTerm-linux-x64
-          - RetroTerm-osx-x64 and RetroTerm-osx-arm64: macOS on Intel and on Apple silicon. Unsigned, so after downloading run: xattr -d com.apple.quarantine RetroTerm-osx-arm64 && chmod +x RetroTerm-osx-arm64 && ./RetroTerm-osx-arm64
+          - RetroTerm-win-x64.exe: Windows x64. A single exe; run it.
+          - RetroTerm-osx-arm64.zip (Apple silicon) and RetroTerm-osx-x64.zip (Intel): unzip to get RetroTerm.app and drag it into Applications. It is not notarised, so the first time run: xattr -dr com.apple.quarantine /Applications/RetroTerm.app
+          - RetroTerm-linux-x64.tar.gz: Linux x64. tar -xzf RetroTerm-linux-x64.tar.gz && cd RetroTerm-linux-x64 && ./install.sh puts RetroTerm in the application menu with its icon (under ~/.local/share, no root). ./RetroTerm also runs it straight from the folder.
 
           Every build hosts the MCP server on http://127.0.0.1:5715/mcp; see docs/DISTRIBUTION-README.md." \
             artifacts/RetroTerm-win-x64/RetroTerm-win-x64.exe \
-            artifacts/RetroTerm-linux-x64/RetroTerm-linux-x64 \
-            artifacts/RetroTerm-osx-x64/RetroTerm-osx-x64 \
-            artifacts/RetroTerm-osx-arm64/RetroTerm-osx-arm64
+            artifacts/RetroTerm-linux-x64/RetroTerm-linux-x64.tar.gz \
+            artifacts/RetroTerm-osx-x64/RetroTerm-osx-x64.zip \
+            artifacts/RetroTerm-osx-arm64/RetroTerm-osx-arm64.zip
