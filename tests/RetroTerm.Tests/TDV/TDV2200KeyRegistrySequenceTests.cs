@@ -1,6 +1,5 @@
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.TDV;
 

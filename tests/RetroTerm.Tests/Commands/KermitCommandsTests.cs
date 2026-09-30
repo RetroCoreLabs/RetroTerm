@@ -47,10 +47,10 @@ public class KermitCommandsTests : IDisposable
     [Fact]
     public async Task SendFile_MissingFile_FailsBeforeTransferring()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("SENDFILE", _session,
-            new CommandArgs().Set("path", "C:\\does\\not\\exist-" + Guid.NewGuid().ToString("N") + ".bin"));
+            new CommandArgs().Set("path", "C:\\does\\not\\exist-" + Guid.NewGuid().ToString("N") + ".bin"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("file not found", result.Error);
@@ -60,10 +60,10 @@ public class KermitCommandsTests : IDisposable
     [Fact]
     public async Task ReceiveFile_MissingDirectory_FailsBeforeTransferring()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("RECEIVEFILE", _session,
-            new CommandArgs().Set("dir", "C:\\does\\not\\exist-" + Guid.NewGuid().ToString("N")));
+            new CommandArgs().Set("dir", "C:\\does\\not\\exist-" + Guid.NewGuid().ToString("N")), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("directory not found", result.Error);
@@ -78,7 +78,7 @@ public class KermitCommandsTests : IDisposable
         try
         {
             var result = await _registry.ExecuteAsync("SENDFILE", _session,
-                new CommandArgs().Set("path", tempFile));
+                new CommandArgs().Set("path", tempFile), TestContext.Current.CancellationToken);
 
             Assert.False(result.Success);
         }

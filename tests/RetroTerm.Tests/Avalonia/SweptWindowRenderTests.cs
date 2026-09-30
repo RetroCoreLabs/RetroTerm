@@ -11,7 +11,6 @@ using RetroTerm.Core.Transfer;
 using RetroTerm.Desktop.Controls;
 using RetroTerm.Desktop.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

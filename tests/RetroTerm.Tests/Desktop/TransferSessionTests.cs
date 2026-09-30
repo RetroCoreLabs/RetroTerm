@@ -45,7 +45,7 @@ public class TransferSessionTests
         var emulator = new VT100Emulator(80, 24);
         var session = new TerminalSession(emulator, "Test");
         var connection = new FakeConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         bool stateChangedFired = false;
         session.TransferStateChanged += (active) => { if (active) stateChangedFired = true; };
@@ -64,7 +64,7 @@ public class TransferSessionTests
         var emulator = new VT100Emulator(80, 24);
         var session = new TerminalSession(emulator, "Test");
         var connection = new FakeConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         var handler1 = new FakeTransferHandler();
         _ = session.StartFileTransferAsync(handler1, TransferDirection.Send, new[] { "test.txt" }, CancellationToken.None);
@@ -80,7 +80,7 @@ public class TransferSessionTests
         var emulator = new VT100Emulator(80, 24);
         var session = new TerminalSession(emulator, "Test");
         var connection = new FakeConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         var handler = new FakeTransferHandler();
         _ = session.StartFileTransferAsync(handler, TransferDirection.Send, new[] { "test.txt" }, CancellationToken.None);
@@ -97,7 +97,7 @@ public class TransferSessionTests
         var emulator = new VT100Emulator(80, 24);
         var session = new TerminalSession(emulator, "Test");
         var connection = new FakeConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         TransferProgress? lastProgress = null;
         session.TransferProgressChanged += (p) => lastProgress = p;
@@ -119,7 +119,7 @@ public class TransferSessionTests
         var emulator = new VT100Emulator(80, 24);
         var session = new TerminalSession(emulator, "Test");
         var connection = new FakeConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         bool stateInactive = false;
         session.TransferStateChanged += (active) => { if (!active) stateInactive = true; };

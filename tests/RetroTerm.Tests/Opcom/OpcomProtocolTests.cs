@@ -48,15 +48,15 @@ public class OpcomProtocolTests
     public async Task ReadMemoryAsync_SendsCorrectCommand()
     {
         // Start a read for address 1000 (octal)
-        var readTask = _protocol.ReadMemoryAsync(0x200); // 1000 octal = 0x200
+        var readTask = _protocol.ReadMemoryAsync(0x200, TestContext.Current.CancellationToken); // 1000 octal = 0x200
 
         // Give time for async processing
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // The protocol should have sent "1000/" but needs '#' prompt first
         // Simulate receiving '#' prompt
         _protocol.ProcessIncomingData(Encoding.ASCII.GetBytes("#"));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Now it should start sending "1000/"
         // Check that command bytes were sent (character by character with echo)
@@ -85,12 +85,12 @@ public class OpcomProtocolTests
     public async Task StopCpuAsync_SendsStopCommand()
     {
         // Queue STOP command
-        var stopTask = _protocol.StopCpuAsync();
-        await Task.Delay(50);
+        var stopTask = _protocol.StopCpuAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Simulate prompt
         _protocol.ProcessIncomingData(Encoding.ASCII.GetBytes("#"));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Should have sent 'S', 'T', 'O', 'P'
         // Simulate echo of each character

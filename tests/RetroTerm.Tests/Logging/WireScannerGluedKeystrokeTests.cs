@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using RetroTerm.Core.Logging;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Logging;
 

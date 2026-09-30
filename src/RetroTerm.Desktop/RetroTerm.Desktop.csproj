@@ -57,17 +57,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
+    <PackageReference Include="Avalonia" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
     <!-- Avalonia 11.3.11 pulls Tmds.DBus.Protocol 0.21.2 in for its Linux D-Bus support, and that
          version carries GHSA-xrw6-gwf8-vvr9 (signal spoofing and file-descriptor exhaustion by
          a hostile D-Bus peer). The .NET 10 SDK audits transitive packages and, with warnings
          as errors, refuses to build. 0.21.3 is the patched release of the same line, so this
          pins it without changing anything Avalonia relies on. Found 28 September 2026 on the
          move to net10.0. -->
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
     <!--
       REQUIRED BY Styles\FluentTheme.axaml, which styles DataGrid. Without it a Release
       PUBLISH fails with six AVLN2000 "Unable to resolve type DataGrid" errors while an
@@ -79,9 +79,9 @@
       verbatim from RetroCommander and its own header says the copies are meant to stay
       identical across the suite; deleting the styles would break that instead.
     -->
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.11">
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.22">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
@@ -102,8 +102,7 @@
        used by a desktop app. -->
   <Target Name="RemoveIisInProcessShim" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="'%(Filename)%(Extension)' == 'aspnetcorev2_inprocess.dll'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'aspnetcorev2_inprocess.dll'" />
     </ItemGroup>
   </Target>
 
@@ -126,18 +125,7 @@
        the exception rather than crashing. -->
   <Target Name="RemoveUnusedAspNetFeatureAreas" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.String]::Copy('%(Filename)').Contains('Mvc'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Razor'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Components'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Blazor'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('JSInterop'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Antiforgery'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Localization'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('ApiExplorer'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Cors'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('Identity'))
-                                     Or $([System.String]::Copy('%(Filename)').Contains('SignalR'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(Filename)').Contains('Mvc'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Razor'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Components'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Blazor'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('JSInterop'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Antiforgery'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Localization'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('ApiExplorer'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Cors'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('Identity'))&#xD;&#xA;                                     Or $([System.String]::Copy('%(Filename)').Contains('SignalR'))" />
     </ItemGroup>
   </Target>
 

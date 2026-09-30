@@ -243,7 +243,7 @@ public sealed class RenderedScreenshot : IDisposable
         byte[] pngBytes;
         using (var stream = new MemoryStream())
         {
-            target.Save(stream);
+            target.Save(stream, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             pngBytes = stream.ToArray();
         }
 
@@ -336,7 +336,7 @@ public sealed class RenderedScreenshot : IDisposable
         using (frame)
         using (var stream = new MemoryStream())
         {
-            frame.Save(stream);
+            frame.Save(stream, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             pngBytes = stream.ToArray();
         }
 

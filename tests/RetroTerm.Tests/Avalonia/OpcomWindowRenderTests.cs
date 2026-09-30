@@ -4,7 +4,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using RetroTerm.Desktop.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

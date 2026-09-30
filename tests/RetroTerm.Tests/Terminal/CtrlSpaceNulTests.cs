@@ -119,9 +119,9 @@ public class CtrlSpaceNulTests : IDisposable
         var emulator = new VT100Emulator(80, 24);
         using var session = new TerminalSession(emulator, "NulTest");
         var connection = new InMemoryConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
-        await session.SendInputAsync("\0");
+        await session.SendInputAsync("\0", TestContext.Current.CancellationToken);
 
         var sent = connection.GetSentData();
         Assert.Single(sent);
@@ -136,10 +136,10 @@ public class CtrlSpaceNulTests : IDisposable
         var emulator = new VT100Emulator(80, 24);
         using var session = new TerminalSession(emulator, "NulTest");
         var connection = new InMemoryConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Built from chars, not a "\x00" literal — see the class doc note
-        await session.SendInputAsync(new string(new[] { 'A', '\0', 'B' }));
+        await session.SendInputAsync(new string(new[] { 'A', '\0', 'B' }), TestContext.Current.CancellationToken);
 
         var sent = connection.GetSentData();
         Assert.Single(sent);
@@ -153,9 +153,9 @@ public class CtrlSpaceNulTests : IDisposable
         var emulator = new VT100Emulator(80, 24);
         using var session = new TerminalSession(emulator, "NulTest");
         var connection = new InMemoryConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
-        await session.SendBytesAsync(new byte[] { 0x00 });
+        await session.SendBytesAsync(new byte[] { 0x00 }, TestContext.Current.CancellationToken);
 
         var sent = connection.GetSentData();
         Assert.Single(sent);

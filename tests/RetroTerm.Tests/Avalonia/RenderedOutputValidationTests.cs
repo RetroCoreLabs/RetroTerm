@@ -4,7 +4,6 @@ using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using SkiaSharp;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

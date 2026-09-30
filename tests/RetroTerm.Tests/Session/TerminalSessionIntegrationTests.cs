@@ -61,18 +61,18 @@ public class TerminalSessionIntegrationTests : IDisposable
         // For now, we'll just verify connection works - no response counters yet.
 
         // Act
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Wait a bit for connection to stabilize
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Send a query manually through the connection to test response
         // In real scenario, TestServer sends the query
         var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c (Primary DA)
-        await connection.SendAsync(query);
+        await connection.SendAsync(query, TestContext.Current.CancellationToken);
 
         // Wait for response
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected);
@@ -99,30 +99,30 @@ public class TerminalSessionIntegrationTests : IDisposable
         var responseBytes = Array.Empty<byte>();
 
         // Wait for server to accept connection
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Connect client
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Wait for connection to be established
-        _clientConnected.Wait(TimeSpan.FromSeconds(5));
-        await Task.Delay(200);
+        _clientConnected.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Act - Server sends Primary DA query: ESC [ c
         if (_serverStream != null)
         {
             var query = new byte[] { 0x1B, 0x5B, 0x63 }; // ESC [ c
-            await _serverStream.WriteAsync(query);
-            await _serverStream.FlushAsync();
+            await _serverStream.WriteAsync(query, TestContext.Current.CancellationToken);
+            await _serverStream.FlushAsync(TestContext.Current.CancellationToken);
 
             // Wait for response
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
 
             // Read response
             var buffer = new byte[256];
             if (_serverStream.DataAvailable)
             {
-                var bytesRead = await _serverStream.ReadAsync(buffer);
+                var bytesRead = await _serverStream.ReadAsync(buffer, TestContext.Current.CancellationToken);
                 if (bytesRead > 0)
                 {
                     responseReceived = true;
@@ -161,24 +161,24 @@ public class TerminalSessionIntegrationTests : IDisposable
         var responseReceived = false;
         var responseBytes = Array.Empty<byte>();
 
-        await Task.Delay(100);
-        await session.ConnectAsync(connection);
-        _clientConnected.Wait(TimeSpan.FromSeconds(5));
-        await Task.Delay(200);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        _clientConnected.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Act - Server sends Secondary DA query: ESC [ > c
         if (_serverStream != null)
         {
             var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 }; // ESC [ > c
-            await _serverStream.WriteAsync(query);
-            await _serverStream.FlushAsync();
+            await _serverStream.WriteAsync(query, TestContext.Current.CancellationToken);
+            await _serverStream.FlushAsync(TestContext.Current.CancellationToken);
 
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
 
             var buffer = new byte[256];
             if (_serverStream.DataAvailable)
             {
-                var bytesRead = await _serverStream.ReadAsync(buffer);
+                var bytesRead = await _serverStream.ReadAsync(buffer, TestContext.Current.CancellationToken);
                 if (bytesRead > 0)
                 {
                     responseReceived = true;

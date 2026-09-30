@@ -263,7 +263,7 @@ public partial class QuickConnectWindow : Window
 
         if (hostBox != null)
         {
-            hostBox.Watermark = serial ? "COM3" : "host or host:port";
+            hostBox.PlaceholderText = serial ? "COM3" : "host or host:port";
         }
 
         // The port follows the protocol only while nobody has typed one. Overwriting a number

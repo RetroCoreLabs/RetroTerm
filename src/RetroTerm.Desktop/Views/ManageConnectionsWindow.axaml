@@ -32,7 +32,7 @@
                 <!-- Search Box -->
                 <TextBox Name="SearchBox"
                          DockPanel.Dock="Top"
-                         Watermark="Search connections..."
+                         PlaceholderText="Search connections..."
                          Background="{DynamicResource ControlBackgroundBrush}"
                          Foreground="{DynamicResource PrimaryTextBrush}"
                          BorderBrush="{DynamicResource BorderBrush}"

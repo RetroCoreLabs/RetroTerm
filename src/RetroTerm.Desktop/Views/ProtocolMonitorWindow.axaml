@@ -64,7 +64,7 @@
 
                 <TextBox Name="SearchBox"
                          Width="170"
-                         Watermark="Search..."
+                         PlaceholderText="Search..."
                          TextChanged="OnSearchChanged"
                          VerticalAlignment="Center"/>
             </StackPanel>

@@ -226,7 +226,7 @@ public class TerminalOwnSizeAndBackspaceDefaultTests
                 "[{\"name\":\"D100\",\"host\":\"localhost\",\"port\":9010,\"protocol\":\"Telnet\"," +
                 "\"emulatorType\":\"TDV2200\",\"width\":80,\"height\":24,\"backspaceSendsDel\":false}," +
                 "{\"name\":\"unix\",\"host\":\"localhost\",\"port\":22,\"protocol\":\"SSH\"," +
-                "\"emulatorType\":\"XTERM\",\"width\":80,\"height\":24,\"backspaceSendsDel\":false}]");
+                "\"emulatorType\":\"XTERM\",\"width\":80,\"height\":24,\"backspaceSendsDel\":false}]", TestContext.Current.CancellationToken);
 
             var manager = new ConfigurationManager(path);
             await manager.LoadAsync();
@@ -242,14 +242,14 @@ public class TerminalOwnSizeAndBackspaceDefaultTests
             Assert.Null(unix.BackspaceSendsDel);
 
             // Written back stamped, so the next load does nothing.
-            var written = await File.ReadAllTextAsync(path);
+            var written = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
             Assert.Contains("\"settingsVersion\": " + ConfigurationManager.CurrentSettingsVersion, written);
             Assert.Contains("\"height\": 25", written);
             Assert.DoesNotContain("\"backspaceSendsDel\": false", written);
 
             var again = new ConfigurationManager(path);
             await again.LoadAsync();
-            Assert.Equal(written, await File.ReadAllTextAsync(path));
+            Assert.Equal(written, await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
         }
         finally
         {
@@ -288,7 +288,7 @@ public class TerminalOwnSizeAndBackspaceDefaultTests
         var session = new TerminalSession(new TDV2200Emulator(80, 25), "size");
         var connection = new SizeRecordingConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         Assert.Equal(80, connection.Columns);
         Assert.Equal(25, connection.Rows);
@@ -312,7 +312,7 @@ public class TerminalOwnSizeAndBackspaceDefaultTests
         {
             var save = await registry.ExecuteAsync("CONNSAVE", session,
                 new CommandArgs().Set("name", "D100").Set("host", "localhost").Set("port", "9010")
-                    .Set("emulator", "TDV2200"));
+                    .Set("emulator", "TDV2200"), TestContext.Current.CancellationToken);
             Assert.True(save.Success, save.Error);
 
             var saved = Find(manager, "D100");
@@ -322,13 +322,13 @@ public class TerminalOwnSizeAndBackspaceDefaultTests
 
             // Changing the terminal changes the size with it...
             var change = await registry.ExecuteAsync("CONNSAVE", session,
-                new CommandArgs().Set("name", "D100").Set("emulator", "TEK4014"));
+                new CommandArgs().Set("name", "D100").Set("emulator", "TEK4014"), TestContext.Current.CancellationToken);
             Assert.True(change.Success, change.Error);
             Assert.Equal((74, 35), (saved.Width, saved.Height));
 
             // ...unless the same command says otherwise.
             var explicitSize = await registry.ExecuteAsync("CONNSAVE", session,
-                new CommandArgs().Set("name", "D100").Set("emulator", "TDV2200").Set("width", "132"));
+                new CommandArgs().Set("name", "D100").Set("emulator", "TDV2200").Set("width", "132"), TestContext.Current.CancellationToken);
             Assert.True(explicitSize.Success, explicitSize.Error);
             Assert.Equal((132, 25), (saved.Width, saved.Height));
         }

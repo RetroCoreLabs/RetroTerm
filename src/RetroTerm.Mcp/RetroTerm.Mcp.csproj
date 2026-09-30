@@ -13,7 +13,7 @@
   <ItemGroup>
     <!-- Official MCP C# SDK (verified cached 2026-08-04; 2.0.0 exists upstream,
          upgrade later if its API changes are worth it). -->
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.1.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>

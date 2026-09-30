@@ -39,7 +39,7 @@ public class DroppedConnectionDisposalTests : IDisposable
     [Fact]
     public async Task ARemoteDrop_DisposesTheConnection()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         Assert.True(_session.IsConnected);
 
         string? lostReason = null;
@@ -56,7 +56,7 @@ public class DroppedConnectionDisposalTests : IDisposable
     [Fact]
     public async Task ADeliberateDisconnect_DisposesTheConnection()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         await _session.DisconnectAsync();
 
@@ -70,7 +70,7 @@ public class DroppedConnectionDisposalTests : IDisposable
         var failing = new FailingConnection();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _session.ConnectAsync(failing));
+            () => _session.ConnectAsync(failing, TestContext.Current.CancellationToken));
 
         Assert.True(failing.IsDisposed);
         Assert.False(_session.IsConnected);

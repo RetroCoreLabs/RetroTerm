@@ -14,10 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="10.0.2" />
+    <PackageReference Include="System.Text.Json" Version="10.0.12" />
     <!-- Single-writer session pump (SessionPump.cs): bounded channel between the
          network receive thread and the one thread allowed to mutate the emulator. -->
-    <PackageReference Include="System.Threading.Channels" Version="10.0.2" />
+    <PackageReference Include="System.Threading.Channels" Version="10.0.12" />
   </ItemGroup>
 
 </Project>

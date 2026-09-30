@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Input.Platform; // ClipboardExtensions.SetTextAsync (an extension method since Avalonia 12)
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;

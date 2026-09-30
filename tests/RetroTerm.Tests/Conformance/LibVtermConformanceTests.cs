@@ -4,7 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Conformance;
 

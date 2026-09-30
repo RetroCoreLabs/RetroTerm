@@ -1274,7 +1274,7 @@ public sealed class ScriptEditorWindow : Window
 
         var input = new TextBox
         {
-            Watermark = "script-name (plain file name, no path)",
+            PlaceholderText = "script-name (plain file name, no path)",
             Text = initial ?? string.Empty
         };
         BindTheme(input, BackgroundProperty, "SectionBackgroundBrush");

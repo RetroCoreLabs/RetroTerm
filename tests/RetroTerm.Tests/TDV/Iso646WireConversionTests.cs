@@ -178,7 +178,7 @@ public class Iso646WireConversionTests
                         failures.Add(language + " gave " + converted);
                     }
                 }
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
         await System.Threading.Tasks.Task.WhenAll(work);

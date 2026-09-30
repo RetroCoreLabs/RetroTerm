@@ -318,7 +318,7 @@ public class TDV2200NationalCharacterTests
         using var headerFont = new SKFont(SKTypeface.FromFamilyName("Consolas", SKFontStyle.Bold), 14);
         using var labelFont = new SKFont(SKTypeface.FromFamilyName("Consolas", SKFontStyle.Normal), 10);
         using var headerPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText("TDV2200 Font - National Characters (0x00-0x1F)", 5, 20, headerFont, headerPaint);
+        canvas.DrawText("TDV2200 Font - National Characters (0x00-0x1F)", 5, 20, SKTextAlign.Left, headerFont, headerPaint);
 
         var fgColor = SKColors.LightGreen;
 
@@ -337,7 +337,7 @@ public class TDV2200NationalCharacterTests
 
             // Draw label
             using var labelPaint = new SKPaint { Color = SKColors.Gray };
-            canvas.DrawText($"{charCode:X2}", x, y + charHeight * scale + 12, labelFont, labelPaint);
+            canvas.DrawText($"{charCode:X2}", x, y + charHeight * scale + 12, SKTextAlign.Left, labelFont, labelPaint);
 
             // Get and draw glyph
             var glyphBits = _tdvFont.GetFontBits((ushort)charCode, 0);
@@ -480,7 +480,7 @@ public class TDV2200NationalCharacterTests
         using var headerBgPaint = new SKPaint { Color = new SKColor(0, 60, 0) };
         canvas.DrawRect(0, 0, width, headerHeight, headerBgPaint);
         using var headerPaint = new SKPaint { Color = SKColors.White };
-        canvas.DrawText(description, 5, 18, headerFont, headerPaint);
+        canvas.DrawText(description, 5, 18, SKTextAlign.Left, headerFont, headerPaint);
 
         // Draw glyph background
         using var boxPaint = new SKPaint { Color = new SKColor(20, 40, 20) };
@@ -521,7 +521,7 @@ public class TDV2200NationalCharacterTests
         using var headerBgPaint = new SKPaint { Color = new SKColor(0, 60, 0) };
         canvas.DrawRect(0, 0, width, headerHeight, headerBgPaint);
         using var headerPaint = new SKPaint { Color = SKColors.White };
-        canvas.DrawText(description, 5, 19, headerFont, headerPaint);
+        canvas.DrawText(description, 5, 19, SKTextAlign.Left, headerFont, headerPaint);
 
         var fgColor = SKColors.LightGreen;
 

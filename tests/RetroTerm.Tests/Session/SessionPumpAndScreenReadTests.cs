@@ -41,7 +41,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task FlushAsync_IsDeterministicBarrier_DataVisibleAfterFlush()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("Hello"));
 
@@ -56,7 +56,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task Pump_PreservesChunkOrder_AcrossManySmallChunks()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // Send a long text one byte at a time — order must be preserved exactly.
         var text = "The quick brown fox jumps over the lazy dog";
@@ -75,7 +75,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task WriteToTerminal_IsSerializedWithNetworkData()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("net"));
         _session.WriteToTerminal("local");
@@ -106,7 +106,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task Pump_SurvivesProcessingBurst_AndStaysOrderedUnderLoad()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // Push well past the queue capacity (256) to exercise the backpressure path.
         for (int i = 0; i < 2000; i++)
@@ -138,7 +138,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task ReadScreenAsync_ReturnsTextAndCursor()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("Line1\r\nLine2"));
 
@@ -154,7 +154,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task ReadScreenAsync_ImpliesFlush_NoDelayNeeded()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("PROMPT>"));
 
@@ -248,7 +248,7 @@ public class SessionPumpAndScreenReadTests : IDisposable
     [Fact]
     public async Task Session_Dispose_StopsPump_LateDataIsIgnored()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("before"));
         await _session.FlushAsync();
 

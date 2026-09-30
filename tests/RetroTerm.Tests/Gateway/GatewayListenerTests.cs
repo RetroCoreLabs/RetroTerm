@@ -59,7 +59,7 @@ public class GatewayListenerTests : IDisposable
         using var client = new ClientWebSocket();
         await client.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None);
 
-        var connected = await Task.WhenAny(connectedEvent.Task, Task.Delay(5000));
+        var connected = await Task.WhenAny(connectedEvent.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(connectedEvent.Task.IsCompleted, "EmulatorConnected event should have fired");
 
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
@@ -84,7 +84,7 @@ public class GatewayListenerTests : IDisposable
         // Close the client
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
 
-        var result = await Task.WhenAny(disconnectedEvent.Task, Task.Delay(5000));
+        var result = await Task.WhenAny(disconnectedEvent.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(disconnectedEvent.Task.IsCompleted, "EmulatorDisconnected event should have fired");
 
         await _listener.StopAsync();
@@ -113,7 +113,7 @@ public class GatewayListenerTests : IDisposable
         var bytes = Encoding.UTF8.GetBytes(registerMsg);
         await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
 
-        await Task.WhenAny(terminalListEvent.Task, Task.Delay(5000));
+        await Task.WhenAny(terminalListEvent.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(terminalListEvent.Task.IsCompleted, "TerminalListChanged event should have fired");
 
         var terminals = _listener.GetTerminals();
@@ -148,7 +148,7 @@ public class GatewayListenerTests : IDisposable
         using var client2 = new ClientWebSocket();
         await client2.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None);
 
-        var result = await Task.WhenAny(diskConnectedEvent.Task, Task.Delay(5000));
+        var result = await Task.WhenAny(diskConnectedEvent.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(diskConnectedEvent.Task.IsCompleted, "DiskWorkerConnected event should have fired");
         Assert.True(_listener.IsDiskWorkerConnected);
 
@@ -208,13 +208,13 @@ public class GatewayListenerTests : IDisposable
         var registerMsg = "{\"type\":\"register\",\"terminals\":[{\"identCode\":43,\"name\":\"TERMINAL 12\",\"logicalDevice\":1}]}";
         await client.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(registerMsg)),
             WebSocketMessageType.Text, true, CancellationToken.None);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Create and connect a GatewayConnection
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
         var dataReceived = new TaskCompletionSource<byte[]>();
         connection.DataReceived += (data) => dataReceived.TrySetResult(data.ToArray());
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Send term-output from emulator as binary: [0x02][identCode][data...]
         var testData = new byte[] { 0x48, 0x65, 0x6C, 0x6C, 0x6F }; // "Hello"
@@ -225,7 +225,7 @@ public class GatewayListenerTests : IDisposable
         await client.SendAsync(new ArraySegment<byte>(frame),
             WebSocketMessageType.Binary, true, CancellationToken.None);
 
-        var result = await Task.WhenAny(dataReceived.Task, Task.Delay(5000));
+        var result = await Task.WhenAny(dataReceived.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(dataReceived.Task.IsCompleted, "DataReceived should have fired");
 
         var received = await dataReceived.Task;
@@ -263,7 +263,7 @@ public class GatewayListenerTests : IDisposable
             WebSocketMessageType.Binary, true, CancellationToken.None);
 
         // Give it a moment to process — nothing should crash
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
         await _listener.StopAsync();

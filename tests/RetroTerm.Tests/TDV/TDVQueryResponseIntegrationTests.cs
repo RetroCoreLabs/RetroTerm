@@ -127,14 +127,14 @@ public class TDVQueryResponseIntegrationTests
             });
 
         // Act - Connect session
-        await session.ConnectAsync(mockConnection.Object);
+        await session.ConnectAsync(mockConnection.Object, TestContext.Current.CancellationToken);
 
         // Send Primary DA query
         var query = "\x1b[c";
         emulator.ProcessInput(Encoding.UTF8.GetBytes(query));
 
         // Give async handler time to execute
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(sentData);
@@ -162,14 +162,14 @@ public class TDVQueryResponseIntegrationTests
             });
 
         // Act - Connect session (but connection is disconnected)
-        await session.ConnectAsync(mockConnection.Object);
+        await session.ConnectAsync(mockConnection.Object, TestContext.Current.CancellationToken);
 
         // Send Primary DA query
         var query = "\x1b[c";
         emulator.ProcessInput(Encoding.UTF8.GetBytes(query));
 
         // Give async handler time to execute
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Should not send when connection is not connected
         Assert.Empty(sentData);
@@ -189,14 +189,14 @@ public class TDVQueryResponseIntegrationTests
             .ThrowsAsync(new InvalidOperationException("Send failed"));
 
         // Act - Connect session
-        await session.ConnectAsync(mockConnection.Object);
+        await session.ConnectAsync(mockConnection.Object, TestContext.Current.CancellationToken);
 
         // Send Primary DA query - should not throw
         var query = "\x1b[c";
         emulator.ProcessInput(Encoding.UTF8.GetBytes(query));
 
         // Give async handler time to execute
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Should not throw, exception should be caught
         Assert.True(true); // If we get here, exception was handled
@@ -255,19 +255,19 @@ public class TDVQueryResponseIntegrationTests
             });
 
         // Connect with VT100
-        await session.ConnectAsync(mockConnection.Object);
+        await session.ConnectAsync(mockConnection.Object, TestContext.Current.CancellationToken);
 
         // Replace with TDV1200 emulator
         var tdvEmulator = new TDV1200Emulator(80, 24);
         var newSession = new TerminalSession(tdvEmulator, "Test");
-        await newSession.ConnectAsync(mockConnection.Object);
+        await newSession.ConnectAsync(mockConnection.Object, TestContext.Current.CancellationToken);
 
         // Send Primary DA query to TDV emulator
         var query = "\x1b[c";
         tdvEmulator.ProcessInput(Encoding.UTF8.GetBytes(query));
 
         // Give async handler time to execute
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Should have sent response
         Assert.Single(sentData);

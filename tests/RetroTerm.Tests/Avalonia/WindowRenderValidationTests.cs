@@ -6,7 +6,6 @@ using Avalonia.Input;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Desktop.Controls;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

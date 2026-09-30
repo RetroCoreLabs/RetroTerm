@@ -758,14 +758,14 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = spy;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Simulate incoming data arriving at the client
         client.EnqueueReceivedData(Encoding.UTF8.GetBytes("Hello"));
 
         // Wait for the receive loop to deliver data
         for (int i = 0; i < 200 && spy.EntryCount == 0; i++)
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.True(spy.EntryCount > 0, "Spy logger should have recorded at least one incoming entry");
         var entry = spy.GetEntry(0);
@@ -784,9 +784,9 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = spy;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
-        await session.SendInputAsync("Hi");
+        await session.SendInputAsync("Hi", TestContext.Current.CancellationToken);
 
         Assert.Equal(1, spy.EntryCount);
         var entry = spy.GetEntry(0);
@@ -805,15 +805,15 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = spy;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Outgoing first
-        await session.SendInputAsync("A");
+        await session.SendInputAsync("A", TestContext.Current.CancellationToken);
 
         // Then incoming
         client.EnqueueReceivedData(new byte[] { 0x42 }); // 'B'
         for (int i = 0; i < 200 && spy.EntryCount < 2; i++)
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.True(spy.EntryCount >= 2, $"Expected at least 2 entries, got {spy.EntryCount}");
 
@@ -834,12 +834,12 @@ public class FileSessionDataLoggerTests : IDisposable
         // DataLogger is null by default
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Should not throw with null logger
-        await session.SendInputAsync("Test");
+        await session.SendInputAsync("Test", TestContext.Current.CancellationToken);
         client.EnqueueReceivedData(new byte[] { 0x41 });
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await session.DisconnectAsync();
     }
@@ -853,15 +853,15 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = spy;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
-        await session.SendInputAsync("A");
+        await session.SendInputAsync("A", TestContext.Current.CancellationToken);
         Assert.Equal(1, spy.EntryCount);
 
         // Detach logger
         session.DataLogger = null;
 
-        await session.SendInputAsync("B");
+        await session.SendInputAsync("B", TestContext.Current.CancellationToken);
         // Should still be 1 — "B" should NOT be logged
         Assert.Equal(1, spy.EntryCount);
 
@@ -876,13 +876,13 @@ public class FileSessionDataLoggerTests : IDisposable
         var session = new TerminalSession(emulator, "Test");
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Attach logger AFTER connection is established
         using var spy = new SpySessionDataLogger();
         session.DataLogger = spy;
 
-        await session.SendInputAsync("Late");
+        await session.SendInputAsync("Late", TestContext.Current.CancellationToken);
 
         Assert.Equal(1, spy.EntryCount);
         var entry = spy.GetEntry(0);
@@ -900,7 +900,7 @@ public class FileSessionDataLoggerTests : IDisposable
         var session = new TerminalSession(emulator, "Test");
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Attach logger AFTER connection (and its receive loop) is running
         using var spy = new SpySessionDataLogger();
@@ -910,7 +910,7 @@ public class FileSessionDataLoggerTests : IDisposable
         client.EnqueueReceivedData(Encoding.UTF8.GetBytes("FromHost"));
 
         for (int i = 0; i < 200 && spy.EntryCount == 0; i++)
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.True(spy.EntryCount > 0,
             "Logger attached after connect must see incoming data from the receive thread");
@@ -930,14 +930,14 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = spy;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Send 5 separate chunks
         for (int i = 0; i < 5; i++)
             client.EnqueueReceivedData(new byte[] { (byte)(0x30 + i) }); // '0'..'4'
 
         for (int i = 0; i < 200 && spy.EntryCount < 5; i++)
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.Equal(5, spy.EntryCount);
         var entries = spy.GetAllEntries();
@@ -964,13 +964,13 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = logger;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         client.EnqueueReceivedData(Encoding.UTF8.GetBytes("Hello"));
 
         for (int i = 0; i < 200; i++)
         {
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
             // Check if data has been written
             logger.Stop();
             var content = File.ReadAllText(path);
@@ -1002,9 +1002,9 @@ public class FileSessionDataLoggerTests : IDisposable
         session.DataLogger = logger;
 
         var (client, _) = InMemoryBidirectionalConnection.CreatePair();
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
-        await session.SendInputAsync("Hi");
+        await session.SendInputAsync("Hi", TestContext.Current.CancellationToken);
 
         session.DataLogger = null;
         logger.Stop();

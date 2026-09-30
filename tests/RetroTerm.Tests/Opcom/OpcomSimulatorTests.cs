@@ -50,8 +50,8 @@ public class OpcomSimulatorTests
     [Fact]
     public async Task Connect_SendsInitialPrompt()
     {
-        await _sim.ConnectAsync();
-        await Task.Delay(200);
+        await _sim.ConnectAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         string response = Encoding.ASCII.GetString(_received.ToArray());
         Assert.Contains("#", response);
         Assert.Equal(ConnectionStatus.Connected, _sim.Status);
@@ -60,7 +60,7 @@ public class OpcomSimulatorTests
     [Fact]
     public async Task Disconnect_SetsStatusDisconnected()
     {
-        await _sim.ConnectAsync();
+        await _sim.ConnectAsync(TestContext.Current.CancellationToken);
         await _sim.DisconnectAsync();
         Assert.Equal(ConnectionStatus.Disconnected, _sim.Status);
     }
@@ -484,17 +484,17 @@ public class OpcomSimulatorTests
         binary[8] = (byte)(checksum >> 8); binary[9] = (byte)(checksum & 0xFF);
 
         // Send preamble (ASCII, 7-bit OK)
-        await _sim.SendAsync(preamble);
-        await Task.Delay(50);
+        await _sim.SendAsync(preamble, TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Send binary data (needs 8-bit)
-        await _sim.SendAsync(binary);
-        await Task.Delay(50);
+        await _sim.SendAsync(binary, TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Send action (ASCII)
         _received.Clear();
-        await _sim.SendAsync(action);
-        await Task.Delay(300);
+        await _sim.SendAsync(action, TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         response = System.Text.Encoding.ASCII.GetString(_received.ToArray());
         Assert.Contains("#", response);

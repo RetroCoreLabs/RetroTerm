@@ -222,7 +222,7 @@ public class M6SixelAndRegisTests
             int barTop = oursTop + ours.Height;
             int hardwareTop = barTop + SeparatorHeight + LabelHeight;
 
-            canvas.DrawBitmap(ours, 0, oursTop);
+            canvas.DrawBitmap(ours, 0, oursTop, SKSamplingOptions.Default);
 
             using (var bar = new SKPaint())
             {
@@ -231,7 +231,7 @@ public class M6SixelAndRegisTests
                 canvas.DrawRect(new SKRect(0, barTop, width, barTop + SeparatorHeight), bar);
             }
 
-            canvas.DrawBitmap(hardware, 0, hardwareTop);
+            canvas.DrawBitmap(hardware, 0, hardwareTop, SKSamplingOptions.Default);
 
             // Named last so the text sits ON TOP of both pictures rather than under them.
             Label(canvas, "OURS - " + fixture + ".six through our decoder   "
@@ -544,7 +544,7 @@ public class M6SixelAndRegisTests
             int barTop = oursTop + ours.Height;
             int hardwareTop = barTop + SeparatorHeight + LabelHeight;
 
-            canvas.DrawBitmap(ours, 0, oursTop);
+            canvas.DrawBitmap(ours, 0, oursTop, SKSamplingOptions.Default);
 
             using (var bar = new SKPaint())
             {
@@ -553,7 +553,7 @@ public class M6SixelAndRegisTests
                 canvas.DrawRect(new SKRect(0, barTop, width, barTop + SeparatorHeight), bar);
             }
 
-            canvas.DrawBitmap(hardware, 0, hardwareTop);
+            canvas.DrawBitmap(hardware, 0, hardwareTop, SKSamplingOptions.Default);
 
             // Named last so the text sits ON TOP of both pictures rather than under them.
             Label(canvas, "OURS - registest-" + picture + " through our decoder   "

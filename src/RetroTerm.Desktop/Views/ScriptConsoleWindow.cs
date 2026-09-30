@@ -82,7 +82,7 @@ public sealed class ScriptConsoleWindow : Window
 
         _input = new TextBox
         {
-            Watermark = "type a command — HELP lists them, RUN <name> runs a stored script",
+            PlaceholderText = "type a command — HELP lists them, RUN <name> runs a stored script",
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             FontSize = 12,
             Margin = new Thickness(0, 8, 0, 0)

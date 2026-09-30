@@ -44,7 +44,7 @@ public class TraceCommandsTests : IDisposable
     [Fact]
     public async Task TraceStart_EnablesTracer_AndSaysWhereToPollFrom()
     {
-        var result = await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.True(ProtocolTracer.Enabled);
@@ -54,7 +54,7 @@ public class TraceCommandsTests : IDisposable
     [Fact]
     public async Task Entries_GetUniqueIncreasingIds()
     {
-        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty);
+        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Feed("AB");
         Feed("CD");
 
@@ -71,12 +71,12 @@ public class TraceCommandsTests : IDisposable
     public async Task TraceRead_SinceId_IsAnExactIncrementalPoll()
     {
         await _registry.ExecuteAsync("TRACESTART", _session,
-            new CommandArgs().Set("raw", "false"));
+            new CommandArgs().Set("raw", "false"), TestContext.Current.CancellationToken);
         Feed("FIRST");
 
         // First poll from 0 sees FIRST and hands back the next poll cursor as the capture.
         var first = await _registry.ExecuteAsync("TRACEREAD", _session,
-            new CommandArgs().Set("sinceid", "0"));
+            new CommandArgs().Set("sinceid", "0"), TestContext.Current.CancellationToken);
         Assert.True(first.Success);
         Assert.Contains("FIRST", first.Output);
         Assert.NotNull(first.CaptureValue);
@@ -84,14 +84,14 @@ public class TraceCommandsTests : IDisposable
 
         // Nothing new: polling from the cursor returns no entries — and NOT "FIRST" again.
         var empty = await _registry.ExecuteAsync("TRACEREAD", _session,
-            new CommandArgs().Set("sinceid", cursor));
+            new CommandArgs().Set("sinceid", cursor), TestContext.Current.CancellationToken);
         Assert.True(empty.Success);
         Assert.DoesNotContain("FIRST", empty.Output);
 
         // New traffic appears exactly once from the same cursor.
         Feed("SECOND");
         var second = await _registry.ExecuteAsync("TRACEREAD", _session,
-            new CommandArgs().Set("sinceid", cursor));
+            new CommandArgs().Set("sinceid", cursor), TestContext.Current.CancellationToken);
         Assert.True(second.Success);
         Assert.Contains("SECOND", second.Output);
         Assert.DoesNotContain("FIRST", second.Output);
@@ -101,10 +101,10 @@ public class TraceCommandsTests : IDisposable
     public async Task TraceRead_LinesCarryTheirId()
     {
         await _registry.ExecuteAsync("TRACESTART", _session,
-            new CommandArgs().Set("raw", "false"));
+            new CommandArgs().Set("raw", "false"), TestContext.Current.CancellationToken);
         Feed("HELLO");
 
-        var result = await _registry.ExecuteAsync("TRACEREAD", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("TRACEREAD", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         var entries = ProtocolTracer.GetEntries();
         Assert.True(entries.Length > 0);
@@ -114,11 +114,11 @@ public class TraceCommandsTests : IDisposable
     [Fact]
     public async Task TraceClear_KeepsIdsIncreasing()
     {
-        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty);
+        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Feed("BEFORE");
         var beforeMax = ProtocolTracer.NextId;
 
-        await _registry.ExecuteAsync("TRACECLEAR", _session, CommandArgs.Empty);
+        await _registry.ExecuteAsync("TRACECLEAR", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Feed("AFTER");
 
         var entries = ProtocolTracer.GetEntries();
@@ -134,8 +134,8 @@ public class TraceCommandsTests : IDisposable
     [Fact]
     public async Task TraceStop_DisablesTracer()
     {
-        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty);
-        var result = await _registry.ExecuteAsync("TRACESTOP", _session, CommandArgs.Empty);
+        await _registry.ExecuteAsync("TRACESTART", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
+        var result = await _registry.ExecuteAsync("TRACESTOP", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.False(ProtocolTracer.Enabled);

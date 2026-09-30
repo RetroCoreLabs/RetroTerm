@@ -155,7 +155,7 @@ public class GatewayEthernetTests
         byte[] sent = MakeFrame(0x11);
         client.SendPacket(sent, 0, sent.Length);
 
-        Assert.True(received.Wait(TimeSpan.FromSeconds(10)),
+        Assert.True(received.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken),
             "the hub never received the frame the client sent");
         Assert.Equal(sent, got);
     }

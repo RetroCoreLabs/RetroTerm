@@ -1397,7 +1397,7 @@ public partial class ManageConnectionsWindow : Window
         });
         textBox = new TextBox
         {
-            Watermark = watermark,
+            PlaceholderText = watermark,
             Background = BgDark,
             Foreground = TextPrimary,
             BorderBrush = BorderDark,

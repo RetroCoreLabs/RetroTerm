@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Input.Platform; // ClipboardExtensions.SetTextAsync (an extension method since Avalonia 12)
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;

@@ -67,7 +67,7 @@ public class TerminalSessionSendReceiveTests
         emulator.Invalidated += () => { }; // Prevent null reference
 
         // Act
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.SimulateReceive(Encoding.UTF8.GetBytes("Hello"));
 
         // FlushAsync completes when the pump has run every chunk posted before it, and the
@@ -89,7 +89,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send Primary DA query: ESC [ c
@@ -120,7 +120,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send Secondary DA query: ESC [ > c
@@ -152,7 +152,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Move cursor to specific position
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 }; // ESC [ 5 ; 10 H
@@ -191,7 +191,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send DSR query: ESC [ 5 n
@@ -254,7 +254,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send multiple queries
@@ -289,7 +289,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         var errorOccurred = false;
         session.ErrorOccurred += ex => errorOccurred = true;
@@ -313,11 +313,11 @@ public class TerminalSessionSendReceiveTests
         var connection2 = new InMemoryConnection();
 
         // Connect first time
-        await session.ConnectAsync(connection1);
+        await session.ConnectAsync(connection1, TestContext.Current.CancellationToken);
         await session.DisconnectAsync();
 
         // Connect second time
-        await session.ConnectAsync(connection2);
+        await session.ConnectAsync(connection2, TestContext.Current.CancellationToken);
         connection2.ClearSentData();
 
         // Act - Send query
@@ -339,7 +339,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send Secondary DA query: ESC [ > c
@@ -364,7 +364,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send Secondary DA query: ESC [ > c
@@ -389,7 +389,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send query byte by byte
@@ -415,7 +415,7 @@ public class TerminalSessionSendReceiveTests
         var session = new TerminalSession(emulator, "Test");
         var connection = new InMemoryConnection();
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Act - Send Terminal ID query: ESC Z

@@ -180,7 +180,7 @@ public class TDV2200BitmapComparisonTests
         using var fontPixelPaint = new SKPaint { Color = SKColors.LightGreen };
         using var specPixelPaint = new SKPaint { Color = SKColors.LightBlue };
 
-        canvas.DrawText("Green = FontTDV2200, Blue = Spec Bitmap (if extractable)", margin, 20, headerFont, textPaint);
+        canvas.DrawText("Green = FontTDV2200, Blue = Spec Bitmap (if extractable)", margin, 20, SKTextAlign.Left, headerFont, textPaint);
 
         // Render FontTDV2200 glyphs for charset 2
         for (int row = 0; row < numRows; row++)
@@ -345,7 +345,7 @@ public class TDV2200BitmapComparisonTests
             int baseX = 30 + setIdx * (charWidth * charsPerRow + setSpacing);
 
             // Header
-            canvas.DrawText(setNames[setIdx], baseX, 25, headerFont, textPaint);
+            canvas.DrawText(setNames[setIdx], baseX, 25, SKTextAlign.Left, headerFont, textPaint);
 
             using var pixelPaint = new SKPaint { Color = colors[setIdx] };
 
@@ -353,7 +353,7 @@ public class TDV2200BitmapComparisonTests
             for (int row = 0; row < numRows; row++)
             {
                 // Row label
-                canvas.DrawText($"{row:X}x", baseX - 25, headerHeight + row * charHeight + 12, smallFont, labelPaint);
+                canvas.DrawText($"{row:X}x", baseX - 25, headerHeight + row * charHeight + 12, SKTextAlign.Left, smallFont, labelPaint);
 
                 for (int col = 0; col < charsPerRow; col++)
                 {
@@ -372,7 +372,7 @@ public class TDV2200BitmapComparisonTests
         }
 
         // Footer
-        canvas.DrawText("TDV2200 Font - All 4 Character Sets (0x00-0x7F)", 30, height - 15, headerFont, textPaint);
+        canvas.DrawText("TDV2200 Font - All 4 Character Sets (0x00-0x7F)", 30, height - 15, SKTextAlign.Left, headerFont, textPaint);
 
         // Save
         var pngPath = Path.Combine(ImagesFolder, "tdv2200_all_charsets_visual.png");

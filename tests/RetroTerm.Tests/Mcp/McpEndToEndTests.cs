@@ -42,7 +42,7 @@ public class McpEndToEndTests : IAsyncLifetime
         return port;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Real TestServer on a free TCP port. RunAsync never returns (accept loop) —
         // it dies with the test process; the port is random so runs never collide.
@@ -60,7 +60,7 @@ public class McpEndToEndTests : IAsyncLifetime
         _mcpServer = await McpServerHost.StartAsync(provider, _mcpPort);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_mcpServer != null)
         {
@@ -88,10 +88,10 @@ public class McpEndToEndTests : IAsyncLifetime
         {
             Endpoint = new Uri(_mcpServer!.Url)
         });
-        await using var client = await McpClient.CreateAsync(transport);
+        await using var client = await McpClient.CreateAsync(transport, cancellationToken: TestContext.Current.CancellationToken);
 
         // tools/list over the wire shows the generated tool set.
-        var tools = await client.ListToolsAsync();
+        var tools = await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
         var names = new List<string>();
         for (int i = 0; i < tools.Count; i++)
         {
@@ -108,7 +108,7 @@ public class McpEndToEndTests : IAsyncLifetime
                 ["host"] = "127.0.0.1",
                 ["port"] = _telnetPort,
                 ["emulator"] = "VT100"
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEqual(true, open.IsError);
         var openText = Text(open);
         var sessionId = openText.Substring(openText.IndexOf(':') + 1);
@@ -124,26 +124,26 @@ public class McpEndToEndTests : IAsyncLifetime
                 ["pattern"] = "Main Menu",
                 ["where"] = "screen",
                 ["timeout"] = 20_000
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEqual(true, wait.IsError);
 
         // Read the screen: the menu the human would see.
         var read = await client.CallToolAsync("terminal_readscreen",
-            new Dictionary<string, object?> { ["sessionId"] = sessionId });
+            new Dictionary<string, object?> { ["sessionId"] = sessionId }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEqual(true, read.IsError);
         Assert.Contains("Main Menu", Text(read));
 
         // Status shows a live connection with traffic.
         var status = await client.CallToolAsync("terminal_status",
-            new Dictionary<string, object?> { ["sessionId"] = sessionId });
+            new Dictionary<string, object?> { ["sessionId"] = sessionId }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("connected: yes", Text(status));
 
         // Close it down.
         var close = await client.CallToolAsync("terminal_close",
-            new Dictionary<string, object?> { ["sessionId"] = sessionId });
+            new Dictionary<string, object?> { ["sessionId"] = sessionId }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotEqual(true, close.IsError);
 
-        var list = await client.CallToolAsync("terminal_list", new Dictionary<string, object?>());
+        var list = await client.CallToolAsync("terminal_list", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("no open sessions", Text(list));
     }
 }

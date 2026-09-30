@@ -79,18 +79,18 @@ public class HostOutputArrivesInOrderTests
 
         // The server side is read by hand in these tests, not by a receive loop.
         server.DisableReceiveLoop();
-        await client.ConnectAsync();
-        await server.ConnectAsync();
+        await client.ConnectAsync(TestContext.Current.CancellationToken);
+        await server.ConnectAsync(TestContext.Current.CancellationToken);
 
         var emulator = new TDV2200Emulator(80, 24);
         using var session = new TerminalSession(emulator, "order check");
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         // Six separate writes, the shape the menu had when the odd screen was seen.
         const int lines = 6;
         for (int i = 1; i <= lines; i++)
         {
-            await server.SendAsync(Encoding.ASCII.GetBytes($"{i}. line number {i}\r\n"));
+            await server.SendAsync(Encoding.ASCII.GetBytes($"{i}. line number {i}\r\n"), TestContext.Current.CancellationToken);
         }
 
         await WaitForRowAsync(emulator, lines - 1);
@@ -114,12 +114,12 @@ public class HostOutputArrivesInOrderTests
         var (client, server) = InMemoryBidirectionalConnection.CreatePair();
 
         server.DisableReceiveLoop();
-        await client.ConnectAsync();
-        await server.ConnectAsync();
+        await client.ConnectAsync(TestContext.Current.CancellationToken);
+        await server.ConnectAsync(TestContext.Current.CancellationToken);
 
         var emulator = new TDV2200Emulator(80, 24);
         using var session = new TerminalSession(emulator, "order check");
-        await session.ConnectAsync(client);
+        await session.ConnectAsync(client, TestContext.Current.CancellationToken);
 
         const int lines = 20;
         var block = new StringBuilder();
@@ -128,7 +128,7 @@ public class HostOutputArrivesInOrderTests
             block.Append(i.ToString()).Append(". line number ").Append(i.ToString()).Append("\r\n");
         }
 
-        await server.SendAsync(Encoding.ASCII.GetBytes(block.ToString()));
+        await server.SendAsync(Encoding.ASCII.GetBytes(block.ToString()), TestContext.Current.CancellationToken);
         await WaitForRowAsync(emulator, lines - 1);
 
         for (int i = 1; i <= lines; i++)

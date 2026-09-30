@@ -5,7 +5,6 @@ using RetroTerm.Core.Protocols.Mock;
 using RetroTerm.Core.Session;
 using RetroTerm.Core.Terminal.Emulators;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Integration;
 
@@ -39,12 +38,12 @@ public class FullPipelineTests
         emulator.Invalidated += () => emulatorInvalidated = true;
 
         // Act - Connect
-        await session.ConnectAsync(mockConnection);
+        await session.ConnectAsync(mockConnection, TestContext.Current.CancellationToken);
         _output.WriteLine("✓ Session connected");
 
         // Act - Send simple text
         mockConnection.SimulateReceive("Hello World");
-        await Task.Delay(100); // Give time for processing
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for processing
 
         // Assert - Check buffer
         var buffer = emulator.GetBuffer();
@@ -67,11 +66,11 @@ public class FullPipelineTests
         var mockConnection = new MockConnection(autoRespond: false);
 
         // Act - Connect
-        await session.ConnectAsync(mockConnection);
+        await session.ConnectAsync(mockConnection, TestContext.Current.CancellationToken);
 
         // Act - Send RED text
         mockConnection.SimulateReceive("\x1b[31mRED\x1b[0m");
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Check buffer cell colors
         var buffer = emulator.GetBuffer();
@@ -95,14 +94,14 @@ public class FullPipelineTests
         var mockConnection = new MockConnection(autoRespond: false);
 
         // Act - Connect
-        await session.ConnectAsync(mockConnection);
+        await session.ConnectAsync(mockConnection, TestContext.Current.CancellationToken);
 
         // Act - Simulate test server welcome message
         mockConnection.SimulateReceive("\x1b[2J\x1b[H"); // Clear screen, home cursor
         mockConnection.SimulateReceive("\x1b[1;36m"); // Bold cyan
         mockConnection.SimulateReceive("=== Test Menu ===\r\n");
         mockConnection.SimulateReceive("\x1b[0m"); // Reset
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var buffer = emulator.GetBuffer();
@@ -125,11 +124,11 @@ public class FullPipelineTests
         var session = new TerminalSession(emulator, "Test");
         var mockConnection = new MockConnection(autoRespond: false);
 
-        await session.ConnectAsync(mockConnection);
+        await session.ConnectAsync(mockConnection, TestContext.Current.CancellationToken);
 
         // Act - Disconnect with timeout
         var disconnectTask = session.DisconnectAsync();
-        var timeoutTask = Task.Delay(2000);
+        var timeoutTask = Task.Delay(2000, TestContext.Current.CancellationToken);
         var completed = await Task.WhenAny(disconnectTask, timeoutTask);
 
         // Assert - Should complete quickly, not hang
@@ -147,7 +146,7 @@ public class FullPipelineTests
         var session = new TerminalSession(emulator, "Test");
         var mockConnection = new MockConnection(autoRespond: false);
 
-        await session.ConnectAsync(mockConnection);
+        await session.ConnectAsync(mockConnection, TestContext.Current.CancellationToken);
 
         // Act - Send lots of data rapidly
         for (int i = 0; i < 100; i++)
@@ -155,7 +154,7 @@ public class FullPipelineTests
             mockConnection.SimulateReceive($"Line {i}\r\n");
         }
 
-        await Task.Delay(500); // Give time to process
+        await Task.Delay(500, TestContext.Current.CancellationToken); // Give time to process
 
         // Assert - Should still be connected, not crashed
         Assert.True(session.IsConnected);

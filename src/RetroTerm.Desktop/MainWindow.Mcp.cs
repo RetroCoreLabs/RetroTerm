@@ -310,7 +310,7 @@ public partial class MainWindow
                     new global::Avalonia.Vector(96, 96));
 
                 target.Render(control);
-                target.Save(path);
+                target.Save(path, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
                 return null;
             }
             catch (Exception ex)

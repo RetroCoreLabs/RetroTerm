@@ -232,7 +232,7 @@ public class EmulationChangeTests
         var (session, _) = await ConnectedSessionAsync();
 
         var result = await Registry().ExecuteAsync("EMULATION", session,
-            new CommandArgs().Set("type", "TDV2200"));
+            new CommandArgs().Set("type", "TDV2200"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal(80, session.Emulator.Width);
@@ -247,7 +247,7 @@ public class EmulationChangeTests
         var before = session.Emulator;
 
         var result = await Registry().ExecuteAsync("EMULATION", session,
-            new CommandArgs().Set("type", "VT999"));
+            new CommandArgs().Set("type", "VT999"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
 
@@ -266,7 +266,7 @@ public class EmulationChangeTests
         var before = session.Emulator;
 
         var result = await Registry().ExecuteAsync("EMULATION", session,
-            new CommandArgs().Set("type", "VT100"));
+            new CommandArgs().Set("type", "VT100"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Same(before, session.Emulator);

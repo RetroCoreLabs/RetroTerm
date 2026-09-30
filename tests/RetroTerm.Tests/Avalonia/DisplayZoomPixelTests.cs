@@ -101,7 +101,7 @@ public class DisplayZoomPixelTests
         byte[] png;
         using (var stream = new MemoryStream())
         {
-            target.Save(stream);
+            target.Save(stream, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             png = stream.ToArray();
         }
 

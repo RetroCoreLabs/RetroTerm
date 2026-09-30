@@ -230,7 +230,7 @@ public class TDV2200CharSetScreenshotTests
         // Header
         using var headerFont = new SKFont(SKTypeface.FromFamilyName("Consolas", SKFontStyle.Bold), 14);
         using var textPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText($"{description} (fontNum={fontNum})", 10, 25, headerFont, textPaint);
+        canvas.DrawText($"{description} (fontNum={fontNum})", 10, 25, SKTextAlign.Left, headerFont, textPaint);
 
         using var smallFont = new SKFont(SKTypeface.FromFamilyName("Consolas"), 10);
         using var labelPaint = new SKPaint { Color = SKColors.Gray };
@@ -246,7 +246,7 @@ public class TDV2200CharSetScreenshotTests
             int y = headerHeight + row * rowHeight;
 
             // Row label
-            canvas.DrawText($"{baseChar:X2}:", 5, y + charHeight, smallFont, labelPaint);
+            canvas.DrawText($"{baseChar:X2}:", 5, y + charHeight, SKTextAlign.Left, smallFont, labelPaint);
 
             for (int col = 0; col < glyphsPerRow && (baseChar + col) <= 0x7F; col++)
             {
@@ -259,7 +259,7 @@ public class TDV2200CharSetScreenshotTests
                 if (expectedBits == null)
                 {
                     failures.Add($"0x{charCode:X2}: null glyph");
-                    canvas.DrawText("?", x, y + charHeight, smallFont, errorPaint);
+                    canvas.DrawText("?", x, y + charHeight, SKTextAlign.Left, smallFont, errorPaint);
                     continue;
                 }
 
@@ -273,12 +273,12 @@ public class TDV2200CharSetScreenshotTests
         if (failures.Count == 0)
         {
             using var greenPaint = new SKPaint { Color = SKColors.Green };
-            canvas.DrawText($"All glyphs validated successfully for fontNum={fontNum}", 10, summaryY, smallFont, greenPaint);
+            canvas.DrawText($"All glyphs validated successfully for fontNum={fontNum}", 10, summaryY, SKTextAlign.Left, smallFont, greenPaint);
         }
         else
         {
             canvas.DrawText($"Failures ({failures.Count}): {string.Join(", ", failures.GetRange(0, Math.Min(5, failures.Count)))}",
-                10, summaryY, smallFont, errorPaint);
+                10, summaryY, SKTextAlign.Left, smallFont, errorPaint);
         }
 
         // Save image
@@ -340,7 +340,7 @@ public class TDV2200CharSetScreenshotTests
         using var headerBgPaint = new SKPaint { Color = new SKColor(0, 40, 100) };
         canvas.DrawRect(0, 0, width, headerHeight, headerBgPaint);
         using var headerPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText(description, 10, 28, headerFont, headerPaint);
+        canvas.DrawText(description, 10, 28, SKTextAlign.Left, headerFont, headerPaint);
 
         var fgColor = SKColors.LightGray;
         var bgColor = SKColors.Black;

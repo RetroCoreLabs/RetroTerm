@@ -245,7 +245,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - Send Primary DA query: ESC[c
         var query = new byte[] { 0x1B, 0x5B, 0x63 };
@@ -263,7 +263,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - Send Secondary DA query: ESC[>c
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 };
@@ -281,11 +281,11 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Position cursor at row 10, column 20: ESC[10;20H
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x32, 0x30, 0x48 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Send CPR query: ESC[6n
         var query = new byte[] { 0x1B, 0x5B, 0x36, 0x6E };
@@ -303,7 +303,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - Send DSR query: ESC[5n
         var query = new byte[] { 0x1B, 0x5B, 0x35, 0x6E };
@@ -320,7 +320,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - Send Terminal ID query: ESC Z
         var query = new byte[] { 0x1B, 0x5A };
@@ -348,7 +348,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - DECRQM for DECSCLM: ESC [ ? 4 $ p
         var query = new byte[] { 0x1B, 0x5B, 0x3F, 0x34, 0x24, 0x70 };
@@ -369,7 +369,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Use SS2 (Single Shift 2) to invoke Graphics I from G2: ESC N
@@ -378,7 +378,7 @@ public class TDVTerminalTestsComprehensiveTests
         {
             emulator.ProcessInput(new byte[] { 0x1B, 0x4E, 0x61 }); // ESC N 'a' - each char uses SS2
         }
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - G2 should be GraphicsI (this is the default)
         Assert.Equal(TDVCharacterSets.TDVCharacterSetType.GraphicsI, emulator.GetG2CharacterSet());
@@ -395,16 +395,16 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Switch to Math character set: ESC(3
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x33 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Write math symbols
         emulator.ProcessInput(Encoding.ASCII.GetBytes("+-*/="));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify character set switched
         Assert.Equal(TDVCharacterSets.TDVCharacterSetType.Math, emulator.GetG0CharacterSet());
@@ -419,16 +419,16 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Switch to Greek character set: ESC(4
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x34 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Write Greek letters
         emulator.ProcessInput(Encoding.ASCII.GetBytes("ABGDE"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify character set switched
         Assert.Equal(TDVCharacterSets.TDVCharacterSetType.Greek, emulator.GetG0CharacterSet());
@@ -443,20 +443,20 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Switch to Graphics I first
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x31 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Reset to US ASCII: ESC(0
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x30 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Write normal text
         emulator.ProcessInput(Encoding.ASCII.GetBytes("Hello"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify character set is USASCII
         Assert.Equal(TDVCharacterSets.TDVCharacterSetType.USASCII, emulator.GetG0CharacterSet());
@@ -474,7 +474,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert - Test all 10 character sets (0-9)
         var characterSets = new[]
@@ -497,7 +497,7 @@ public class TDVTerminalTestsComprehensiveTests
 
             // Send ESC(N where N is the set number
             emulator.ProcessInput(new byte[] { 0x1B, 0x28, (byte)setNum });
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
             // Validate character set switched
             var actualType = emulator.GetG0CharacterSet();
@@ -516,20 +516,20 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Fill area with text first
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 }); // Position 10,5
         emulator.ProcessInput(Encoding.ASCII.GetBytes("AAAAAAAAAA")); // 10 A's
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Send NDSAR to set bold in rectangle (10,5)-(10,14): ESC[1;10;5;10;14z
         emulator.ProcessInput(new byte[]
         {
             0x1B, 0x5B, 0x31, 0x3B, 0x31, 0x30, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x31, 0x34, 0x7A
         });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify cells in rectangle have bold attribute
         for (int col = 5; col <= 14; col++)
@@ -545,7 +545,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Send NDFC to fill rectangle (5,10)-(7,15) with 'X' (ASCII 88): ESC[88;5;10;7;15}
@@ -556,7 +556,7 @@ public class TDVTerminalTestsComprehensiveTests
         {
             0x1B, 0x5B, 0x38, 0x38, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x37, 0x3B, 0x31, 0x35, 0x7D
         });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify all cells in rectangle contain 'X'
         for (int row = 5; row <= 7; row++)
@@ -613,20 +613,20 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Fill a rectangle with known content
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 }); // Position 10,5
         emulator.ProcessInput(Encoding.ASCII.GetBytes("SAVED"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Send NDSREC to save rectangle (10,5)-(10,9): ESC[10;5;10;9u
         emulator.ProcessInput(new byte[]
         {
             0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x39, 0x75
         });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify original content is still in buffer
         var savedText = ReadBufferRegion(emulator, 10, 5, 10, 9);
@@ -638,32 +638,32 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Fill and save a rectangle
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 }); // Position 10,5
         emulator.ProcessInput(Encoding.ASCII.GetBytes("TEST"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Save rectangle (10,5)-(10,8): ESC[10;5;10;8u
         emulator.ProcessInput(new byte[]
         {
             0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x38, 0x75
         });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Overwrite with different content
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 }); // Position 10,5
         emulator.ProcessInput(Encoding.ASCII.GetBytes("XXXX"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Restore rectangle at new position (15,10): ESC[15;10v
         emulator.ProcessInput(new byte[]
         {
             0x1B, 0x5B, 0x31, 0x35, 0x3B, 0x31, 0x30, 0x76
         });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify original content restored at new location
         var restoredText = ReadBufferRegion(emulator, 15, 10, 15, 13);
@@ -794,17 +794,17 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Write text on line 5
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x48 }); // Position 5,1
         emulator.ProcessInput(Encoding.ASCII.GetBytes("DOUBLE"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Apply double-height top: ESC#3
         emulator.ProcessInput(new byte[] { 0x1B, 0x23, 0x33 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify buffer contains text and line has double-height attribute
         // ESC[5;1H uses 1-indexed coordinates (row 5) = buffer row 4 (0-indexed)
@@ -818,17 +818,17 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Write text on line 5
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x48 }); // Position 5,1
         emulator.ProcessInput(Encoding.ASCII.GetBytes("WIDE"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Act - Apply double-width: ESC#6
         emulator.ProcessInput(new byte[] { 0x1B, 0x23, 0x36 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify buffer contains text
         // ESC[5;1H uses 1-indexed coordinates (row 5) = buffer row 4 (0-indexed)
@@ -837,7 +837,7 @@ public class TDVTerminalTestsComprehensiveTests
 
         // Act - Reset to single-width: ESC#5
         emulator.ProcessInput(new byte[] { 0x1B, 0x23, 0x35 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify still readable
         bufferText = ReadBufferLine(emulator, 4);
@@ -924,7 +924,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Position at column 0
@@ -932,7 +932,7 @@ public class TDVTerminalTestsComprehensiveTests
 
         // Act - Send TAB (0x09)
         emulator.ProcessInput(new byte[] { 0x09 });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Cursor should have advanced to next tab stop (typically 8)
         Assert.True(emulator.Cursor.Column > initialCol);
@@ -958,14 +958,14 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Act - all four of the modes that used to be acted on.
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x30, 0x3E });
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x3E });
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x32, 0x3E });
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x33, 0x3E });
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - each one recorded under its own parameter, so the counter is a work list rather
         // than a single total.
@@ -980,7 +980,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Test Norwegian variant - initial state should be valid
         var initialVariant = emulator.CurrentISO646Variant;
@@ -999,26 +999,26 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Run character sets demo
         // Graphics I
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x31 }); // ESC(1
         emulator.ProcessInput(Encoding.ASCII.GetBytes("GRAPHICS"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Greek
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x32, 0x3B, 0x31, 0x48 }); // Line 2
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x34 }); // ESC(4
         emulator.ProcessInput(Encoding.ASCII.GetBytes("GREEK"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Reset to USASCII
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x33, 0x3B, 0x31, 0x48 }); // Line 3
         emulator.ProcessInput(new byte[] { 0x1B, 0x28, 0x30 }); // ESC(0
         emulator.ProcessInput(Encoding.ASCII.GetBytes("NORMAL"));
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Verify buffer has content from all three character sets
         var line1 = ReadBufferLine(emulator, 0);
@@ -1035,20 +1035,20 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Enable modes
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x36, 0x30, 0x68 }); // RT Roll Type to SMOOTH/STEP, 2215 section 8.7.1
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x33, 0x31, 0x68 }); // NDBLWM, beginning of line wrap
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Write blinking text: ESC[5m + "BLINK" + ESC[0m
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x35, 0x6D }); // SGR blink
         emulator.ProcessInput(Encoding.ASCII.GetBytes("BLINK"));
         emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x30, 0x6D }); // SGR reset
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert - Text in buffer
         var bufferText = ReadBufferLine(emulator, 0);
@@ -1067,7 +1067,7 @@ public class TDVTerminalTestsComprehensiveTests
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
         // Act - Execute full demo sequence without errors
@@ -1089,7 +1089,7 @@ public class TDVTerminalTestsComprehensiveTests
             connection.SimulateReceive(new byte[] { 0x1B, 0x5B, 0x36, 0x30, 0x68 });
             connection.SimulateReceive(new byte[] { 0x1B, 0x5B, 0x33, 0x31, 0x68 });
 
-            await Task.Delay(100);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
 
             // Assert on what the demo actually PUT ON THE SCREEN and what it left switched on.
             //

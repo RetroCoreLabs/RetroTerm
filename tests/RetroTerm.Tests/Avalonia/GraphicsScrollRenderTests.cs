@@ -4,7 +4,6 @@ using Avalonia.Headless.XUnit;
 using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Terminal.Emulators;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

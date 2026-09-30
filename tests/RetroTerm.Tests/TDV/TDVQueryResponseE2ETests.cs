@@ -23,12 +23,12 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send query
-        await session.ConnectAsync(connection);
-        await Task.Delay(100); // Give time for event wiring
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for event wiring
 
         // Send Primary DA query: ESC [ c
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[c"));
-        await Task.Delay(100); // Give time for processing
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for processing
 
         // Assert: Response should be sent
         var sentData = connection.GetSentData();
@@ -52,12 +52,12 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send query
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Send Secondary DA query: ESC [ > c
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[>c"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert: Response should be sent
         var sentData = connection.GetSentData();
@@ -80,12 +80,12 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send query
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Send CPR query: ESC [ 6 n
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[6n"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert: Response should be sent
         var sentData = connection.GetSentData();
@@ -109,12 +109,12 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send query
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Send DSR query: ESC [ 5 n
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[5n"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert: Response should be sent
         var sentData = connection.GetSentData();
@@ -138,12 +138,12 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send query
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Send Terminal ID query: ESC Z
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1bZ"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert: Response should be sent
         var sentData = connection.GetSentData();
@@ -167,28 +167,28 @@ public class TDVQueryResponseE2ETests
         var connection = new InMemoryConnection();
 
         // Act: Connect and send multiple queries
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         connection.ClearSentData();
 
         // Send Primary DA
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[c"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var countAfterDA = connection.GetSentData().Count;
         Assert.True(countAfterDA > 0, "Primary DA query did not generate response");
 
         // Send Secondary DA
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[>c"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var countAfterSecondaryDA = connection.GetSentData().Count;
         Assert.True(countAfterSecondaryDA > countAfterDA, "Secondary DA query did not generate response");
 
         // Send CPR
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[6n"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var countAfterCPR = connection.GetSentData().Count;
         Assert.True(countAfterCPR > countAfterSecondaryDA, "CPR query did not generate response");
@@ -207,19 +207,19 @@ public class TDVQueryResponseE2ETests
 
         // Act: Send query BEFORE connecting
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[c"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert: No response should be sent (connection not established)
         var sentData = connection.GetSentData();
         Assert.Empty(sentData);
 
         // Now connect and verify it works after connection
-        await session.ConnectAsync(connection);
-        await Task.Delay(100);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         connection.ClearSentData();
         connection.SimulateReceive(Encoding.UTF8.GetBytes("\x1b[c"));
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         Assert.True(connection.GetSentData().Count > 0, "Response should be sent after connection");
 

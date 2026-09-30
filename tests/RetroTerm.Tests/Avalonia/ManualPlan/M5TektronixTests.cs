@@ -442,7 +442,8 @@ public class M5TektronixTests
 
                 canvas.DrawBitmap(panels[i],
                     new SKRect(0, 0, panels[i].Width, keep),
-                    new SKRect(0, y, width, y + heights[i]));
+                    new SKRect(0, y, width, y + heights[i]),
+                    SKSamplingOptions.Default);
                 y += heights[i];
 
                 using (var bar = new SKPaint())

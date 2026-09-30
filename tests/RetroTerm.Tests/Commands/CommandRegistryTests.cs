@@ -79,7 +79,7 @@ public class CommandRegistryTests : IDisposable
         _registry.Register(new DummyCommand()); // the one line
 
         var result = await _registry.ExecuteAsync("dummy", _session,
-            new CommandArgs().Set("text", "hi"));
+            new CommandArgs().Set("text", "hi"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("echo: hi", result.Output);
@@ -101,7 +101,7 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task Execute_UnknownCommand_FailsWithKnownCommandList()
     {
-        var result = await _registry.ExecuteAsync("NOSUCH", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("NOSUCH", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("Unknown command", result.Error);
@@ -111,7 +111,7 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task Execute_MissingRequiredParameter_FailsNamingTheParameter()
     {
-        var result = await _registry.ExecuteAsync("SEND", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("SEND", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("text", result.Error);
@@ -192,10 +192,10 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task Send_SendsExactText_NothingAppended()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("SEND", _session,
-            new CommandArgs().Set("text", "LIST-FILES"));
+            new CommandArgs().Set("text", "LIST-FILES"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("LIST-FILES", _connection.GetLastSentAsString());
@@ -204,12 +204,12 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task Send_ControlCharsInText_SentVerbatim()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // A CR is part of the TEXT (scripts write it as \r; MCP sends it in JSON) —
         // the command itself never adds or removes anything.
         var result = await _registry.ExecuteAsync("SEND", _session,
-            new CommandArgs().Set("text", "abc\r"));
+            new CommandArgs().Set("text", "abc\r"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("abc\r", _connection.GetLastSentAsString());
@@ -218,10 +218,10 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task SendRaw_EscKeyword_SendsSingleEscByte()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("SENDRAW", _session,
-            new CommandArgs().Set("bytes", "ESC"));
+            new CommandArgs().Set("bytes", "ESC"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         var sent = _connection.GetSentData();
@@ -231,10 +231,10 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task SendRaw_HexPairs_SendsBytes()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("SENDRAW", _session,
-            new CommandArgs().Set("bytes", "1B0D"));
+            new CommandArgs().Set("bytes", "1B0D"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         var sent = _connection.GetSentData();
@@ -244,10 +244,10 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task SendRaw_InvalidHex_FailsWithClearError()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var result = await _registry.ExecuteAsync("SENDRAW", _session,
-            new CommandArgs().Set("bytes", "XYZ"));
+            new CommandArgs().Set("bytes", "XYZ"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.NotNull(result.Error);
@@ -256,11 +256,11 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task WaitFor_MatchesScreenAndReportsElapsed()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("ENTER"));
 
         var result = await _registry.ExecuteAsync("WAITFOR", _session,
-            new CommandArgs().Set("pattern", "ENTER").Set("timeout", "5000"));
+            new CommandArgs().Set("pattern", "ENTER").Set("timeout", "5000"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("ENTER", result.Output);
@@ -270,11 +270,11 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task WaitFor_Timeout_FailsButStillCarriesScreen()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("partial answer"));
 
         var result = await _registry.ExecuteAsync("WAITFOR", _session,
-            new CommandArgs().Set("pattern", "NEVER").Set("timeout", "150"));
+            new CommandArgs().Set("pattern", "NEVER").Set("timeout", "150"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("Timeout", result.Error);
@@ -285,10 +285,10 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task ReadScreen_ReturnsTextAndCursor()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("hello"));
 
-        var result = await _registry.ExecuteAsync("READSCREEN", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("READSCREEN", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("hello", result.Output);
@@ -298,11 +298,11 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task Status_ReportsConnectionAndCounters()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("abc"));
         await _session.FlushAsync();
 
-        var result = await _registry.ExecuteAsync("STATUS", _session, CommandArgs.Empty);
+        var result = await _registry.ExecuteAsync("STATUS", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("connected: yes", result.Output);
@@ -314,7 +314,7 @@ public class CommandRegistryTests : IDisposable
     [Fact]
     public async Task ReadNew_ReturnsOnlyNewScrollbackSinceLastCall()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // Fill 30 lines: 6 scroll out on a 24-row screen.
         var sb = new StringBuilder();
@@ -324,13 +324,13 @@ public class CommandRegistryTests : IDisposable
         }
         _connection.SimulateReceive(Encoding.UTF8.GetBytes(sb.ToString()));
 
-        var first = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty);
+        var first = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Assert.True(first.Success);
         Assert.Contains("line0", first.Output);            // scrolled-out line captured
         Assert.Contains("current screen", first.Output);
 
         // Nothing new arrived: second call must not repeat the old scrollback.
-        var second = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty);
+        var second = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Assert.True(second.Success);
         Assert.DoesNotContain("line0\n", second.Output);
 
@@ -342,7 +342,7 @@ public class CommandRegistryTests : IDisposable
         }
         _connection.SimulateReceive(Encoding.UTF8.GetBytes(sb2.ToString()));
 
-        var third = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty);
+        var third = await _registry.ExecuteAsync("READNEW", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
         Assert.True(third.Success);
         Assert.DoesNotContain("line0\n", third.Output);
         Assert.Contains("line30", third.Output);
@@ -354,7 +354,7 @@ public class CommandRegistryTests : IDisposable
         // SEND with no connection throws InvalidOperationException inside the command;
         // dispatch must convert that into a reportable failure.
         var result = await _registry.ExecuteAsync("SEND", _session,
-            new CommandArgs().Set("text", "x"));
+            new CommandArgs().Set("text", "x"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("threw", result.Error);

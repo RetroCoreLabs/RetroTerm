@@ -119,17 +119,17 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act - Connect client
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Wait for connection to be established
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Send Primary DA query from server: ESC [ c
         var query = new byte[] { 0x1B, 0x5B, 0x63 };
         await SendQueryFromServerAsync(query);
 
         // Wait for response
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected, "Session should be connected");
@@ -157,14 +157,14 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Send Secondary DA query: ESC [ > c
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 };
         await SendQueryFromServerAsync(query);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected);
@@ -192,20 +192,20 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Move cursor first
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 }; // ESC [ 5 ; 10 H
         await SendQueryFromServerAsync(moveCursor);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         _receivedResponses.Clear();
 
         // Send CPR query: ESC [ 6 n
         var query = new byte[] { 0x1B, 0x5B, 0x36, 0x6E };
         await SendQueryFromServerAsync(query);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected);
@@ -234,14 +234,14 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Send DSR query: ESC [ 5 n
         var query = new byte[] { 0x1B, 0x5B, 0x35, 0x6E };
         await SendQueryFromServerAsync(query);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected);
@@ -268,17 +268,17 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Send multiple queries
         var daQuery = new byte[] { 0x1B, 0x5B, 0x63 };
         await SendQueryFromServerAsync(daQuery);
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         var cprQuery = new byte[] { 0x1B, 0x5B, 0x36, 0x6E };
         await SendQueryFromServerAsync(cprQuery);
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(session.IsConnected);
@@ -308,12 +308,12 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 };
         await SendQueryFromServerAsync(query);
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(_receivedResponses);
@@ -335,12 +335,12 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         var query = new byte[] { 0x1B, 0x5B, 0x3E, 0x63 };
         await SendQueryFromServerAsync(query);
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(_receivedResponses);
@@ -362,18 +362,18 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var connection = new TelnetConnection("localhost", port);
 
         // Act
-        await session.ConnectAsync(connection);
-        await Task.Delay(200);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Send query byte by byte
         var query = new byte[] { 0x1B, 0x5B, 0x63 };
         foreach (var b in query)
         {
             await SendQueryFromServerAsync(new[] { b });
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
         }
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(_receivedResponses);
@@ -398,7 +398,7 @@ public class TerminalSessionRealConnectionTests : IDisposable
         var query = new byte[] { 0x1B, 0x5B, 0x63 };
         emulator.ProcessData(query);
 
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert - No connection, so no responses should be sent
         Assert.False(session.IsConnected);

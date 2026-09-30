@@ -47,7 +47,7 @@ public class DirtyRowCacheTests
         }
 
         using var stream = new MemoryStream();
-        target.Save(stream);
+        target.Save(stream, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
         return SKBitmap.Decode(stream.ToArray());
     }
 

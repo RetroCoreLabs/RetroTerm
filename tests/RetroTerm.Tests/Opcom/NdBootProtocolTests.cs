@@ -169,7 +169,7 @@ public class NdBootProtocolTests
     public async Task Ping_ReturnsVersionBaseTop()
     {
         var (client, _) = MakePair();
-        var info = await client.PingAsync();
+        var info = await client.PingAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, info.Version);
         Assert.Equal(0xF000, info.Base);
         Assert.Equal(0xF233, info.Top);
@@ -183,8 +183,8 @@ public class NdBootProtocolTests
     {
         var (client, _) = MakePair();
         client.OnDataReceived(System.Text.Encoding.ASCII.GetBytes("170000!\r\nBootstrap enabled!\r\n"));
-        Assert.True(await client.WaitForTextAsync("enabled!", 100));
-        var info = await client.PingAsync();
+        Assert.True(await client.WaitForTextAsync("enabled!", 100, TestContext.Current.CancellationToken));
+        var info = await client.PingAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, info.Version);
     }
 
@@ -194,7 +194,7 @@ public class NdBootProtocolTests
         var (client, monitor) = MakePair();
         monitor.ReportedVersion = 99;
         monitor.ExtraPingWords = new ushort[] { 0x1234, 0x5678 };   // appended by a future version
-        var info = await client.PingAsync();
+        var info = await client.PingAsync(TestContext.Current.CancellationToken);
         Assert.Equal(99, info.Version);
         Assert.Equal(0xF000, info.Base);
         Assert.Equal(0xF233, info.Top);
@@ -202,7 +202,7 @@ public class NdBootProtocolTests
         Assert.False(info.HostSupports);
         Assert.Contains("newer than this RetroTerm supports", info.Describe());
         // The unread words must not poison the next command.
-        var again = await client.PingAsync();
+        var again = await client.PingAsync(TestContext.Current.CancellationToken);
         Assert.Equal(99, again.Version);
     }
 
@@ -225,10 +225,10 @@ public class NdBootProtocolTests
         var (client, monitor) = MakePair();
         var image = new ushort[300];
         for (int i = 0; i < image.Length; i++) image[i] = (ushort)((i * 7919 + 13) & 0xFFFF);
-        int frames = await client.SendImageAsync(0x2000, image, image.Length, 4, null);
+        int frames = await client.SendImageAsync(0x2000, image, image.Length, 4, null, TestContext.Current.CancellationToken);
         Assert.Equal(3, frames);
         for (int i = 0; i < image.Length; i++) Assert.Equal(image[i], monitor.Memory[0x2000 + i]);
-        var back = await client.ReadAsync(0x2000 + 128, 128);
+        var back = await client.ReadAsync(0x2000 + 128, 128, TestContext.Current.CancellationToken);
         Assert.Equal(image.Skip(128).Take(128).ToArray(), back);
     }
 
@@ -239,7 +239,7 @@ public class NdBootProtocolTests
         monitor.CorruptSeqOnce = 2;
         var image = new ushort[500];
         for (int i = 0; i < image.Length; i++) image[i] = (ushort)(i * 3);
-        int frames = await client.SendImageAsync(0x1000, image, image.Length, 4, null);
+        int frames = await client.SendImageAsync(0x1000, image, image.Length, 4, null, TestContext.Current.CancellationToken);
         Assert.True(frames > 4, $"expected resends, got {frames} frames");
         Assert.Equal(4, monitor.LastOk);
         for (int i = 0; i < image.Length; i++) Assert.Equal(image[i], monitor.Memory[0x1000 + i]);
@@ -249,7 +249,7 @@ public class NdBootProtocolTests
     public async Task Go_EchoesAddress()
     {
         var (client, monitor) = MakePair();
-        await client.GoAsync(0x0800);
+        await client.GoAsync(0x0800, TestContext.Current.CancellationToken);
         Assert.Equal(0x0800, monitor.GoAddress);
     }
 
@@ -257,7 +257,7 @@ public class NdBootProtocolTests
     public async Task WriteBlock_RejectsBadCount()
     {
         var (client, _) = MakePair();
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.WriteBlockAsync(1, 0, new ushort[129], 0, 129, true));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.WriteBlockAsync(1, 0, new ushort[129], 0, 129, true, TestContext.Current.CancellationToken));
     }
 
     [Fact]

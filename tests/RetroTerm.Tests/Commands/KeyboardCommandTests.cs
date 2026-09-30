@@ -41,7 +41,7 @@ public class KeyboardCommandTests
         // Alt+H (vk 72, alt) -> G53 (HJELP)
         var bind = await _registry.ExecuteAsync("KEYBIND", _session,
             new CommandArgs().Set("action", "bind").Set("vk", "72").Set("mods", "alt")
-                .Set("grid", "G53").Set("save", "false"));
+                .Set("grid", "G53").Set("save", "false"), TestContext.Current.CancellationToken);
         Assert.True(bind.Success, bind.Error);
 
         // The live config really holds it.
@@ -49,7 +49,7 @@ public class KeyboardCommandTests
         Assert.Equal("G53", target.GridPosition);
 
         var list = await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "list"));
+            new CommandArgs().Set("action", "list"), TestContext.Current.CancellationToken);
         Assert.Contains("G53", list.Output);
         Assert.Contains("vk=72", list.Output);
     }
@@ -58,11 +58,11 @@ public class KeyboardCommandTests
     public async Task Unbind_RemovesTheBinding()
     {
         await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "bind").Set("vk", "112").Set("grid", "G53").Set("save", "false"));
+            new CommandArgs().Set("action", "bind").Set("vk", "112").Set("grid", "G53").Set("save", "false"), TestContext.Current.CancellationToken);
         Assert.True(TDVKeyBindingConfiguration.Instance.TryGetTarget(112, KeyModifiers.None, out _));
 
         var unbind = await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "unbind").Set("vk", "112").Set("save", "false"));
+            new CommandArgs().Set("action", "unbind").Set("vk", "112").Set("save", "false"), TestContext.Current.CancellationToken);
         Assert.True(unbind.Success, unbind.Error);
         Assert.False(TDVKeyBindingConfiguration.Instance.TryGetTarget(112, KeyModifiers.None, out _));
     }
@@ -72,7 +72,7 @@ public class KeyboardCommandTests
     {
         // A bare letter with no modifier is not a valid binding source.
         var result = await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "bind").Set("vk", "72").Set("grid", "G53").Set("save", "false"));
+            new CommandArgs().Set("action", "bind").Set("vk", "72").Set("grid", "G53").Set("save", "false"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not a valid binding source", result.Error);
@@ -83,7 +83,7 @@ public class KeyboardCommandTests
     {
         var result = await _registry.ExecuteAsync("KEYBIND", _session,
             new CommandArgs().Set("action", "bind").Set("vk", "72").Set("mods", "hyper")
-                .Set("grid", "G53").Set("save", "false"));
+                .Set("grid", "G53").Set("save", "false"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("unknown modifier", result.Error);
@@ -93,7 +93,7 @@ public class KeyboardCommandTests
     public async Task Unbind_NothingBound_IsError()
     {
         var result = await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "unbind").Set("vk", "121").Set("mods", "ctrl").Set("save", "false"));
+            new CommandArgs().Set("action", "unbind").Set("vk", "121").Set("mods", "ctrl").Set("save", "false"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("nothing bound", result.Error);
@@ -103,7 +103,7 @@ public class KeyboardCommandTests
     public async Task UnknownAction_IsError()
     {
         var result = await _registry.ExecuteAsync("KEYBIND", _session,
-            new CommandArgs().Set("action", "wobble"));
+            new CommandArgs().Set("action", "wobble"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("unknown action", result.Error);

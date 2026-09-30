@@ -306,9 +306,9 @@ public class ConfigurationManagerTests : IDisposable
 
         // Mark them as used in different order
         await _configManager.MarkAsUsedAsync(config2.Id);
-        await Task.Delay(10); // Small delay to ensure different timestamps
+        await Task.Delay(10, TestContext.Current.CancellationToken); // Small delay to ensure different timestamps
         await _configManager.MarkAsUsedAsync(config1.Id);
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         await _configManager.MarkAsUsedAsync(config3.Id);
 
         // Act

@@ -23,7 +23,7 @@
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
 
         <TextBox Name="HostBox"
-                 Watermark="host or host:port"
+                 PlaceholderText="host or host:port"
                  Background="{DynamicResource SectionBackgroundBrush}"
                  Foreground="{DynamicResource PrimaryTextBrush}"
                  BorderBrush="{DynamicResource BorderBrush}"

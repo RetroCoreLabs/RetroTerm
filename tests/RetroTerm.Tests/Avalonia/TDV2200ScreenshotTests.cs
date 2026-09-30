@@ -97,7 +97,7 @@ public class TDV2200ScreenshotTests
         using var headerBgPaint = new SKPaint { Color = new SKColor(0, 40, 100) };
         canvas.DrawRect(0, 0, totalWidth, headerHeight, headerBgPaint);
         using var headerPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText(description, 5, 19, headerFont, headerPaint);
+        canvas.DrawText(description, 5, 19, SKTextAlign.Left, headerFont, headerPaint);
 
         // Default foreground color (matches TerminalRenderer)
         var defaultFg = new SKColor(0, 255, 136); // #00FF88

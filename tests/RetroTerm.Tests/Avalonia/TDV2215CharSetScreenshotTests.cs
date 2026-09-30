@@ -343,7 +343,7 @@ public class TDV2215CharSetScreenshotTests
         // Header
         using var headerFont = new SKFont(SKTypeface.FromFamilyName("Consolas", SKFontStyle.Bold), 14);
         using var textPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText($"{description} (fontNum={fontNum})", 10, 25, headerFont, textPaint);
+        canvas.DrawText($"{description} (fontNum={fontNum})", 10, 25, SKTextAlign.Left, headerFont, textPaint);
 
         using var smallFont = new SKFont(SKTypeface.FromFamilyName("Consolas"), 10);
         using var labelPaint = new SKPaint { Color = SKColors.Gray };
@@ -358,7 +358,7 @@ public class TDV2215CharSetScreenshotTests
             int y = headerHeight + row * rowHeight;
 
             // Row label
-            canvas.DrawText($"{baseChar:X2}:", 5, y + charHeight, smallFont, labelPaint);
+            canvas.DrawText($"{baseChar:X2}:", 5, y + charHeight, SKTextAlign.Left, smallFont, labelPaint);
 
             for (int col = 0; col < glyphsPerRow; col++)
             {
@@ -395,7 +395,7 @@ public class TDV2215CharSetScreenshotTests
         // Summary
         int summaryY = height - 30;
         using var greenPaint = new SKPaint { Color = SKColors.Green };
-        canvas.DrawText($"Glyphs with content: {glyphsWithContent}/128 (fontNum={fontNum})", 10, summaryY, smallFont, greenPaint);
+        canvas.DrawText($"Glyphs with content: {glyphsWithContent}/128 (fontNum={fontNum})", 10, summaryY, SKTextAlign.Left, smallFont, greenPaint);
 
         // Save image
         var pngPath = Path.Combine(ImagesFolder, filename + ".png");
@@ -454,7 +454,7 @@ public class TDV2215CharSetScreenshotTests
         using var headerBgPaint = new SKPaint { Color = new SKColor(0, 40, 100) };
         canvas.DrawRect(0, 0, width, headerHeight, headerBgPaint);
         using var headerPaint = new SKPaint { Color = SKColors.Yellow };
-        canvas.DrawText(description, 10, 28, headerFont, headerPaint);
+        canvas.DrawText(description, 10, 28, SKTextAlign.Left, headerFont, headerPaint);
 
         var fgColor = SKColors.LightGray;
         using var pixelPaint = new SKPaint { Color = fgColor };

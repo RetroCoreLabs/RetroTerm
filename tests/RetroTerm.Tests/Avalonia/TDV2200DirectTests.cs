@@ -7,7 +7,6 @@ using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using RetroTerm.Tests.TDV;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

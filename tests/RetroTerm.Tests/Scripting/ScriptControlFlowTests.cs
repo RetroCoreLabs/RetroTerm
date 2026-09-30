@@ -94,7 +94,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task Goto_SkipsSteps_NoReturn()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "GOTO past\n" +
@@ -103,7 +103,7 @@ public class ScriptControlFlowTests : IDisposable
             "SEND \"REACHED\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         var sent = _connection.GetSentData();
@@ -114,7 +114,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task Gosub_RunsSubroutine_ReturnComesBack()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "GOSUB sub\n" +
@@ -126,7 +126,7 @@ public class ScriptControlFlowTests : IDisposable
             "LABEL end\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         var sent = _connection.GetSentData();
@@ -138,7 +138,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task NestedGosub_ReturnsInOrder()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "GOSUB outer\n" +
@@ -154,7 +154,7 @@ public class ScriptControlFlowTests : IDisposable
             "LABEL end\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         var sent = _connection.GetSentData();
@@ -167,12 +167,12 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task Return_WithoutGosub_FailsNamingTheLine()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse("SEND \"a\"\nRETURN\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("RETURN at line 2 without a matching GOSUB", result.Error);
@@ -181,7 +181,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task OnTimeout_JumpsInsteadOfFailing()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // The prompt never appears: the WAITFOR times out and must BRANCH to the
         // recovery label instead of failing the script.
@@ -194,7 +194,7 @@ public class ScriptControlFlowTests : IDisposable
             "LABEL end\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         var sent = _connection.GetSentData();
@@ -205,7 +205,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task OnTimeout_NotTakenWhenPatternMatches()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("READY"));
 
         var script = _parser.Parse(
@@ -217,7 +217,7 @@ public class ScriptControlFlowTests : IDisposable
             "LABEL end\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("NORMAL", _connection.GetLastSentAsString());
@@ -226,7 +226,7 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task OnTimeout_RetryLoop_EscWakeup()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // The classic SINTRAN wake-up: send ESC, wait briefly for the prompt, and on
         // timeout go back and send ESC again. The host answers after the second ESC.
@@ -237,13 +237,13 @@ public class ScriptControlFlowTests : IDisposable
             "SEND \"USER\"\n");
         Assert.True(script.IsValid);
 
-        var runTask = _runner.RunAsync(script, _session);
+        var runTask = _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         // Stay silent through the first ESC; answer after the second.
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
         while (_connection.GetSentData().Count < 2 && DateTime.UtcNow < deadline)
         {
-            await Task.Delay(20);
+            await Task.Delay(20, TestContext.Current.CancellationToken);
         }
         Assert.True(_connection.GetSentData().Count >= 2, "second ESC never sent");
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SINTRAN\r\nENTER "));
@@ -261,12 +261,12 @@ public class ScriptControlFlowTests : IDisposable
     [Fact]
     public async Task RunawayGotoLoop_IsAborted()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse("LABEL spin\nGOTO spin\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("runaway", result.Error);

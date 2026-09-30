@@ -8,7 +8,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using RetroTerm.Desktop.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

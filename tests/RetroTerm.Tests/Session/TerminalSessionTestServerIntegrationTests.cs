@@ -259,7 +259,7 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         await _telnetSession!.WriteBytesAsync(query);
 
         // Wait for data to be received
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(dataReceivedFired, "DataReceived event should have fired");
@@ -292,7 +292,7 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         emulator.ProcessData(query);
 
         // Wait for response to be generated
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedResponse);
@@ -334,7 +334,7 @@ public class TerminalSessionTestServerIntegrationTests : IDisposable
         // Move cursor first
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 };
         await _telnetSession!.WriteBytesAsync(moveCursor);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         _clientConnection!.GetAllSentData(); // Clear sent data
 
         // Act - TestServer sends CPR query

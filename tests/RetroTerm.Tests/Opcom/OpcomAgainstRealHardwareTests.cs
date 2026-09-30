@@ -177,7 +177,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         for (int i = 0; i < WorkingRegisterNames.Count; i++)
         {
             string name = WorkingRegisterNames.ByNumber[i];
-            var result = await _protocol.ReadRegisterAsync(0, name);
+            var result = await _protocol.ReadRegisterAsync(0, name, TestContext.Current.CancellationToken);
             Assert.True(result.Success, Because("read " + i + " of the refresh sequence, register " + name, result));
         }
         // A read hands back its value as soon as the value has arrived, while the space
@@ -186,7 +186,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         // true is that it gets back to Idle by itself shortly afterwards.
         for (int waited = 0; waited < 2000 && _protocol.State != OpcomProtocolState.Idle; waited += 50)
         {
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
         }
         Assert.True(OpcomProtocolState.Idle == _protocol.State,
             "two seconds after the eighth read the protocol is still " + _protocol.State
@@ -200,7 +200,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         await SettleAsync();
 
         // Route one: the block dump "0<1RD".
-        var dump = await _protocol.DumpRegistersAsync(0, 1);
+        var dump = await _protocol.DumpRegistersAsync(0, 1, TestContext.Current.CancellationToken);
         Assert.True(dump.Success, Because("the working-register dump 0<1RD failed", dump));
         ushort[] fromDump = new ushort[WorkingRegisterNames.Count * 2];
         for (int level = 0; level < 2; level++)
@@ -213,7 +213,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
             for (int i = 0; i < WorkingRegisterNames.Count; i++)
             {
                 string name = WorkingRegisterNames.ByNumber[i];
-                var one = await _protocol.ReadRegisterAsync(level, name);
+                var one = await _protocol.ReadRegisterAsync(level, name, TestContext.Current.CancellationToken);
                 Assert.True(one.Success, Because("examine of level " + level + " register " + name + " failed", one));
                 ushort expected = fromDump[level * WorkingRegisterNames.Count + i];
                 Assert.True(expected == one.Value,
@@ -235,7 +235,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         const int first = 0;
         const int last = 16; // 20 octal
 
-        var dump = await _protocol.DumpMemoryAsync(first, last);
+        var dump = await _protocol.DumpMemoryAsync(first, last, TestContext.Current.CancellationToken);
         Assert.True(dump.Success, Because("the memory dump failed", dump));
         Assert.NotNull(dump.DumpValues);
         ushort[] block = dump.DumpValues!;
@@ -245,7 +245,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
 
         for (int addr = first; addr <= last; addr++)
         {
-            var one = await _protocol.ReadMemoryAsync(addr);
+            var one = await _protocol.ReadMemoryAsync(addr, TestContext.Current.CancellationToken);
             Assert.True(one.Success, Because("examine of address " + Octal((ushort)addr) + " failed", one));
             Assert.True(block[addr - first] == one.Value,
                 "address " + Octal((ushort)addr) + ": the dump said " + Octal(block[addr - first])
@@ -259,7 +259,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         if (_protocol == null) return;
         await SettleAsync();
 
-        var dump = await _protocol.DumpInternalRegistersAsync();
+        var dump = await _protocol.DumpInternalRegistersAsync(TestContext.Current.CancellationToken);
         Assert.True(dump.Success, Because("IRD failed", dump));
         ushort[] fromDump = new ushort[InternalRegisterDefs.Count];
         for (int i = 0; i < InternalRegisterDefs.Count; i++) fromDump[i] = _protocol.Registers.Internal[i];
@@ -271,7 +271,7 @@ public class OpcomAgainstRealHardwareTests : IDisposable
             // panel, so only the registers that hold still can be compared.
             if (name == "IIC" || name == "PES" || name == "PEA" || name == "PANS" || name == "ACTL") continue;
 
-            var one = await _protocol.ReadInternalRegisterAsync(InternalRegisterDefs.GetReadCommand(i));
+            var one = await _protocol.ReadInternalRegisterAsync(InternalRegisterDefs.GetReadCommand(i), TestContext.Current.CancellationToken);
             Assert.True(one.Success, Because("examine of internal register " + name + " failed", one));
             Assert.True(fromDump[i] == one.Value,
                 "internal register " + name + ": IRD said " + Octal(fromDump[i])
@@ -291,13 +291,13 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         // that the deposit's advance line is consumed and examine mode is left, which the
         // following command proves by working at all.
         const int address = 0;
-        var before = await _protocol.ReadMemoryAsync(address);
+        var before = await _protocol.ReadMemoryAsync(address, TestContext.Current.CancellationToken);
         Assert.True(before.Success, Because("could not read the word before writing it", before));
 
-        var write = await _protocol.WriteMemoryAsync(address, before.Value);
+        var write = await _protocol.WriteMemoryAsync(address, before.Value, TestContext.Current.CancellationToken);
         Assert.True(write.Success, Because("the deposit failed", write));
 
-        var after = await _protocol.ReadMemoryAsync(address);
+        var after = await _protocol.ReadMemoryAsync(address, TestContext.Current.CancellationToken);
         Assert.True(after.Success, Because(
             "the read AFTER the deposit failed - OPCOM was probably left in examine mode, so the next command was typed into it",
             after));
@@ -322,13 +322,13 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         await SettleAsync();
         ClearWire();
 
-        var mcl = await _protocol.MasterClearAsync();
+        var mcl = await _protocol.MasterClearAsync(TestContext.Current.CancellationToken);
         Assert.True(mcl.Success, Because("master clear failed", mcl));
 
         // The two hashes are the machine saying it is done. Anything else and the command
         // would have timed out above, so what is left to prove is that the line still
         // works: a plain examine has to answer normally straight afterwards.
-        var read = await _protocol.ReadRegisterAsync(0, "X");
+        var read = await _protocol.ReadRegisterAsync(0, "X", TestContext.Current.CancellationToken);
         Assert.True(read.Success, Because("the examine after a master clear failed", read));
     }
 
@@ -344,11 +344,11 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         if (_protocol == null) return;
         await SettleAsync();
 
-        var iox = await _protocol.IOXReadAsync(0x100);   // 400 octal
+        var iox = await _protocol.IOXReadAsync(0x100, TestContext.Current.CancellationToken);   // 400 octal
         Assert.True(iox.Success, Because("IOX read from device 400 failed", iox));
 
         // The line must still work afterwards: the read leaves examine mode behind it.
-        var after = await _protocol.ReadRegisterAsync(0, "X");
+        var after = await _protocol.ReadRegisterAsync(0, "X", TestContext.Current.CancellationToken);
         Assert.True(after.Success, Because("the examine after an IOX read failed", after));
     }
 
@@ -366,10 +366,10 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         if (_protocol == null) return;
         await SettleAsync();
 
-        var iox = await _protocol.IOXWriteAsync(0x101, 0);   // 401 octal, write zero
+        var iox = await _protocol.IOXWriteAsync(0x101, 0, TestContext.Current.CancellationToken);   // 401 octal, write zero
         Assert.True(iox.Success, Because("IOX write to device 401 failed", iox));
 
-        var after = await _protocol.ReadRegisterAsync(0, "X");
+        var after = await _protocol.ReadRegisterAsync(0, "X", TestContext.Current.CancellationToken);
         Assert.True(after.Success, Because("the examine after an IOX write failed", after));
     }
 
@@ -392,11 +392,11 @@ public class OpcomAgainstRealHardwareTests : IDisposable
         ClearWire();
 
         const int address = 0;
-        var before = await _protocol.ReadMemoryAsync(address);
+        var before = await _protocol.ReadMemoryAsync(address, TestContext.Current.CancellationToken);
         Assert.True(before.Success, Because("could not read the word before writing it", before));
         ClearWire();
 
-        var write = await _protocol.WriteMemoryAsync(address, before.Value);
+        var write = await _protocol.WriteMemoryAsync(address, before.Value, TestContext.Current.CancellationToken);
         Assert.True(write.Success, Because("the deposit failed", write));
 
         var events = Events();
@@ -462,13 +462,13 @@ public class OpcomAgainstRealHardwareTests : IDisposable
 
         // Register deposit answers CR LF '#' and leaves examine mode, unlike a memory
         // deposit. The X register is used because nothing on a stopped CPU moves it.
-        var before = await _protocol.ReadRegisterAsync(0, "X");
+        var before = await _protocol.ReadRegisterAsync(0, "X", TestContext.Current.CancellationToken);
         Assert.True(before.Success, Because("could not read X", before));
 
-        var write = await _protocol.WriteRegisterAsync(0, "X", before.Value);
+        var write = await _protocol.WriteRegisterAsync(0, "X", before.Value, TestContext.Current.CancellationToken);
         Assert.True(write.Success, Because("the register deposit failed", write));
 
-        var after = await _protocol.ReadRegisterAsync(0, "X");
+        var after = await _protocol.ReadRegisterAsync(0, "X", TestContext.Current.CancellationToken);
         Assert.True(after.Success, Because("the read after the register deposit failed", after));
         Assert.True(before.Value == after.Value,
             "X changed from " + Octal(before.Value) + " to " + Octal(after.Value)

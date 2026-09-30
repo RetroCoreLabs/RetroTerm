@@ -8,7 +8,6 @@ using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using RetroTerm.Desktop.Rendering;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

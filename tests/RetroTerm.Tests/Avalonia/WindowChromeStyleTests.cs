@@ -4,7 +4,6 @@ using Avalonia.Media;
 using RetroTerm.Desktop;
 using RetroTerm.Desktop.Themes;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

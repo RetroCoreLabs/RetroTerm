@@ -77,7 +77,7 @@ public class OpcomProgressReportingTests
     {
         _replies["P/"] = "000004 ";
 
-        var read = _protocol.ReadRegisterAsync(0, "P");
+        var read = _protocol.ReadRegisterAsync(0, "P", TestContext.Current.CancellationToken);
         Pump();
         Assert.True(read.IsCompleted);
         Assert.True((await read).Success);
@@ -98,7 +98,7 @@ public class OpcomProgressReportingTests
     {
         // The machine never answers, so the watchdog abandons the command.
         _protocol.ResponseTimeoutMs = 100;
-        var read = _protocol.ReadRegisterAsync(0, "P");
+        var read = _protocol.ReadRegisterAsync(0, "P", TestContext.Current.CancellationToken);
         // Deliberately do NOT pump: nothing is echoed at all.
         var result = await WithTimeout(read, "the watchdog never fired");
         Assert.False(result.Success);
@@ -118,7 +118,7 @@ public class OpcomProgressReportingTests
             + "000010 /135673 010421 073567 167356 146314 114631 021042 042104 \r\n"
             + "000020 /135673 ";
 
-        var dump = _protocol.DumpMemoryAsync(0, 16);
+        var dump = _protocol.DumpMemoryAsync(0, 16, TestContext.Current.CancellationToken);
         Pump();
         var result = await WithTimeout(dump, "the dump never finished");
         Assert.True(result.Success, result.ErrorMessage);
@@ -172,7 +172,7 @@ public class OpcomProgressReportingTests
             + "000010 /000000 000000 040440 000000 000000 000000 000000 000000 \r\n"
             + "000020 /";
 
-        var dump = _protocol.DumpRegistersAsync(0, 1);
+        var dump = _protocol.DumpRegistersAsync(0, 1, TestContext.Current.CancellationToken);
         Pump();
         var result = await WithTimeout(dump, "the register dump never finished");
         Assert.True(result.Success, result.ErrorMessage);

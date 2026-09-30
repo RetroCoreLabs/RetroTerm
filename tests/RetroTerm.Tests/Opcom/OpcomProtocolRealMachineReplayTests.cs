@@ -121,8 +121,8 @@ public class OpcomProtocolRealMachineReplayTests
 
         // Both are queued BEFORE the machine answers anything, which is what the
         // Refresh-all button does. Only then does the fake OPCOM start replying.
-        var p = _protocol.ReadRegisterAsync(0, "P");
-        var a = _protocol.ReadRegisterAsync(0, "A");
+        var p = _protocol.ReadRegisterAsync(0, "P", TestContext.Current.CancellationToken);
+        var a = _protocol.ReadRegisterAsync(0, "A", TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(p.IsCompleted, "first read did not complete");
@@ -141,8 +141,8 @@ public class OpcomProtocolRealMachineReplayTests
         _replies["0/"] = "114631 ";
         _replies["1/"] = "031463 ";
 
-        var first = _protocol.ReadMemoryAsync(0);
-        var second = _protocol.ReadMemoryAsync(1);
+        var first = _protocol.ReadMemoryAsync(0, TestContext.Current.CancellationToken);
+        var second = _protocol.ReadMemoryAsync(1, TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(first.IsCompleted && second.IsCompleted);
@@ -163,8 +163,8 @@ public class OpcomProtocolRealMachineReplayTests
         _replies["114631\r"] = CrLfHash + "031463 ";
         _replies["P/"] = "000004 ";
 
-        var write = _protocol.WriteMemoryAsync(0, 0x9999);
-        var read = _protocol.ReadRegisterAsync(0, "P");
+        var write = _protocol.WriteMemoryAsync(0, 0x9999, TestContext.Current.CancellationToken);
+        var read = _protocol.ReadRegisterAsync(0, "P", TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(write.IsCompleted, "write did not complete");
@@ -186,7 +186,7 @@ public class OpcomProtocolRealMachineReplayTests
         _replies["P/"] = "000004 ";
         _replies["4\r"] = CrLfHash;
 
-        var write = _protocol.WriteRegisterAsync(0, "P", 4);
+        var write = _protocol.WriteRegisterAsync(0, "P", 4, TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(write.IsCompleted);
@@ -204,7 +204,7 @@ public class OpcomProtocolRealMachineReplayTests
         // so without it the command sat there until the watchdog gave up.
         _replies["STOP\r"] = CrLfHash;
 
-        var stop = _protocol.StopCpuAsync();
+        var stop = _protocol.StopCpuAsync(TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(stop.IsCompleted, "STOP never finished - the carriage return is missing");
@@ -220,7 +220,7 @@ public class OpcomProtocolRealMachineReplayTests
         // executes the instruction and answers CR LF and a prompt.
         _replies["Z\r"] = CrLfHash;
 
-        var step = _protocol.SingleStepAsync();
+        var step = _protocol.SingleStepAsync(ct: TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(step.IsCompleted, "single step never finished - the carriage return is missing");
@@ -235,7 +235,7 @@ public class OpcomProtocolRealMachineReplayTests
         // six octal digits and a space, exactly like examining a register.
         _replies["400IO/"] = "000000 ";
 
-        var iox = _protocol.IOXReadAsync(0x100); // 400 octal
+        var iox = _protocol.IOXReadAsync(0x100, TestContext.Current.CancellationToken); // 400 octal
         Pump();
 
         Assert.True(iox.IsCompleted, "the IOX read never finished");
@@ -258,7 +258,7 @@ public class OpcomProtocolRealMachineReplayTests
         _replies["0\r"] = CrLfHash;
         _replies["401IO/"] = "000000 ";
 
-        var iox = _protocol.IOXWriteAsync(0x101, 0);   // 401 octal, write zero
+        var iox = _protocol.IOXWriteAsync(0x101, 0, TestContext.Current.CancellationToken);   // 401 octal, write zero
         Pump();
 
         Assert.True(iox.IsCompleted, "the IOX write never finished - it used to stop after reading OPR");
@@ -273,7 +273,7 @@ public class OpcomProtocolRealMachineReplayTests
         // Nothing says whether the bank passed - that has to be read from memory.
         _replies["0#"] = CrLfHash;
 
-        var test = _protocol.MemoryTestAsync(0);
+        var test = _protocol.MemoryTestAsync(0, TestContext.Current.CancellationToken);
         Pump();
 
         Assert.True(test.IsCompleted, "the memory test never finished");
@@ -291,7 +291,7 @@ public class OpcomProtocolRealMachineReplayTests
             + "000010 /135673 010421 073567 167356 146314 114631 021042 042104 \r\n"
             + "000020 /135673 ";
 
-        var dump = _protocol.DumpMemoryAsync(0, 16); // 0..20 octal = 17 words
+        var dump = _protocol.DumpMemoryAsync(0, 16, TestContext.Current.CancellationToken); // 0..20 octal = 17 words
         Pump();
 
         var result = await WithTimeout(dump, "the memory dump never finished: the parser waited for a trailing '#' that never comes");
@@ -318,7 +318,7 @@ public class OpcomProtocolRealMachineReplayTests
             + "000010 /000000 000000 040440 000000 000000 000000 000000 000000 \r\n"
             + "000020 /";
 
-        var dump = _protocol.DumpRegistersAsync(0, 1);
+        var dump = _protocol.DumpRegistersAsync(0, 1, TestContext.Current.CancellationToken);
         Pump();
 
         var regResult = await WithTimeout(dump, "the register dump never finished");
@@ -341,7 +341,7 @@ public class OpcomProtocolRealMachineReplayTests
             + "000000 /140000 010051 000000 041361 153612 000000 000000 000000 \r\n"
             + "000010 /000014 000001 020500 036000 051766 000000 000000 ";
 
-        var dump = _protocol.DumpInternalRegistersAsync();
+        var dump = _protocol.DumpInternalRegistersAsync(TestContext.Current.CancellationToken);
         Pump();
 
         var irdResult = await WithTimeout(dump, "IRD never finished");
@@ -364,11 +364,11 @@ public class OpcomProtocolRealMachineReplayTests
         _replies["A/"] = "052525 ";
         _dropNextSlash = true; // the machine swallows the first '/' and says nothing
 
-        var stuck = _protocol.ReadRegisterAsync(0, "P");
-        var next = _protocol.ReadRegisterAsync(0, "A");
+        var stuck = _protocol.ReadRegisterAsync(0, "P", TestContext.Current.CancellationToken);
+        var next = _protocol.ReadRegisterAsync(0, "A", TestContext.Current.CancellationToken);
         Pump();
 
-        var finished = await Task.WhenAny(stuck, Task.Delay(3000));
+        var finished = await Task.WhenAny(stuck, Task.Delay(3000, TestContext.Current.CancellationToken));
         Assert.Same(stuck, finished);
         Assert.False((await stuck).Success);
         Assert.Contains("No response from OPCOM", (await stuck).ErrorMessage);
@@ -378,7 +378,7 @@ public class OpcomProtocolRealMachineReplayTests
         // The watchdog sent its cancelling space and started the queued read; let the
         // machine answer those.
         Pump();
-        finished = await Task.WhenAny(next, Task.Delay(3000));
+        finished = await Task.WhenAny(next, Task.Delay(3000, TestContext.Current.CancellationToken));
         Assert.Same(next, finished);
         Assert.True((await next).Success, (await next).ErrorMessage);
         Assert.Equal((ushort)0x5555, (await next).Value);

@@ -56,7 +56,7 @@ public class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Run_SintranLogin_FiveSteps_EndToEnd()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // The canonical login from the handover: ESC → ENTER prompt → user →
         // PASSWORD: prompt → password → command prompt. No fixed delays anywhere —
@@ -71,20 +71,20 @@ public class ScriptRunnerTests : IDisposable
             "WAITFOR \"@\" timeout=5000\n");
         Assert.True(script.IsValid);
 
-        var runTask = _runner.RunAsync(script, _session);
+        var runTask = _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         // Play the ND side, reacting to what the script sends — with delays, like a
         // busy machine whose banner arrives late.
         await WaitForSentCount(1); // ESC went out
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SINTRAN III\r\nENTER "));
 
         await WaitForSentCount(2); // user name went out
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("\r\nPASSWORD: "));
 
         await WaitForSentCount(3); // password went out
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("\r\nOK\r\n@"));
 
         var result = await runTask;
@@ -109,7 +109,7 @@ public class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Run_StopsOnFailingStep_SessionStaysLive()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("some output"));
 
         var script = _parser.Parse(
@@ -117,7 +117,7 @@ public class ScriptRunnerTests : IDisposable
             "SEND \"MUST-NOT-RUN\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.NotNull(result.FailedStep);
@@ -131,21 +131,21 @@ public class ScriptRunnerTests : IDisposable
 
         // ...and the session is handed back LIVE for interactive poking.
         Assert.True(_session.IsConnected);
-        await _session.SendInputAsync("poke");
+        await _session.SendInputAsync("poke", TestContext.Current.CancellationToken);
         Assert.Equal("poke", _connection.GetLastSentAsString());
     }
 
     [Fact]
     public async Task Run_OptionalStepFailure_Continues()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "WAITFOR \"NOT-THERE\" timeout=100 optional=true\n" +
             "SEND \"STILL-RUNS\\r\"\n");   // \r explicit — SEND appends nothing
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.Transcript.Count);
@@ -156,15 +156,15 @@ public class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Run_ConnectionLostMidWait_AbortsAndSaysSo()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "WAITFOR \"NEVER\" timeout=10000\n" +
             "SEND \"MUST-NOT-RUN\"\n");
         Assert.True(script.IsValid);
 
-        var runTask = _runner.RunAsync(script, _session);
-        await Task.Delay(100);
+        var runTask = _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         await _connection.DisconnectAsync(); // remote drop mid-WAITFOR
 
         var result = await runTask;
@@ -180,13 +180,13 @@ public class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Run_ReadScreenStep_IsACheckpoint_TranscriptShowsItsOutput()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SCREEN CONTENT HERE"));
 
         var script = _parser.Parse("READSCREEN\nSEND \"next\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         // READSCREEN exists to produce output — its transcript entry is flagged and
@@ -200,23 +200,23 @@ public class ScriptRunnerTests : IDisposable
     public async Task Run_ScriptWithParseErrors_Throws()
     {
         var script = _parser.Parse("NOSUCHVERB");
-        await Assert.ThrowsAsync<ArgumentException>(() => _runner.RunAsync(script, _session));
+        await Assert.ThrowsAsync<ArgumentException>(() => _runner.RunAsync(script, _session, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task Run_ProgressReportsEachStep()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse("SEND \"one\"\nSEND \"two\"\n");
         int reported = 0;
         var progress = new Progress<ScriptStepResult>(_ => System.Threading.Interlocked.Increment(ref reported));
 
-        var result = await _runner.RunAsync(script, _session, progress: progress);
+        var result = await _runner.RunAsync(script, _session, progress: progress, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         // Progress<T> posts via sync context; give it a beat.
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.Equal(2, reported);
     }
 }

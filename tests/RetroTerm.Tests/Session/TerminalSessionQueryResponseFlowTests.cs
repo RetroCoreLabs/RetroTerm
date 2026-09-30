@@ -44,7 +44,7 @@ public class TerminalSessionQueryResponseFlowTests
         // If event is wired, response will be sent through connection
 
         // Connect AFTER construction (event should already be wired in constructor)
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         connection.ClearSentData();
 
@@ -79,7 +79,7 @@ public class TerminalSessionQueryResponseFlowTests
         var connection = new InMemoryConnection();
 
         // Act - Connect (WireTDVQueryResponse is called again in ConnectAsync)
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         connection.ClearSentData();
 
@@ -127,7 +127,7 @@ public class TerminalSessionQueryResponseFlowTests
         }
 
         // Connect
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Verify event wiring AFTER connection by testing behavior
         // We can't reliably check event wiring with reflection, so we verify by sending a test query
@@ -208,7 +208,7 @@ public class TerminalSessionQueryResponseFlowTests
             };
         }
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Verify event wiring by behavior (send test query)
         connection.ClearSentData();
@@ -260,7 +260,7 @@ public class TerminalSessionQueryResponseFlowTests
             };
         }
 
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         // Move cursor to known position
         var moveCursor = new byte[] { 0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x48 }; // ESC [ 5 ; 10 H
@@ -300,7 +300,7 @@ public class TerminalSessionQueryResponseFlowTests
         var connection = new InMemoryConnection();
 
         // Connect to enable response sending
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Send query - if event is wired in constructor, response will be sent
@@ -328,7 +328,7 @@ public class TerminalSessionQueryResponseFlowTests
         var connection = new InMemoryConnection();
 
         // Connect
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Send query
@@ -352,7 +352,7 @@ public class TerminalSessionQueryResponseFlowTests
         var connection = new InMemoryConnection();
 
         // Connect
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Send query
@@ -376,7 +376,7 @@ public class TerminalSessionQueryResponseFlowTests
         var connection = new InMemoryConnection();
 
         // Connect
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
         connection.ClearSentData();
 
         // Send query
@@ -470,7 +470,7 @@ public class TerminalSessionQueryResponseFlowTests
         var responseSent = false;
 
         // Connect AFTER construction (event already wired)
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         connection.ClearSentData();
 

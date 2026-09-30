@@ -201,7 +201,7 @@ public class Phase0RegressionTests
         var emulator = new VT100Emulator(80, 24);
         using var session = new TerminalSession(emulator, "DaTest");
         var connection = new InMemoryConnection();
-        await session.ConnectAsync(connection);
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
 
         connection.SimulateReceive(Encoding.ASCII.GetBytes("\x1b[c"));
         await session.FlushAsync();

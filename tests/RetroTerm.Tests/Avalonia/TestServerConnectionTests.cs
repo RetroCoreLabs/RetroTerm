@@ -13,7 +13,6 @@ using RetroTerm.Core.Session;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using RetroTerm.TestServer.App;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 
@@ -80,7 +79,7 @@ public class TestServerConnectionTests : IDisposable, IAsyncLifetime
     /// <returns>
     /// A task that completes when the session has disconnected.
     /// </returns>
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_session != null)
         {
@@ -95,7 +94,7 @@ public class TestServerConnectionTests : IDisposable, IAsyncLifetime
     /// <returns>
     /// A completed task.
     /// </returns>
-    public Task InitializeAsync() => Task.CompletedTask;
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
     /// <summary>
     /// Sets up client connection to a local TCP server

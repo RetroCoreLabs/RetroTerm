@@ -221,13 +221,13 @@ public class TestServerAppTcpFlowTests : IDisposable
         var response1 = await SendQueryAndCaptureResponseAsync(daQuery);
         Assert.NotNull(response1);
 
-        await Task.Delay(100); // Small delay between queries
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Small delay between queries
 
         var cprQuery = TDVSequenceBuilder.BuildCPRQuery();
         var response2 = await SendQueryAndCaptureResponseAsync(cprQuery);
         Assert.NotNull(response2);
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var dsrQuery = TDVSequenceBuilder.BuildDSRQuery();
         var response3 = await SendQueryAndCaptureResponseAsync(dsrQuery);

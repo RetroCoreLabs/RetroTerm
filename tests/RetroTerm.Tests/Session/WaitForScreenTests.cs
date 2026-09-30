@@ -42,14 +42,14 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_MatchesPromptAlreadyOnScreen()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SINTRAN III\r\nENTER"));
 
         var result = await _session.WaitForScreenAsync(new ScreenWaitOptions
         {
             Pattern = "ENTER",
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Matched);
         Assert.False(result.TimedOut);
@@ -61,18 +61,18 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_MatchesPromptArrivingLater_SplitAcrossChunks()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var waitTask = _session.WaitForScreenAsync(new ScreenWaitOptions
         {
             Pattern = "PASSWORD:",
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Prompt arrives in pieces, after a delay — the 28-minute-login-race scenario.
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("PASS"));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("WORD:"));
 
         var result = await waitTask;
@@ -84,7 +84,7 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_TailMatch_IgnoresPromptEchoedMidListing()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // "X-C:" appears in the middle of a listing but the output continues —
         // tail matching must NOT trigger on it (handover §2.2).
@@ -96,7 +96,7 @@ public class WaitForScreenTests : IDisposable
             Pattern = "X-C:",
             Where = ScreenMatchWhere.ScreenTail,
             TimeoutMs = 300
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.False(result.Matched);
         Assert.True(result.TimedOut);
@@ -109,7 +109,7 @@ public class WaitForScreenTests : IDisposable
             Pattern = "X-C:",
             Where = ScreenMatchWhere.ScreenTail,
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result2.Matched);
     }
@@ -117,7 +117,7 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_AnywhereMatch_FindsMidListingText()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes(
             "header\r\nthe needle is here\r\nfooter"));
 
@@ -126,7 +126,7 @@ public class WaitForScreenTests : IDisposable
             Pattern = "needle",
             Where = ScreenMatchWhere.AnywhereOnScreen,
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Matched);
     }
@@ -134,7 +134,7 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_RegexMatch_ReturnsMatchedText()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SINTRAN III - VSX/500 VERSION K"));
 
         var result = await _session.WaitForScreenAsync(new ScreenWaitOptions
@@ -143,7 +143,7 @@ public class WaitForScreenTests : IDisposable
             MatchType = ScreenMatchType.Regex,
             Where = ScreenMatchWhere.AnywhereOnScreen,
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Matched);
         Assert.Equal("VERSION K", result.MatchedText);
@@ -152,14 +152,14 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_Timeout_StillReturnsScreenAndElapsed()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("partial output the machine managed to say"));
 
         var result = await _session.WaitForScreenAsync(new ScreenWaitOptions
         {
             Pattern = "NEVER-APPEARS",
             TimeoutMs = 200
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Handover rules 4+5: a timeout still returns what the machine said, and how long we waited.
         Assert.False(result.Matched);
@@ -171,16 +171,16 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_Disconnect_EndsWaitAndSaysSo()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("some output"));
 
         var waitTask = _session.WaitForScreenAsync(new ScreenWaitOptions
         {
             Pattern = "NEVER-APPEARS",
             TimeoutMs = 10_000
-        });
+        }, TestContext.Current.CancellationToken);
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await _connection.DisconnectAsync(); // remote drop → StatusChanged(Disconnected)
 
         var result = await waitTask;
@@ -196,7 +196,7 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task WaitForScreen_IdleMode_FiresWhenScreenGoesQuiet()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("output"));
 
         var result = await _session.WaitForScreenAsync(new ScreenWaitOptions
@@ -204,7 +204,7 @@ public class WaitForScreenTests : IDisposable
             Pattern = null,
             IdleMs = 150,
             TimeoutMs = 5000
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.True(result.Matched);
         Assert.Null(result.MatchedText);
@@ -215,13 +215,13 @@ public class WaitForScreenTests : IDisposable
     public async Task WaitForScreen_NoPatternAndNoIdle_Throws()
     {
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _session.WaitForScreenAsync(new ScreenWaitOptions { Pattern = null, IdleMs = 0 }));
+            _session.WaitForScreenAsync(new ScreenWaitOptions { Pattern = null, IdleMs = 0 }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task WaitForScreen_Cancellation_Throws()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         using var cts = new CancellationTokenSource(100);
 
@@ -240,10 +240,10 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task SendBytesAsync_SendsRawEscByte()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         // ESC is how you wake a SINTRAN line — must survive as a single raw byte.
-        await _session.SendBytesAsync(new byte[] { 0x1B });
+        await _session.SendBytesAsync(new byte[] { 0x1B }, TestContext.Current.CancellationToken);
 
         var sent = _connection.GetSentData();
         Assert.Single(sent);
@@ -254,7 +254,7 @@ public class WaitForScreenTests : IDisposable
     [Fact]
     public async Task DataReceivedEvent_ForwardsRawBytes()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         byte[]? forwarded = null;
         _session.DataReceived += bytes => forwarded = bytes;
@@ -274,13 +274,13 @@ public class WaitForScreenTests : IDisposable
         _session.ConnectionLost += reason => lostReason = reason;
 
         // User-initiated disconnect: must NOT fire ConnectionLost.
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         await _session.DisconnectAsync();
         Assert.Null(lostReason);
 
         // Remote drop (connection raises Disconnected itself): must fire.
         var connection2 = new InMemoryConnection();
-        await _session.ConnectAsync(connection2);
+        await _session.ConnectAsync(connection2, TestContext.Current.CancellationToken);
         await connection2.DisconnectAsync();
         Assert.NotNull(lostReason);
         Assert.Contains("remote", lostReason, StringComparison.OrdinalIgnoreCase);
@@ -291,11 +291,11 @@ public class WaitForScreenTests : IDisposable
     {
         Assert.Null(_session.TimeSinceLastReceive); // nothing received yet
 
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("12345"));
         await _session.FlushAsync();
-        await _session.SendInputAsync("abc");
+        await _session.SendInputAsync("abc", TestContext.Current.CancellationToken);
 
         Assert.Equal(5, _session.BytesReceived);
         Assert.Equal(3, _session.BytesSent);

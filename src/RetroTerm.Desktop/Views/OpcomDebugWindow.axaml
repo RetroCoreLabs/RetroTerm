@@ -37,7 +37,7 @@
                     <Button Classes="Secondary" Name="StepButton" ToolTip.Tip="Sends Z CR once per instruction: single-steps the CPU from the current P. Press Refresh afterwards to read the registers." Content="Step" Click="OnStepClick"
  Padding="8,4" FontSize="11"
 />
-                    <TextBox Name="StartAddressBox" ToolTip.Tip="Octal address for Start! and BP. Leave empty to start at the current P." Text="" Watermark="addr" Width="55" FontSize="11"
+                    <TextBox Name="StartAddressBox" ToolTip.Tip="Octal address for Start! and BP. Leave empty to start at the current P." Text="" PlaceholderText="addr" Width="55" FontSize="11"
                              FontFamily="Consolas, Courier New, monospace"
                              Padding="4,3" VerticalContentAlignment="Center"/>
                     <Button Classes="Secondary" Name="StartButton" ToolTip.Tip="Sends addr! : starts the CPU at that address. Asks for confirmation first, because on a real ND nothing in this window can stop it again - only the panel or a physical reset." Content="Start!" Click="OnStartClick"
@@ -229,7 +229,7 @@
                 <DockPanel Margin="8">
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
                         <TextBlock Text="Addr:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                        <TextBox Name="MemoryAddressBox" ToolTip.Tip="Octal word address for Examine; also the first address of the view." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                        <TextBox Name="MemoryAddressBox" ToolTip.Tip="Octal word address for Examine; also the first address of the view." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" PlaceholderText="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
                         <Button Classes="Secondary" Content="Examine" Click="OnMemoryExamineClick" ToolTip.Tip="Sends addr/ : reads one word at the address. In NDBoot mode it reads the whole 128-word page through the monitor instead." Padding="6,3" FontSize="11"
 />
                         <TextBlock Text="  From:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
@@ -321,9 +321,9 @@
                                 <TextBlock Text="IOX Device Access" Foreground="{DynamicResource SectionHeader1Brush}" FontSize="13" FontWeight="SemiBold"/>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="Device:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                                    <TextBox Name="IoxDeviceBox" ToolTip.Tip="Octal I/O device register address, e.g. 300 for console input data." Width="60" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="dddd" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    <TextBox Name="IoxDeviceBox" ToolTip.Tip="Octal I/O device register address, e.g. 300 for console input data." Width="60" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" PlaceholderText="dddd" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
                                     <TextBlock Text="OPR:" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                                    <TextBox Name="IoxOprBox" ToolTip.Tip="Octal value written for IOX Write (it is placed in OPR first)." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" Watermark="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    <TextBox Name="IoxOprBox" ToolTip.Tip="Octal value written for IOX Write (it is placed in OPR first)." Width="70" FontFamily="Consolas, Courier New, monospace" FontSize="12" Padding="4,3" PlaceholderText="000000" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
                                     <Button Classes="Secondary" Content="IOX Read" Click="OnIoxReadClick" ToolTip.Tip="Sends devIO/ : executes IOX dev and shows the value the device returned." Padding="8,3" FontSize="11"
 />
                                     <Button Classes="Secondary" Content="IOX Write" Click="OnIoxWriteClick" ToolTip.Tip="Sets OPR to the value, then executes IOX dev so the device receives it." Padding="8,3" FontSize="11"

@@ -67,7 +67,7 @@ public class GatewayConnectionTests : IDisposable
     {
         var connection = new GatewayConnection(_listener, 43, "TEST");
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => connection.ConnectAsync());
+            () => connection.ConnectAsync(TestContext.Current.CancellationToken));
         connection.Dispose();
     }
 
@@ -83,7 +83,7 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(ConnectionStatus.Connected, connection.Status);
         Assert.True(_listener.IsIdentCodeInUse(43));
@@ -105,7 +105,7 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Read the client-connected message
         var buffer = new byte[4096];
@@ -134,7 +134,7 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Read the client-connected message first
         var buffer = new byte[4096];
@@ -169,11 +169,11 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var conn1 = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await conn1.ConnectAsync();
+        await conn1.ConnectAsync(TestContext.Current.CancellationToken);
 
         var conn2 = new GatewayConnection(_listener, 43, "TERMINAL 12");
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => conn2.ConnectAsync());
+            () => conn2.ConnectAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(ConnectionStatus.Error, conn2.Status);
 
@@ -196,7 +196,7 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Read the client-connected message
         var buffer = new byte[4096];
@@ -204,7 +204,7 @@ public class GatewayConnectionTests : IDisposable
 
         // Send data from terminal
         var testData = new byte[] { 0x41, 0x42, 0x43 }; // "ABC"
-        await connection.SendAsync(new ReadOnlyMemory<byte>(testData));
+        await connection.SendAsync(new ReadOnlyMemory<byte>(testData), TestContext.Current.CancellationToken);
 
         // Read the term-input binary frame: [0x01][identCode][data...]
         var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
@@ -242,13 +242,13 @@ public class GatewayConnectionTests : IDisposable
         var errorFired = new TaskCompletionSource<bool>();
         connection.ErrorOccurred += (ex) => errorFired.TrySetResult(true);
 
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Emulator disconnects
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
 
         // Wait for error event
-        var waitResult = await Task.WhenAny(errorFired.Task, Task.Delay(5000));
+        var waitResult = await Task.WhenAny(errorFired.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
         Assert.True(errorFired.Task.IsCompleted, "ErrorOccurred should have fired");
 
         Assert.Equal(ConnectionStatus.Disconnected, connection.Status);
@@ -270,7 +270,7 @@ public class GatewayConnectionTests : IDisposable
         await connectedEvent.Task;
 
         var connection = new GatewayConnection(_listener, 43, "TERMINAL 12");
-        await connection.ConnectAsync();
+        await connection.ConnectAsync(TestContext.Current.CancellationToken);
         Assert.True(_listener.IsIdentCodeInUse(43));
 
         connection.Dispose();
@@ -285,7 +285,7 @@ public class GatewayConnectionTests : IDisposable
     {
         var connection = new GatewayConnection(_listener, 43, "TEST");
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => connection.SendAsync(new ReadOnlyMemory<byte>(new byte[] { 0x41 })));
+            () => connection.SendAsync(new ReadOnlyMemory<byte>(new byte[] { 0x41 }), TestContext.Current.CancellationToken));
         connection.Dispose();
     }
 
@@ -313,8 +313,8 @@ public class GatewayConnectionTests : IDisposable
         var conn1 = new GatewayConnection(_listener, 43, "TERMINAL 12");
         var conn2 = new GatewayConnection(_listener, 44, "TERMINAL 13");
 
-        await conn1.ConnectAsync();
-        await conn2.ConnectAsync();
+        await conn1.ConnectAsync(TestContext.Current.CancellationToken);
+        await conn2.ConnectAsync(TestContext.Current.CancellationToken);
 
         Assert.True(_listener.IsIdentCodeInUse(43));
         Assert.True(_listener.IsIdentCodeInUse(44));

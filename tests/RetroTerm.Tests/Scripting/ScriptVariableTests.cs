@@ -64,14 +64,14 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task Set_ThenSend_ExpandsVariable()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "SET user \"SYSTEM\"\n" +
             "SEND \"LOGIN $user\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("LOGIN SYSTEM", _connection.GetLastSentAsString()); // SEND appends nothing
@@ -80,13 +80,13 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task CallerContext_PreSetVariables_AreVisible()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var context = new ScriptContext();
         context.Set("password", "SECRET");
 
         var script = _parser.Parse("SEND \"$password\"\n");
-        var result = await _runner.RunAsync(script, _session, context: context);
+        var result = await _runner.RunAsync(script, _session, context: context, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("SECRET", _connection.GetLastSentAsString());
@@ -99,7 +99,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task WaitFor_RegexGroup_CapturesIntoVariable()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("SINTRAN III VERSION K RELEASE 4"));
 
         var context = new ScriptContext();
@@ -108,7 +108,7 @@ public class ScriptVariableTests : IDisposable
             "SEND \"GOT $ver\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session, context: context);
+        var result = await _runner.RunAsync(script, _session, context: context, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("K", context.Get("ver"));               // group 1, not the whole match
@@ -118,12 +118,12 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task ReadScreen_Into_CapturesScreenText()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
         _connection.SimulateReceive(Encoding.UTF8.GetBytes("hello world"));
 
         var context = new ScriptContext();
         var script = _parser.Parse("READSCREEN into=scr\n");
-        var result = await _runner.RunAsync(script, _session, context: context);
+        var result = await _runner.RunAsync(script, _session, context: context, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("hello world", context.Get("scr"));
@@ -136,7 +136,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task If_TrueBranch_RunsThenSkipsElse()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "SET mode \"PROD\"\n" +
@@ -148,7 +148,7 @@ public class ScriptVariableTests : IDisposable
             "SEND \"AFTER\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         var sent = _connection.GetSentData();
@@ -160,7 +160,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task If_FalseBranch_RunsElse()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "SET mode \"TEST\"\n" +
@@ -171,7 +171,7 @@ public class ScriptVariableTests : IDisposable
             "ENDIF\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("IS-TEST", _connection.GetLastSentAsString());
@@ -181,7 +181,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task If_WithoutElse_FalseSkipsBlock()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "IF \"a\" == \"b\"\n" +
@@ -190,7 +190,7 @@ public class ScriptVariableTests : IDisposable
             "SEND \"ALWAYS\"\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Single(_connection.GetSentData());
@@ -200,7 +200,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task If_ContainsAndMatches_Operators()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "SET banner \"SINTRAN III VSX\"\n" +
@@ -212,7 +212,7 @@ public class ScriptVariableTests : IDisposable
             "ENDIF\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal(2, _connection.GetSentData().Count);
@@ -221,7 +221,7 @@ public class ScriptVariableTests : IDisposable
     [Fact]
     public async Task NestedIf_Works()
     {
-        await _session.ConnectAsync(_connection);
+        await _session.ConnectAsync(_connection, TestContext.Current.CancellationToken);
 
         var script = _parser.Parse(
             "SET a \"1\"\nSET b \"2\"\n" +
@@ -232,7 +232,7 @@ public class ScriptVariableTests : IDisposable
             "ENDIF\n");
         Assert.True(script.IsValid);
 
-        var result = await _runner.RunAsync(script, _session);
+        var result = await _runner.RunAsync(script, _session, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("BOTH", _connection.GetLastSentAsString());

@@ -13,7 +13,6 @@ using RetroTerm.Core.Protocols.TelnetServer.Utilities;
 using RetroTerm.Core.Session;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

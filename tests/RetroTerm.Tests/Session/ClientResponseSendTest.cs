@@ -83,18 +83,18 @@ public class ClientResponseSendTest : IDisposable
         var query = TDVSequenceBuilder.BuildDAQuery();
 
         // Act - Send query from server
-        await _serverStream!.WriteAsync(query);
-        await _serverStream.FlushAsync();
+        await _serverStream!.WriteAsync(query, TestContext.Current.CancellationToken);
+        await _serverStream.FlushAsync(TestContext.Current.CancellationToken);
 
         // Wait for response
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Read response from server stream
         var buffer = new byte[256];
         var bytesRead = 0;
         if (_serverStream.DataAvailable)
         {
-            bytesRead = await _serverStream.ReadAsync(buffer);
+            bytesRead = await _serverStream.ReadAsync(buffer, TestContext.Current.CancellationToken);
             _receivedResponse = new byte[bytesRead];
             Array.Copy(buffer, _receivedResponse, bytesRead);
         }
@@ -102,8 +102,8 @@ public class ClientResponseSendTest : IDisposable
         // Also try blocking read with timeout
         if (bytesRead == 0)
         {
-            var readTask = _serverStream.ReadAsync(buffer).AsTask();
-            var timeoutTask = Task.Delay(500);
+            var readTask = _serverStream.ReadAsync(buffer, TestContext.Current.CancellationToken).AsTask();
+            var timeoutTask = Task.Delay(500, TestContext.Current.CancellationToken);
             var completedTask = await Task.WhenAny(readTask, timeoutTask);
 
             if (completedTask == readTask && readTask.IsCompletedSuccessfully)

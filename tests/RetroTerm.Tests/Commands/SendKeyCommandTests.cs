@@ -44,7 +44,7 @@ public class SendKeyCommandTests : IDisposable
         var session = await ConnectAsync(new TDV2200Emulator(80, 24));
 
         var result = await _registry.ExecuteAsync("SENDKEY", session,
-            new CommandArgs().Set("key", "HJELP"));
+            new CommandArgs().Set("key", "HJELP"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         // HJELP is grid G53, extended sequence ESC [ 46 _
@@ -58,7 +58,7 @@ public class SendKeyCommandTests : IDisposable
         var session = await ConnectAsync(new TDV2200Emulator(80, 24));
 
         var result = await _registry.ExecuteAsync("SENDKEY", session,
-            new CommandArgs().Set("key", "G53"));
+            new CommandArgs().Set("key", "G53"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success, result.Error);
         Assert.Equal("\x1b[46_", _connection.GetLastSentAsString());
@@ -70,7 +70,7 @@ public class SendKeyCommandTests : IDisposable
         var session = await ConnectAsync(new TDV2200Emulator(80, 24));
 
         var result = await _registry.ExecuteAsync("SENDKEY", session,
-            new CommandArgs().Set("key", "NOSUCHKEY"));
+            new CommandArgs().Set("key", "NOSUCHKEY"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("unknown TDV key", result.Error);
@@ -83,7 +83,7 @@ public class SendKeyCommandTests : IDisposable
         var session = await ConnectAsync(new VT100Emulator(80, 24));
 
         var result = await _registry.ExecuteAsync("SENDKEY", session,
-            new CommandArgs().Set("key", "HJELP"));
+            new CommandArgs().Set("key", "HJELP"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("SENDRAW", result.Error);

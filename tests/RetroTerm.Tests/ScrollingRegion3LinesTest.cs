@@ -3,7 +3,6 @@ using System.Text;
 using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests;
 

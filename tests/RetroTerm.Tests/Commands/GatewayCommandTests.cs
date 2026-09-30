@@ -43,7 +43,7 @@ public class GatewayCommandTests
     {
         var registry = MakeRegistry(null);
 
-        var result = await registry.ExecuteAsync("GATEWAY", _session, CommandArgs.Empty);
+        var result = await registry.ExecuteAsync("GATEWAY", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not available", result.Error);
@@ -55,7 +55,7 @@ public class GatewayCommandTests
         using var listener = new GatewayListener(); // not started
         var registry = MakeRegistry(listener);
 
-        var result = await registry.ExecuteAsync("GATEWAY", _session, CommandArgs.Empty);
+        var result = await registry.ExecuteAsync("GATEWAY", _session, CommandArgs.Empty, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("listening: no", result.Output);
@@ -71,7 +71,7 @@ public class GatewayCommandTests
         var registry = MakeRegistry(listener);
 
         var result = await registry.ExecuteAsync("GATEWAY", _session,
-            new CommandArgs().Set("action", "terminals"));
+            new CommandArgs().Set("action", "terminals"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Contains("no terminals registered", result.Output);

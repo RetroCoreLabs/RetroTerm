@@ -10,7 +10,6 @@ using RetroTerm.Core.Session;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Desktop.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.Avalonia;
 

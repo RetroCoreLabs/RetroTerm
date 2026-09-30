@@ -5,25 +5,37 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <!-- xUnit v3 makes this an executable, and an executable may only reference the self-contained
+         RetroTerm.Desktop and RetroTerm.TestServer if it is self-contained itself (NETSDK1151).
+         Same runtime as they use: win-x64. -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Keep the output at bin\Debug\net10.0-windows\ and not ...\win-x64\. Tests find docs\, src\
+         and the conformance fixtures by climbing a fixed number of folders from the output
+         directory, and the extra RID level put 34 of them one folder short of the repo. -->
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.4">
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
-    <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <!-- xUnit v3: Avalonia.Headless.XUnit 12 is built on xunit.v3.extensibility.core 3.2.2, so v2 cannot
+         sit beside it (CS0433, FactAttribute in both). v3 test projects are executables. -->
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="Moq" Version="4.21.0" />
     <!-- Avalonia headless testing support -->
-    <PackageReference Include="Avalonia.Headless" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Headless.XUnit" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Skia" Version="11.3.11" />
-    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.3" />
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
   </ItemGroup>
 
   <ItemGroup>

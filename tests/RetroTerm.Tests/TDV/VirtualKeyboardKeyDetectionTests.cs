@@ -3,7 +3,6 @@ using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Desktop.Models;
 using RetroTerm.Desktop.ViewModels;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RetroTerm.Tests.TDV;
 
