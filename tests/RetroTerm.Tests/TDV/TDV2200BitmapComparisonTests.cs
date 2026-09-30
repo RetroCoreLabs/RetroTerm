@@ -141,6 +141,10 @@ public class TDV2200BitmapComparisonTests
 
         // Save comparison
         string outputPath = Path.Combine(ImagesFolder, "charset2_spec_vs_font.txt");
+        // The images folder is gitignored, so a fresh checkout does not have it. Without this
+        // the test only passed when another test had happened to create the folder first; it
+        // failed the v1.10.26.9 tag run on 30 September 2026 when the run order changed.
+        Directory.CreateDirectory(ImagesFolder);
         File.WriteAllText(outputPath, sb.ToString());
     }
 
@@ -204,6 +208,8 @@ public class TDV2200BitmapComparisonTests
 
         // Save output
         var pngPath = Path.Combine(ImagesFolder, "charset2_font_vs_spec_comparison.png");
+        // Same as above: create the gitignored folder rather than rely on test order.
+        Directory.CreateDirectory(ImagesFolder);
         using var image = SKImage.FromBitmap(outputBitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.OpenWrite(pngPath);
