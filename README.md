@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/RetroTerm-solid-512.png" width="160" alt="RetroTerm logo: a green prompt on a dark rounded square.">
+  <img src="assets/RetroTerm-512.png" width="160" alt="RetroTerm logo: a green prompt in a dark square with a green ring.">
 </p>
 
 # RetroTerm
