@@ -2920,7 +2920,15 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
             // the sequence, so a line of text ended up spread over several rows. Ignored.
 
             case 'm': // SGR - Select Graphic Rendition
-                HandleSgr(parameters);
+                // Only the plain form is SGR. 'm' with a private marker is something else:
+                // CSI > Pp ; Pv m is xterm's modifyOtherKeys, sent at startup by Claude Code, vim
+                // and others. Read as SGR, its 4 switched underline on and its 2 switched dim on,
+                // so everything drawn afterwards came out underlined. None of the private forms
+                // is implemented here, so they are ignored.
+                if (privateMarker == 0)
+                {
+                    HandleSgr(parameters);
+                }
                 break;
 
             case 'n': // DSR - Device Status Report
