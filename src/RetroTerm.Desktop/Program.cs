@@ -150,6 +150,9 @@ class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // Linux only (ignored elsewhere): the window class the desktop matches against
+            // retroterm.desktop's StartupWMClass to pick the menu icon for the taskbar and dock.
+            .With(new X11PlatformOptions { WmClass = "retroterm" })
             .WithInterFont()
             .LogToTrace();
 }
