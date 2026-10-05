@@ -43,7 +43,14 @@ public class SystemFontRenderer : IFontRenderer
     /// </summary>
     internal int GlyphsBuilt { get; private set; }
 
-    public SystemFontRenderer(string fontFamily = "Consolas", double fontSize = 14)
+    /// <summary>
+    /// Consolas is Windows-only. Without a fallback list Avalonia substitutes a proportional UI font on
+    /// Linux and macOS, and the fixed cell grid then shows letter-spaced text ("Ter mi nal").
+    /// </summary>
+    public const string DefaultFontFamily =
+        "Consolas, Cascadia Mono, Menlo, DejaVu Sans Mono, Liberation Mono, Noto Sans Mono, Courier New";
+
+    public SystemFontRenderer(string fontFamily = DefaultFontFamily, double fontSize = 14)
     {
         _typeface = new Typeface(fontFamily, FontStyle.Normal, FontWeight.Normal);
         _fontSize = fontSize;

@@ -1303,7 +1303,7 @@ public class TerminalRenderer
             text,
             System.Globalization.CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
-            new Typeface("Consolas"),
+            new Typeface(SystemFontRenderer.DefaultFontFamily),
             12,
             new ImmutableSolidColorBrush(Color.FromRgb(255, 255, 200)));
 
