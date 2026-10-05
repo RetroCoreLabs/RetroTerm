@@ -44,6 +44,8 @@ public partial class ProtocolMonitorWindow : Window
     public ProtocolMonitorWindow()
     {
         InitializeComponent();
+        if (this.FindControl<Button>("SaveButton") is { } saveButton)
+            ToolTip.SetTip(saveButton, $"Write the whole trace to {ApplicationLogger.LogDirectory}");
 
         _decodedList = this.FindControl<ListBox>("DecodedListBox");
         _rawList = this.FindControl<ListBox>("RawListBox");
@@ -272,10 +274,7 @@ public partial class ProtocolMonitorWindow : Window
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "RetroTerm",
-                "logs");
+            var dir = ApplicationLogger.LogDirectory;
             Directory.CreateDirectory(dir);
 
             var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);

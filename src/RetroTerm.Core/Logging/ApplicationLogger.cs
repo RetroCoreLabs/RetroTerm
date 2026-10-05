@@ -214,6 +214,16 @@ public static class ApplicationLogger
     }
 
     /// <summary>
+    /// Where saved traces and session logs go: RetroTerm\logs under the platform's
+    /// application-data folder (<c>%AppData%</c> on Windows, <c>~/.config</c> on Linux).
+    /// Tooltips and messages show this real path, not a Windows spelling.
+    /// </summary>
+    public static string LogDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "RetroTerm",
+        "logs");
+
+    /// <summary>
     /// Starts writing every subsequent entry to a session log file. Any previously buffered
     /// entries are flushed to the file first so no context is lost.
     /// </summary>
@@ -235,10 +245,7 @@ public static class ApplicationLogger
 
             if (string.IsNullOrEmpty(path))
             {
-                var dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "RetroTerm",
-                    "logs");
+                var dir = LogDirectory;
                 Directory.CreateDirectory(dir);
                 var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
                 path = Path.Combine(dir, $"session-{stamp}.log");

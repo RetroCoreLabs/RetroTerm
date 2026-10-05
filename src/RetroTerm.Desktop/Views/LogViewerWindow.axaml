@@ -38,8 +38,7 @@
                 <Button Classes="Secondary" Name="FileLogButton"
                         Content="Start File Log"
                         Click="OnFileLogClick"
-                        Padding="10,4"
-                        ToolTip.Tip="Write every entry to %AppData%\RetroTerm\logs\ (unbounded)"/>
+                        Padding="10,4"/>
 
                 <CheckBox Name="AutoScrollCheck"
                           Content="Follow"

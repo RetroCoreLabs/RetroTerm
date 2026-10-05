@@ -39,6 +39,8 @@ public partial class LogViewerWindow : Window
         _autoScroll = this.FindControl<CheckBox>("AutoScrollCheck");
         _showRawBytes = this.FindControl<CheckBox>("ShowRawBytesCheck");
         _fileLogButton = this.FindControl<Button>("FileLogButton");
+        if (_fileLogButton != null)
+            ToolTip.SetTip(_fileLogButton, $"Write every entry to {ApplicationLogger.LogDirectory} (unbounded)");
 
         if (_list != null)
         {

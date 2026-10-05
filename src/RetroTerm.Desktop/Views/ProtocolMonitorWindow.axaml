@@ -42,8 +42,7 @@
                 <Button Classes="Secondary" Name="SaveButton"
                         Content="Save Trace..."
                         Click="OnSaveClick"
-                        Padding="10,4"
-                        ToolTip.Tip="Write the whole trace to %AppData%\RetroTerm\logs\"/>
+                        Padding="10,4"/>
 
                 <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2"/>
 

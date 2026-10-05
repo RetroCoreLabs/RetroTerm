@@ -453,7 +453,7 @@ public partial class ManageConnectionsWindow : Window
 
         _scriptsPanel.Children.Add(new TextBlock
         {
-            Text = "Scripts from the library (%AppData%\\RetroTerm\\scripts\\) can run automatically " +
+            Text = $"Scripts from the library ({System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RetroTerm", "scripts")}) can run automatically " +
                    "on connection events. Manage them in View → Script Editor.",
             Foreground = TextSecondary,
             FontSize = 13,
