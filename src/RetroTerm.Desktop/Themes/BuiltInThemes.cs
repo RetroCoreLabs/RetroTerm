@@ -47,6 +47,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition Light = new()
     {
         Id = "light",
+        TerminalForeground = C("#202020"),
+        TerminalBackground = C("#FFFFFF"),
         TextBoxBackground = C("#FFFFFF"),
         DisplayName = "Light",
         WindowBackground = C("#F3F3F3"),
@@ -82,6 +84,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition RetroGreen = new()
     {
         Id = "retro-green",
+        TerminalForeground = C("#00FF00"),
+        TerminalBackground = C("#000800"),
         TextBoxBackground = C("#000800"),
         DisplayName = "Retro Green",
         WindowBackground = C("#001100"),
@@ -117,6 +121,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition AmberCrt = new()
     {
         Id = "amber-crt",
+        TerminalForeground = C("#FFB000"),
+        TerminalBackground = C("#0D0800"),
         TextBoxBackground = C("#0D0800"),
         DisplayName = "Amber CRT",
         WindowBackground = C("#1A0F00"),
@@ -152,6 +158,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition Nord = new()
     {
         Id = "nord",
+        TerminalForeground = C("#D8DEE9"),
+        TerminalBackground = C("#2E3440"),
         TextBoxBackground = C("#272C36"),
         DisplayName = "Nord",
         WindowBackground = C("#2E3440"),
@@ -187,6 +195,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition Synthwave = new()
     {
         Id = "synthwave",
+        TerminalForeground = C("#FFFFFF"),
+        TerminalBackground = C("#262335"),
         TextBoxBackground = C("#1B1428"),
         DisplayName = "Synthwave '84",
         WindowBackground = C("#262335"),
@@ -227,6 +237,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition SolarizedDark = new()
     {
         Id = "solarized-dark",
+        TerminalForeground = C("#839496"),
+        TerminalBackground = C("#002B36"),
         TextBoxBackground = C("#00212B"),
         DisplayName = "Solarized Dark",
         WindowBackground = C("#002B36"),        // base03
@@ -262,6 +274,8 @@ public static class BuiltInThemes
     public static readonly ThemeDefinition HighContrast = new()
     {
         Id = "high-contrast",
+        TerminalForeground = C("#FFFFFF"),
+        TerminalBackground = C("#000000"),
         TextBoxBackground = C("#000000"),
         DisplayName = "High Contrast",
         WindowBackground = C("#000000"),

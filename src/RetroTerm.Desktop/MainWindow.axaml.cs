@@ -97,60 +97,84 @@ public partial class MainWindow : Window
     // SSH login state (tabs in username/password prompt mode)
     private readonly Dictionary<Guid, SSHLoginState> _sshLoginTabs = new();
 
-    // Terminal color presets (shared between tab context menu and connection config)
-    // Sourced from nd100x glass template + RetroTerm additions. Sorted alphabetically.
-    // Mono=true collapses the sixteen ANSI colours onto the screen's single phosphor, the way a
-    // one-gun CRT had no choice but to: a host's colours arrive as BRIGHTNESSES, not hues. The
-    // existing seven presets keep Mono=false and are byte for byte what they always were - picking
-    // a colour preset must not silently change how a coloured host program looks.
-    internal static readonly (string Name, string Fg, string Bg, bool Mono)[] TerminalColorPresets =
-    {
-        ("Amber", "#FFBF00", "#0A0800", false),
-        ("Amber (single phosphor)", "#FFBF00", "#0A0800", true),
-        ("Blue", "#00BFFF", "#000A14", false),
-        ("Cyan", "#00FFFF", "#001919", false),
-        ("Green", "#00FF00", "#000E00", false),
-        ("Green Phosphor", "#00FF88", "#001911", false),
-        ("Green Phosphor (single phosphor)", "#00FF88", "#001911", true),
-        ("Paper White", "#222222", "#F0F0F5", false),
-        ("White", "#F8F8F8", "#0A0E1C", false),
-    };
+    // The built-in colour presets live in RetroTerm.Core (TerminalColourPresets.BuiltIn) together with
+    // the ones the user saved, so the tab menu, the connection dialog and Preferences all read one
+    // list. "Single phosphor" is not a preset: it is a switch that applies to any colour pair.
+    // See TerminalColourPresets for why it stopped being two extra entries.
 
     /// <summary>
     /// Turns a SAVED CONNECTION's colours into the theme the renderer draws with.
     ///
     /// The single-phosphor flag has to be carried explicitly rather than worked out from the
-    /// colours, because it cannot be worked out from them: "Amber" and "Amber (single phosphor)"
-    /// store byte-for-byte identical foreground and background hex, and the flag is the only thing
-    /// that tells them apart.
+    /// colours, because it cannot be worked out from them: a plain and a single-phosphor screen
+    /// can store byte-for-byte identical foreground and background hex, and the flag is the only
+    /// thing that tells them apart.
     /// </summary>
     internal static RetroTerm.Core.Terminal.Buffer.TerminalTheme BuildSavedConnectionTheme(
         RetroTerm.Core.Protocols.ConnectionFactory.ConnectionParameters parameters)
-    {
-        var fg = Color.Parse(parameters.ForegroundColor!);
-        var bg = Color.Parse(parameters.BackgroundColor!);
-        var foreground = (fg.R, fg.G, fg.B);
-        var background = (bg.R, bg.G, bg.B);
+        => BuildTerminalTheme(parameters.ForegroundColor!, parameters.BackgroundColor!,
+            parameters.SinglePhosphor, parameters.DisplayName ?? "");
 
-        return parameters.SinglePhosphor
-            ? RetroTerm.Core.Terminal.Buffer.TerminalTheme.Monochrome(parameters.DisplayName ?? "", foreground, background)
-            : RetroTerm.Core.Terminal.Buffer.TerminalTheme.Colour(parameters.DisplayName ?? "", foreground, background);
+    /// <summary>
+    /// Turns a pair of hex colours, and whether the screen is single-phosphor, into the theme the
+    /// renderer draws with.
+    /// </summary>
+    /// <param name="foreground">Foreground hex.</param>
+    /// <param name="background">Background hex.</param>
+    /// <param name="singlePhosphor">Whether the sixteen ANSI colours collapse onto one hue.</param>
+    /// <param name="name">A name for the theme. Display only.</param>
+    internal static RetroTerm.Core.Terminal.Buffer.TerminalTheme BuildTerminalTheme(
+        string foreground, string background, bool singlePhosphor, string name = "")
+    {
+        var fg = Color.Parse(foreground);
+        var bg = Color.Parse(background);
+        var fgRgb = (fg.R, fg.G, fg.B);
+        var bgRgb = (bg.R, bg.G, bg.B);
+
+        return singlePhosphor
+            ? RetroTerm.Core.Terminal.Buffer.TerminalTheme.Monochrome(name, fgRgb, bgRgb)
+            : RetroTerm.Core.Terminal.Buffer.TerminalTheme.Colour(name, fgRgb, bgRgb);
     }
 
     /// <summary>
-    /// Turns a colour preset into the theme the renderer draws with.
+    /// Gives a tab its colours and remembers which they are. The order, first that applies wins:
+    /// the colours the user picked for this tab, the connection's saved colours, the default set in
+    /// Preferences, and last the pair that goes with the window theme.
     /// </summary>
-    internal static RetroTerm.Core.Terminal.Buffer.TerminalTheme BuildTerminalTheme(
-        (string Name, string Fg, string Bg, bool Mono) preset)
+    /// <param name="tab">The tab to colour.</param>
+    /// <param name="parameters">
+    /// The connection's parameters, or null for a tab with no connection yet. Null makes the tab
+    /// take the default or the theme's pair.
+    /// </param>
+    private void ApplyTerminalColours(TabSession tab, RetroTerm.Core.Protocols.ConnectionFactory.ConnectionParameters? parameters)
     {
-        var fg = Color.Parse(preset.Fg);
-        var bg = Color.Parse(preset.Bg);
-        var foreground = (fg.R, fg.G, fg.B);
-        var background = (bg.R, bg.G, bg.B);
+        // A pair the user picked from this tab's own menu outranks everything saved elsewhere.
+        var resolved = tab.TabColourOverride ?? Themes.ThemeManager.Instance.ResolveTerminalColours(
+            parameters?.ForegroundColor, parameters?.BackgroundColor, parameters?.SinglePhosphor ?? false);
 
-        return preset.Mono
-            ? RetroTerm.Core.Terminal.Buffer.TerminalTheme.Monochrome(preset.Name, foreground, background)
-            : RetroTerm.Core.Terminal.Buffer.TerminalTheme.Colour(preset.Name, foreground, background);
+        try
+        {
+            tab.Control.SetTheme(BuildTerminalTheme(
+                resolved.Foreground, resolved.Background, resolved.SinglePhosphor, parameters?.DisplayName ?? ""));
+            tab.CurrentColours = resolved;
+        }
+        catch
+        {
+            // A colour that will not parse leaves the terminal on what it had.
+        }
+    }
+
+    /// <summary>
+    /// Re-applies colours to every open tab that does not carry its own choice. Called when the
+    /// window theme or the Preferences default changes, so open terminals follow immediately.
+    /// </summary>
+    private void RefreshTerminalColours()
+    {
+        for (int i = 0; i < _tabs.Count; i++)
+        {
+            var tab = _tabs[i];
+            ApplyTerminalColours(tab, tab.LastConnectionParameters);
+        }
     }
 
     // Cached brushes for tab headers (avoid per-tab allocations)
@@ -171,6 +195,17 @@ public partial class MainWindow : Window
         InitializeSearch();
         InitializeGateway();
         InitializeFavorites();
+
+        // Terminals that use the default colours or the window theme's pair follow both live. The
+        // subscriptions are on a process-wide singleton, so they are dropped when the window closes.
+        Action followColours = () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshTerminalColours);
+        Themes.ThemeManager.Instance.ThemeChanged += followColours;
+        Themes.ThemeManager.Instance.TerminalDefaultsChanged += followColours;
+        Closed += (_, _) =>
+        {
+            Themes.ThemeManager.Instance.ThemeChanged -= followColours;
+            Themes.ThemeManager.Instance.TerminalDefaultsChanged -= followColours;
+        };
 
         KeyDown += OnWindowKeyDown;
 
@@ -396,6 +431,11 @@ public partial class MainWindow : Window
             EmulatorType = emulatorType
         };
 
+        // Colour the new terminal from the Preferences default or the window theme's pair, so a
+        // tab that never connects through a saved connection still matches the rest of the window.
+        // A connection that saved its own colours overrides this when it opens.
+        ApplyTerminalColours(tab, null);
+
         // 5. Wire session events with active-tab guards
         session.StatusChanged += (status) => OnTabStatusChanged(tab, status);
         session.ErrorOccurred += (ex) => OnTabError(tab, ex);
@@ -440,6 +480,151 @@ public partial class MainWindow : Window
         SelectTab(tab);
 
         return tab;
+    }
+
+    /// <summary>
+    /// A freshly filled Terminal Color menu for a tab, so a test can click its items.
+    /// </summary>
+    /// <param name="tab">The tab the menu belongs to.</param>
+    internal MenuItem BuildTerminalColourMenuForTesting(TabSession tab)
+    {
+        var menu = new MenuItem { Header = "Terminal Color" };
+        PopulateTerminalColourMenu(tab, menu);
+        return menu;
+    }
+
+    /// <summary>
+    /// Fills a tab's Terminal Color menu: Default, the built-in presets, the user's saved presets,
+    /// Custom..., and the single-phosphor switch.
+    /// </summary>
+    /// <param name="tab">The tab the menu belongs to.</param>
+    /// <param name="menu">The submenu to fill. Any items it has are replaced.</param>
+    private void PopulateTerminalColourMenu(TabSession tab, MenuItem menu)
+    {
+        menu.Items.Clear();
+        var current = tab.CurrentColours;
+
+        var defaultItem = new MenuItem
+        {
+            Header = "Default (connection, Preferences or theme)",
+            ToggleType = MenuItemToggleType.Radio,
+            IsChecked = tab.TabColourOverride == null,
+        };
+        defaultItem.Click += (_, _) =>
+        {
+            tab.TabColourOverride = null;
+            tab.ColorPreset = null;
+            ApplyTerminalColours(tab, tab.LastConnectionParameters);
+        };
+        menu.Items.Add(defaultItem);
+        menu.Items.Add(new Separator());
+
+        foreach (var preset in RetroTerm.Core.Configuration.TerminalColourPresets.BuiltIn)
+            menu.Items.Add(CreateColourPresetItem(tab, preset, current));
+
+        var saved = RetroTerm.Core.Configuration.UserTerminalColourStore.Default.Presets;
+        if (saved.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            foreach (var preset in saved)
+                menu.Items.Add(CreateColourPresetItem(tab, preset, current));
+        }
+
+        menu.Items.Add(new Separator());
+
+        var customItem = new MenuItem { Header = "Custom..." };
+        customItem.Click += async (_, _) =>
+        {
+            var from = tab.CurrentColours;
+            var result = await Views.TerminalColourPickerDialog.ShowAsync(
+                this, from?.Foreground, from?.Background);
+            if (result == null) return;
+
+            SetTabColours(tab, result.Foreground, result.Background, result.SavedPresetName ?? "Custom");
+        };
+        menu.Items.Add(customItem);
+
+        var phosphorItem = new MenuItem
+        {
+            Header = "Single phosphor (ANSI colours as brightness)",
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = current?.SinglePhosphor ?? false,
+        };
+        phosphorItem.Click += (_, _) =>
+        {
+            var now = tab.CurrentColours;
+            if (now == null) return;
+            tab.TabColourOverride = new Themes.ResolvedTerminalColours(
+                now.Foreground, now.Background, !now.SinglePhosphor, Themes.TerminalColourSource.Tab);
+            ApplyTerminalColours(tab, tab.LastConnectionParameters);
+        };
+        menu.Items.Add(phosphorItem);
+
+        if (saved.Count > 0)
+        {
+            var removeMenu = new MenuItem { Header = "Remove Saved Preset" };
+            foreach (var preset in saved)
+            {
+                var name = preset.Name;
+                var removeItem = new MenuItem { Header = name };
+                removeItem.Click += (_, _) => RetroTerm.Core.Configuration.UserTerminalColourStore.Default.Remove(name);
+                removeMenu.Items.Add(removeItem);
+            }
+            menu.Items.Add(removeMenu);
+        }
+    }
+
+    /// <summary>
+    /// One preset entry: a small foreground-on-background swatch and the preset's name. Picking it
+    /// colours this tab only, and keeps the tab's single-phosphor setting.
+    /// </summary>
+    private MenuItem CreateColourPresetItem(
+        TabSession tab, RetroTerm.Core.Configuration.TerminalColourPreset preset, Themes.ResolvedTerminalColours? current)
+    {
+        var item = new MenuItem
+        {
+            ToggleType = MenuItemToggleType.Radio,
+            IsChecked = tab.TabColourOverride != null && current != null
+                        && string.Equals(current.Foreground, preset.Foreground, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(current.Background, preset.Background, StringComparison.OrdinalIgnoreCase),
+        };
+
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        panel.Children.Add(new Border
+        {
+            Width = 20,
+            Height = 16,
+            CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush(Color.Parse(preset.Background)),
+            BorderBrush = new SolidColorBrush(Color.Parse("#555555")),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = "A",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.Parse(preset.Foreground)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        });
+        panel.Children.Add(new TextBlock { Text = preset.Name, VerticalAlignment = VerticalAlignment.Center });
+        item.Header = panel;
+
+        item.Click += (_, _) => SetTabColours(tab, preset.Foreground, preset.Background, preset.Name);
+        return item;
+    }
+
+    /// <summary>
+    /// Colours one tab by the user's choice. It keeps the tab's single-phosphor setting, and from
+    /// then on the tab ignores theme and Preferences changes until "Default" is chosen again.
+    /// </summary>
+    private void SetTabColours(TabSession tab, string foreground, string background, string presetName)
+    {
+        var mono = tab.CurrentColours?.SinglePhosphor ?? false;
+        tab.TabColourOverride = new Themes.ResolvedTerminalColours(
+            foreground, background, mono, Themes.TerminalColourSource.Tab);
+        tab.ColorPreset = presetName;
+        ApplyTerminalColours(tab, tab.LastConnectionParameters);
     }
 
     private Border CreateTabHeader(TabSession tab)
@@ -538,51 +723,21 @@ public partial class MainWindow : Window
         var popOutItem = new MenuItem { Header = "Pop Out" };
         popOutItem.Click += (_, _) => PopOutTab(tab);
 
-        // Terminal Color submenu
+        // Terminal Color submenu, rebuilt each time the menu opens so a preset saved a moment ago
+        // from the picker is already in it.
         var colorMenu = new MenuItem { Header = "Terminal Color" };
-        for (int ci = 0; ci < TerminalColorPresets.Length; ci++)
-        {
-            var preset = TerminalColorPresets[ci];
-            var colorItem = new MenuItem();
-
-            var itemPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            // Show fg swatch on bg swatch
-            itemPanel.Children.Add(new Border
-            {
-                Width = 20,
-                Height = 16,
-                CornerRadius = new CornerRadius(2),
-                Background = new SolidColorBrush(Color.Parse(preset.Bg)),
-                BorderBrush = new SolidColorBrush(Color.Parse("#555555")),
-                BorderThickness = new Thickness(1),
-                Child = new TextBlock
-                {
-                    Text = "A",
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.Parse(preset.Fg)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
-            });
-            itemPanel.Children.Add(new TextBlock { Text = preset.Name, VerticalAlignment = VerticalAlignment.Center });
-            colorItem.Header = itemPanel;
-
-            colorItem.Click += (_, _) =>
-            {
-                tab.Control.SetTheme(BuildTerminalTheme(preset));
-                tab.ColorPreset = preset.Name;
-            };
-            colorMenu.Items.Add(colorItem);
-        }
+        PopulateTerminalColourMenu(tab, colorMenu);
 
         var closeMenuItem = new MenuItem { Header = "Close" };
         closeMenuItem.Click += (_, _) => CloseTab(tab);
         var closeAllMenuItem = new MenuItem { Header = "Close All Tabs" };
         closeAllMenuItem.Click += (_, _) => CloseAllTabs();
-        header.ContextMenu = new ContextMenu
+        var headerMenu = new ContextMenu
         {
             Items = { popOutItem, colorMenu, new Separator(), closeMenuItem, closeAllMenuItem }
         };
+        headerMenu.Opening += (_, _) => PopulateTerminalColourMenu(tab, colorMenu);
+        header.ContextMenu = headerMenu;
 
         // Wire title changes
         tab.TitleChanged += () =>
@@ -1476,6 +1631,9 @@ public partial class MainWindow : Window
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             tab.Control.SetEmulator(replacement);
+            // SetEmulator builds a new renderer, which starts on the built-in colours, so the tab's
+            // colours have to be put back or switching terminal type would reset them.
+            ApplyTerminalColours(tab, tab.LastConnectionParameters);
             tab.EmulatorType = replacement.Profile.Name;
             tab.NotifyTitleChanged();
 
@@ -2158,20 +2316,8 @@ public partial class MainWindow : Window
             tab.Session.KermitSendInitDetected -= OnKermitSendInitDetected;
             tab.Session.KermitSendInitDetected += OnKermitSendInitDetected;
 
-            // Apply per-connection terminal colors if configured
-            if (parameters.ForegroundColor != null && parameters.BackgroundColor != null)
-            {
-                try
-                {
-
-
-                    tab.Control.SetTheme(BuildSavedConnectionTheme(parameters));
-                }
-                catch
-                {
-                    // Invalid color strings — ignore
-                }
-            }
+            // Colours: this connection's own if it saved some, else the Preferences default, else the window theme's pair.
+            ApplyTerminalColours(tab, parameters);
 
             UpdateStatus($"Connected to {tab.Host}");
             UpdateStatusDisplay();
@@ -2352,17 +2498,8 @@ public partial class MainWindow : Window
         tab.Session.KermitSendInitDetected -= OnKermitSendInitDetected;
         tab.Session.KermitSendInitDetected += OnKermitSendInitDetected;
 
-        // Apply per-connection terminal colors if configured
-        if (parameters.ForegroundColor != null && parameters.BackgroundColor != null)
-        {
-            try
-            {
-
-
-                tab.Control.SetTheme(BuildSavedConnectionTheme(parameters));
-            }
-            catch { }
-        }
+        // Colours: this connection's own if it saved some, else the Preferences default, else the window theme's pair.
+        ApplyTerminalColours(tab, parameters);
 
         UpdateStatus($"Connected to {termName} via Gateway");
         UpdateStatusDisplay();
@@ -2731,17 +2868,8 @@ public partial class MainWindow : Window
             tab.Session.KermitSendInitDetected -= OnKermitSendInitDetected;
             tab.Session.KermitSendInitDetected += OnKermitSendInitDetected;
 
-            // Apply per-connection terminal colors if configured
-            if (parameters.ForegroundColor != null && parameters.BackgroundColor != null)
-            {
-                try
-                {
-
-
-                    tab.Control.SetTheme(BuildSavedConnectionTheme(parameters));
-                }
-                catch { }
-            }
+            // Colours: this connection's own if it saved some, else the Preferences default, else the window theme's pair.
+            ApplyTerminalColours(tab, parameters);
 
             tab.SuppressDisconnectDialog = false;
             UpdateStatus($"Connected to {tab.Host} (SSH)");

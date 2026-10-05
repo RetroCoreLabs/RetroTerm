@@ -27,6 +27,20 @@ public sealed class ThemeDefinition
     /// </summary>
     public Color TextBoxBackground { get; init; }
 
+    /// <summary>
+    /// The terminal screen colours this theme goes with: the default text and the screen behind it,
+    /// used for every terminal that has not been given colours of its own. The order that decides
+    /// which colours a terminal gets is: this tab's own choice, then the connection's saved
+    /// colours, then the default set in Preferences, then this pair. The default value is the
+    /// green phosphor pair the terminal has always started with.
+    /// </summary>
+    public Color TerminalForeground { get; init; } = Color.FromRgb(0x00, 0xFF, 0x88);
+
+    /// <summary>
+    /// The terminal screen background that goes with <see cref="TerminalForeground"/>.
+    /// </summary>
+    public Color TerminalBackground { get; init; } = Color.FromRgb(0x00, 0x19, 0x11);
+
     // Borders
     public Color Border { get; init; }
     public Color FocusBorder { get; init; }

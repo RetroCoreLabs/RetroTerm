@@ -67,6 +67,19 @@ public partial class ManageConnectionsWindow : Window
     private ComboBox? _screenSizeModeCombo;
     private ComboBox? _languageCombo;
     private ComboBox? _colorPresetCombo;
+    private CheckBox? _singlePhosphorCheck;
+    private Border? _colourSwatch;
+    private TextBlock? _colourSwatchText;
+    private TextBlock? _colourWarning;
+
+    /// <summary>First entry of the Terminal Color list: no colours saved, follow the Preferences default or the theme.</summary>
+    private const string DefaultColourItem = "Default (follow theme or Preferences)";
+
+    /// <summary>Last entry of the Terminal Color list: opens the colour picker.</summary>
+    private const string CustomColourItem = "Custom...";
+
+    /// <summary>The entry selected before "Custom..." was chosen, so cancelling the picker can put it back.</summary>
+    private string? _lastColourItem;
 
     // Scripts tab: connection event hooks — "(none)" + the script library names.
     private ComboBox? _onConnectCombo;
@@ -245,12 +258,56 @@ public partial class ManageConnectionsWindow : Window
         _terminalPanel.Children.Add(CreateLabeledComboBox("Language", out _languageCombo,
             RetroTerm.Core.Terminal.Emulators.TDV.TDVLanguageOptions.DisplayNames()));
 
-        // Color preset dropdown (built from MainWindow.TerminalColorPresets)
+        // Terminal colours: a list (Default, the built-in presets, the user's saved presets, Custom...),
+        // a swatch showing the result, and the single-phosphor switch, which applies to any colours.
         {
-            var presetNames = new string[MainWindow.TerminalColorPresets.Length];
-            for (int pi = 0; pi < MainWindow.TerminalColorPresets.Length; pi++)
-                presetNames[pi] = MainWindow.TerminalColorPresets[pi].Name;
-            _terminalPanel.Children.Add(CreateLabeledComboBox("Terminal Color", out _colorPresetCombo, presetNames));
+            _terminalPanel.Children.Add(CreateLabeledComboBox("Terminal Color", out _colorPresetCombo, BuildColourItems()));
+
+            _colourSwatchText = new TextBlock
+            {
+                Text = "Sample text  0123456789",
+                FontSize = 13,
+                FontFamily = new FontFamily(RetroTerm.Desktop.Rendering.SystemFontRenderer.DefaultFontFamily),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            _colourSwatch = new Border
+            {
+                Width = 200,
+                Padding = new Thickness(8, 4),
+                CornerRadius = new CornerRadius(3),
+                BorderThickness = new Thickness(1),
+                BorderBrush = BorderDark,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = _colourSwatchText,
+            };
+            // The list shows "Custom..." for colours that match no preset, and selecting an entry
+            // that is already selected does nothing - so the swatch is the way back into the picker.
+            _colourSwatch.Cursor = new Cursor(StandardCursorType.Hand);
+            ToolTip.SetTip(_colourSwatch, "Click to choose custom colours");
+            _colourSwatch.PointerPressed += async (_, _) => await EditColoursAsync(restoreOnCancel: null);
+            _terminalPanel.Children.Add(_colourSwatch);
+
+            _colourWarning = new TextBlock
+            {
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.Parse("#E5A50A")),
+                IsVisible = false,
+            };
+            _terminalPanel.Children.Add(_colourWarning);
+
+            _singlePhosphorCheck = new CheckBox
+            {
+                Content = "Single phosphor   (draw the ANSI colours as brightnesses of the text colour, like a one-colour CRT)",
+                Foreground = TextPrimary,
+                FontSize = 13,
+            };
+            _singlePhosphorCheck.IsCheckedChanged += (_, _) =>
+            {
+                if (_suppressSelectionChange) return;
+                _viewModel.CurrentProfile.SinglePhosphor = _singlePhosphorCheck.IsChecked == true;
+            };
+            _terminalPanel.Children.Add(_singlePhosphorCheck);
         }
 
         if (_emulatorCombo != null)
@@ -287,24 +344,36 @@ public partial class ManageConnectionsWindow : Window
         }
         if (_colorPresetCombo != null)
         {
-            _colorPresetCombo.SelectionChanged += (_, _) =>
+            _colorPresetCombo.SelectionChanged += async (_, _) =>
             {
-                if (_colorPresetCombo.SelectedItem is string presetName)
-                {
-                    for (int pi = 0; pi < MainWindow.TerminalColorPresets.Length; pi++)
-                    {
-                        if (MainWindow.TerminalColorPresets[pi].Name == presetName)
-                        {
-                            _viewModel.CurrentProfile.ForegroundColor = MainWindow.TerminalColorPresets[pi].Fg;
-                            _viewModel.CurrentProfile.BackgroundColor = MainWindow.TerminalColorPresets[pi].Bg;
+                if (_suppressSelectionChange) return;
+                if (_colorPresetCombo.SelectedItem is not string item) return;
+                var profile = _viewModel.CurrentProfile;
 
-                            // Carried explicitly: the two Amber presets have identical hex, so
-                            // saving only the colours would lose which of them was chosen.
-                            _viewModel.CurrentProfile.SinglePhosphor = MainWindow.TerminalColorPresets[pi].Mono;
-                            break;
-                        }
-                    }
+                if (item == DefaultColourItem)
+                {
+                    // No colours saved: the connection follows the Preferences default or the theme.
+                    profile.ForegroundColor = "";
+                    profile.BackgroundColor = "";
+                    _lastColourItem = item;
                 }
+                else if (item == CustomColourItem)
+                {
+                    await EditColoursAsync(restoreOnCancel: _lastColourItem ?? DefaultColourItem);
+                    return;
+                }
+                else
+                {
+                    var preset = FindPresetByName(item);
+                    if (preset != null)
+                    {
+                        profile.ForegroundColor = preset.Foreground;
+                        profile.BackgroundColor = preset.Background;
+                    }
+                    _lastColourItem = item;
+                }
+
+                RefreshColourPreview(profile);
             };
         }
 
@@ -713,6 +782,37 @@ public partial class ManageConnectionsWindow : Window
     /// </returns>
     internal static int ParseDelayForTesting(string? text) => ParseDelay(text);
 
+    /// <summary>The profile the form is editing, for the tests.</summary>
+    internal ConnectionProfileViewModel ProfileForTesting => _viewModel.CurrentProfile;
+
+    /// <summary>Loads a saved connection into the form the way picking it in the list does.</summary>
+    internal void LoadProfileForTesting(HostConfiguration config)
+    {
+        _viewModel.CurrentProfile.LoadFromConfiguration(config);
+        LoadProfileIntoForm();
+    }
+
+    /// <summary>Shows the Terminal tab, which holds the colour controls.</summary>
+    internal void ShowTerminalTabForTesting() => SelectTab(2);
+
+    /// <summary>The Terminal Color list entry that is selected.</summary>
+    internal string? SelectedColourItemForTesting => _colorPresetCombo?.SelectedItem as string;
+
+    /// <summary>Picks a Terminal Color list entry as a click would. Not for "Custom...", which opens the picker.</summary>
+    internal void SelectColourItemForTesting(string item)
+    {
+        if (_colorPresetCombo != null) _colorPresetCombo.SelectedItem = item;
+    }
+
+    /// <summary>Whether the single-phosphor box is ticked.</summary>
+    internal bool SinglePhosphorTickedForTesting => _singlePhosphorCheck?.IsChecked == true;
+
+    /// <summary>Whether the single-phosphor box can be used (it cannot while the connection follows the default).</summary>
+    internal bool SinglePhosphorEnabledForTesting => _singlePhosphorCheck?.IsEnabled == true;
+
+    /// <summary>The low-contrast warning text shown under the swatch, or empty.</summary>
+    internal string ColourWarningForTesting => _colourWarning is { IsVisible: true } ? _colourWarning.Text ?? "" : "";
+
     private void BuildGatewayPanel()
     {
         if (_gatewayProtocolPanel == null) return;
@@ -1096,22 +1196,8 @@ public partial class ManageConnectionsWindow : Window
         if (_sizeCombo != null) _sizeCombo.SelectedItem = profile.Size;
         if (_screenSizeModeCombo != null) _screenSizeModeCombo.SelectedItem = profile.ScreenSizeMode;
         if (_languageCombo != null) _languageCombo.SelectedItem = profile.Language;
-        // Match saved colors to a preset name
-        if (_colorPresetCombo != null)
-        {
-            string matchedPreset = "Green Phosphor"; // default
-            for (int pi = 0; pi < MainWindow.TerminalColorPresets.Length; pi++)
-            {
-                var p = MainWindow.TerminalColorPresets[pi];
-                if (string.Equals(p.Fg, profile.ForegroundColor, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(p.Bg, profile.BackgroundColor, StringComparison.OrdinalIgnoreCase))
-                {
-                    matchedPreset = p.Name;
-                    break;
-                }
-            }
-            _colorPresetCombo.SelectedItem = matchedPreset;
-        }
+        // Terminal colours: select the matching list entry without writing anything back.
+        LoadColourControls(profile);
         if (_gatewaySelectFirstFreeCheck != null) _gatewaySelectFirstFreeCheck.IsChecked = profile.GatewaySelectFirstFree;
 
         // Keyboard tab: the four settings follow the profile. Loading these fires the change
@@ -1431,6 +1517,156 @@ public partial class ManageConnectionsWindow : Window
         };
         panel.Children.Add(textBox);
         return panel;
+    }
+
+    /// <summary>
+    /// The Terminal Color list: Default, the built-in presets, the user's saved presets, Custom...
+    /// </summary>
+    private static string[] BuildColourItems()
+    {
+        var items = new List<string> { DefaultColourItem };
+        foreach (var preset in TerminalColourPresets.All) items.Add(preset.Name);
+        items.Add(CustomColourItem);
+        return items.ToArray();
+    }
+
+    /// <summary>
+    /// Opens the colour picker on this connection's colours and applies what it returns.
+    /// </summary>
+    /// <param name="restoreOnCancel">
+    /// The list entry to put back when the picker is cancelled, or null to leave the list alone.
+    /// </param>
+    private async Task EditColoursAsync(string? restoreOnCancel)
+    {
+        var profile = _viewModel.CurrentProfile;
+        var (fg, bg) = CurrentColourPair(profile);
+
+        var result = await TerminalColourPickerDialog.ShowAsync(this, fg, bg);
+        if (result == null)
+        {
+            if (restoreOnCancel != null) SelectColourItem(restoreOnCancel);
+            return;
+        }
+
+        profile.ForegroundColor = result.Foreground;
+        profile.BackgroundColor = result.Background;
+        LoadColourControls(profile);   // a preset saved in the picker is in the list now
+    }
+
+    private static TerminalColourPreset? FindPresetByName(string name)
+    {
+        foreach (var preset in TerminalColourPresets.All)
+        {
+            if (preset.Name == name) return preset;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The colours the picker should start from: the connection's own, or what "Default" currently
+    /// resolves to, so the picker never opens on a blank pair.
+    /// </summary>
+    private static (string Foreground, string Background) CurrentColourPair(ConnectionProfileViewModel profile)
+    {
+        if (TerminalColourMath.TryParseHex(profile.ForegroundColor, out _) &&
+            TerminalColourMath.TryParseHex(profile.BackgroundColor, out _))
+        {
+            return (profile.ForegroundColor, profile.BackgroundColor);
+        }
+
+        var resolved = RetroTerm.Desktop.Themes.ThemeManager.Instance.ResolveTerminalColours();
+        return (resolved.Foreground, resolved.Background);
+    }
+
+    private void SelectColourItem(string item)
+    {
+        if (_colorPresetCombo == null) return;
+        var was = _suppressSelectionChange;
+        _suppressSelectionChange = true;
+        try
+        {
+            _colorPresetCombo.SelectedItem = item;
+        }
+        finally
+        {
+            _suppressSelectionChange = was;
+        }
+    }
+
+    /// <summary>
+    /// Brings the list, the swatch, the warning and the single-phosphor box in line with a profile.
+    /// Nothing is written back to the profile, so loading a connection does not mark it changed -
+    /// and a connection saved as single phosphor stays one.
+    /// </summary>
+    private void LoadColourControls(ConnectionProfileViewModel profile)
+    {
+        if (_colorPresetCombo == null) return;
+
+        var was = _suppressSelectionChange;
+        _suppressSelectionChange = true;
+        try
+        {
+            _colorPresetCombo.ItemsSource = BuildColourItems();
+
+            string selected;
+            bool hasColours = TerminalColourMath.TryParseHex(profile.ForegroundColor, out _) &&
+                              TerminalColourMath.TryParseHex(profile.BackgroundColor, out _);
+            if (!hasColours)
+            {
+                selected = DefaultColourItem;
+            }
+            else
+            {
+                // Matched on the two colours alone. The single-phosphor flag is its own box, so a
+                // single-phosphor Amber connection shows as "Amber" with the box ticked.
+                selected = TerminalColourPresets.FindByColours(profile.ForegroundColor, profile.BackgroundColor)?.Name
+                           ?? CustomColourItem;
+            }
+
+            _colorPresetCombo.SelectedItem = selected;
+            _lastColourItem = selected;
+
+            if (_singlePhosphorCheck != null) _singlePhosphorCheck.IsChecked = profile.SinglePhosphor;
+        }
+        finally
+        {
+            _suppressSelectionChange = was;
+        }
+
+        RefreshColourPreview(profile);
+    }
+
+    /// <summary>
+    /// Updates the swatch and the low-contrast warning, and switches the single-phosphor box off
+    /// while the connection follows the default, because then the Preferences switch decides.
+    /// </summary>
+    private void RefreshColourPreview(ConnectionProfileViewModel profile)
+    {
+        bool following = !(TerminalColourMath.TryParseHex(profile.ForegroundColor, out _) &&
+                           TerminalColourMath.TryParseHex(profile.BackgroundColor, out _));
+        var (fg, bg) = CurrentColourPair(profile);
+
+        if (_colourSwatch != null && _colourSwatchText != null &&
+            TerminalColourMath.TryParseHex(fg, out var f) && TerminalColourMath.TryParseHex(bg, out var b))
+        {
+            _colourSwatch.Background = new SolidColorBrush(Color.FromRgb(b.R, b.G, b.B));
+            _colourSwatchText.Foreground = new SolidColorBrush(Color.FromRgb(f.R, f.G, f.B));
+        }
+
+        if (_colourWarning != null)
+        {
+            var warning = TerminalColourMath.ContrastWarning(fg, bg);
+            _colourWarning.Text = warning == null ? "" : "\u26A0 " + warning;
+            _colourWarning.IsVisible = warning != null;
+        }
+
+        if (_singlePhosphorCheck != null)
+        {
+            _singlePhosphorCheck.IsEnabled = !following;
+            ToolTip.SetTip(_singlePhosphorCheck, following
+                ? "While this connection follows the default, single phosphor is set in Preferences."
+                : null);
+        }
     }
 
     private static StackPanel CreateLabeledComboBox(string label, out ComboBox? comboBox, string[] items)

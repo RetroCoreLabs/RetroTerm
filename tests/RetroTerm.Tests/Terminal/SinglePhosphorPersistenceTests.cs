@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Avalonia.Headless.XUnit;
 using RetroTerm.Core.Configuration;
 using Xunit;
@@ -19,25 +21,36 @@ namespace RetroTerm.Tests.Terminal;
 public class SinglePhosphorPersistenceTests
 {
     [AvaloniaFact]
-    public void TheTwoAmberPresetsAreIndistinguishableByColourAlone()
+    public void SinglePhosphorIsASwitchNotAPresetOfItsOwn()
     {
-        // The premise, asserted rather than asserted-in-a-comment. If these ever stop being equal,
-        // the separate field is no longer needed and this test says so.
-        (string Name, string Fg, string Bg, bool Mono)? colour = null;
-        (string Name, string Fg, string Bg, bool Mono)? mono = null;
-
-        var presets = RetroTerm.Desktop.MainWindow.TerminalColorPresets;
-        for (int i = 0; i < presets.Length; i++)
+        // It used to be two extra presets ("Amber (single phosphor)" and "Green Phosphor (single
+        // phosphor)") that repeated Amber and Green Phosphor byte for byte. That made the list look
+        // duplicated, and because a saved connection was matched back to a preset by colour alone,
+        // a single-phosphor connection reloaded as the plain preset. Now the flag is its own
+        // checkbox that applies to ANY pair, and no two presets share their colours.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var preset in TerminalColourPresets.BuiltIn)
         {
-            if (presets[i].Name == "Amber") colour = presets[i];
-            if (presets[i].Name == "Amber (single phosphor)") mono = presets[i];
+            Assert.DoesNotContain("single phosphor", preset.Name, StringComparison.OrdinalIgnoreCase);
+            Assert.True(seen.Add(preset.Foreground + "/" + preset.Background),
+                $"{preset.Name} repeats the colours of another preset");
         }
+    }
 
-        Assert.NotNull(colour);
-        Assert.NotNull(mono);
-        Assert.Equal(colour!.Value.Fg, mono!.Value.Fg);
-        Assert.Equal(colour.Value.Bg, mono.Value.Bg);
-        Assert.NotEqual(colour.Value.Mono, mono.Value.Mono);
+    [AvaloniaFact]
+    public void ASavedSinglePhosphorConnectionIsMatchedBackToItsPresetWithoutLosingTheFlag()
+    {
+        // The colours match "Amber"; the flag is separate and stays with the connection.
+        var matched = TerminalColourPresets.FindByColours("#FFBF00", "#0A0800");
+        Assert.Equal("Amber", matched?.Name);
+
+        var clone = new HostConfiguration
+        {
+            ForegroundColor = "#FFBF00",
+            BackgroundColor = "#0A0800",
+            SinglePhosphor = true,
+        }.Clone();
+        Assert.True(clone.SinglePhosphor);
     }
 
     [AvaloniaFact]

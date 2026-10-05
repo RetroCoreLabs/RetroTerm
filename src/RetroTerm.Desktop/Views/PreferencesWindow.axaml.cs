@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Protocols.WebSocket.Gateway;
 using RetroTerm.Core.Protocols.WebSocket.Gateway.Ethernet;
 using RetroTerm.Desktop.Themes;
@@ -50,7 +51,135 @@ public partial class PreferencesWindow : Window
         InitializeComponent();
         PopulateThemes();
         LoadCurrentSettings();
+        LoadTerminalColours();
         _initializing = false;
+    }
+
+    private const string FollowThemeItem = "Follow the window theme";
+    private const string CustomItem = "Custom...";
+    private string? _lastColourItem;
+
+    private static string[] BuildColourItems()
+    {
+        var items = new List<string> { FollowThemeItem };
+        foreach (var preset in TerminalColourPresets.All) items.Add(preset.Name);
+        items.Add(CustomItem);
+        return items.ToArray();
+    }
+
+    /// <summary>
+    /// Shows the saved default (or "follow the window theme"), without writing anything back.
+    /// </summary>
+    private void LoadTerminalColours()
+    {
+        var combo = this.FindControl<ComboBox>("TerminalColourCombo");
+        var mono = this.FindControl<CheckBox>("TerminalMonoCheck");
+        if (combo == null) return;
+
+        var tm = ThemeManager.Instance;
+        var wasInitializing = _initializing;
+        _initializing = true;
+        try
+        {
+            combo.ItemsSource = BuildColourItems();
+            string selected;
+            if (tm.DefaultTerminalForeground == null || tm.DefaultTerminalBackground == null)
+                selected = FollowThemeItem;
+            else
+                selected = TerminalColourPresets.FindByColours(tm.DefaultTerminalForeground, tm.DefaultTerminalBackground)?.Name
+                           ?? CustomItem;
+            combo.SelectedItem = selected;
+            _lastColourItem = selected;
+            if (mono != null) mono.IsChecked = tm.DefaultTerminalSinglePhosphor;
+        }
+        finally
+        {
+            _initializing = wasInitializing;
+        }
+
+        RefreshTerminalSwatch();
+    }
+
+    private async void OnTerminalColourChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_initializing) return;
+        var combo = this.FindControl<ComboBox>("TerminalColourCombo");
+        if (combo?.SelectedItem is not string item) return;
+
+        var tm = ThemeManager.Instance;
+        bool mono = this.FindControl<CheckBox>("TerminalMonoCheck")?.IsChecked == true;
+
+        if (item == FollowThemeItem)
+        {
+            tm.SetTerminalDefaults(null, null, mono);
+            _lastColourItem = item;
+        }
+        else if (item == CustomItem)
+        {
+            var previous = _lastColourItem;
+            var now = tm.ResolveTerminalColours();
+            var result = await TerminalColourPickerDialog.ShowAsync(this, now.Foreground, now.Background);
+            if (result == null)
+            {
+                _initializing = true;
+                try { combo.SelectedItem = previous ?? FollowThemeItem; }
+                finally { _initializing = false; }
+            }
+            else
+            {
+                tm.SetTerminalDefaults(result.Foreground, result.Background, mono);
+                LoadTerminalColours();   // a preset saved in the picker is in the list now
+                return;
+            }
+        }
+        else
+        {
+            foreach (var preset in TerminalColourPresets.All)
+            {
+                if (preset.Name != item) continue;
+                tm.SetTerminalDefaults(preset.Foreground, preset.Background, mono);
+                _lastColourItem = item;
+                break;
+            }
+        }
+
+        RefreshTerminalSwatch();
+    }
+
+    private void OnTerminalMonoChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+        var tm = ThemeManager.Instance;
+        bool mono = this.FindControl<CheckBox>("TerminalMonoCheck")?.IsChecked == true;
+        tm.SetTerminalDefaults(tm.DefaultTerminalForeground, tm.DefaultTerminalBackground, mono);
+        RefreshTerminalSwatch();
+    }
+
+    /// <summary>
+    /// Updates the sample and the low-contrast warning from what the default resolves to now.
+    /// </summary>
+    private void RefreshTerminalSwatch()
+    {
+        var swatch = this.FindControl<Border>("TerminalColourSwatch");
+        var sample = this.FindControl<TextBlock>("TerminalColourSample");
+        var warning = this.FindControl<TextBlock>("TerminalColourWarning");
+
+        var resolved = ThemeManager.Instance.ResolveTerminalColours();
+        if (swatch != null && sample != null &&
+            TerminalColourMath.TryParseHex(resolved.Foreground, out var f) &&
+            TerminalColourMath.TryParseHex(resolved.Background, out var b))
+        {
+            swatch.Background = new SolidColorBrush(Color.FromRgb(b.R, b.G, b.B));
+            sample.Foreground = new SolidColorBrush(Color.FromRgb(f.R, f.G, f.B));
+            sample.FontFamily = new FontFamily(RetroTerm.Desktop.Rendering.SystemFontRenderer.DefaultFontFamily);
+        }
+
+        if (warning != null)
+        {
+            var text = TerminalColourMath.ContrastWarning(resolved.Foreground, resolved.Background);
+            warning.Text = text == null ? "" : "\u26A0 " + text;
+            warning.IsVisible = text != null;
+        }
     }
 
     private void PopulateThemes()
@@ -140,6 +269,8 @@ public partial class PreferencesWindow : Window
         {
             ThemeManager.Instance.ApplyTheme(theme);
             UpdatePreview(theme);
+            // When the default follows the window theme, the sample follows it too.
+            RefreshTerminalSwatch();
         }
     }
 

@@ -75,6 +75,45 @@
                             </Border>
                         </StackPanel>
                     </Border>
+                    <!-- Terminal colours: the default for every terminal whose connection saved none -->
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Terminal colours"
+                                       Foreground="{DynamicResource SectionHeader2Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="The text and background colours of a terminal whose connection did not save colours of its own. A connection's own colours, or a tab's Terminal Color menu, still win."
+                                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                       TextWrapping="Wrap" Margin="4,0"/>
+                            <Grid ColumnDefinitions="120,*" Margin="4,0">
+                                <TextBlock Grid.Column="0" Text="Default colours:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" Name="TerminalColourCombo"
+                                          FontSize="12" Padding="6,4" MinWidth="220" HorizontalAlignment="Left"
+                                          Background="{DynamicResource SecondaryButtonBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                          SelectionChanged="OnTerminalColourChanged"/>
+                            </Grid>
+                            <Border Name="TerminalColourSwatch" Width="260" Padding="10,6" CornerRadius="3"
+                                    BorderThickness="1" HorizontalAlignment="Left" Margin="4,0"
+                                    BorderBrush="{DynamicResource BorderBrush}">
+                                <TextBlock Name="TerminalColourSample" Text="Sample text  0123456789" FontSize="13"/>
+                            </Border>
+                            <TextBlock Name="TerminalColourWarning" FontSize="12" TextWrapping="Wrap" Margin="4,0"
+                                       Foreground="{DynamicResource WarningBrush}" IsVisible="False"/>
+                            <CheckBox Name="TerminalMonoCheck"
+                                      Content="Single phosphor (draw the ANSI colours as brightnesses of the text colour, like a one-colour CRT)"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,0"
+                                      IsCheckedChanged="OnTerminalMonoChanged"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </TabItem>
 

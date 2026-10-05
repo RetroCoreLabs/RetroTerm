@@ -85,6 +85,79 @@ public sealed class ThemeManager
 
     public ThemeDefinition CurrentTheme => _currentTheme;
 
+    // ── Default terminal colours ────────────────────────────────────
+    // What a terminal looks like when its connection did not save colours of its own. Null means
+    // "follow the window theme" (each theme carries a matching pair), which is the default.
+
+    /// <summary>
+    /// Default terminal foreground as hex, or null to follow the window theme.
+    /// </summary>
+    public string? DefaultTerminalForeground { get; private set; }
+
+    /// <summary>
+    /// Default terminal background as hex, or null to follow the window theme.
+    /// </summary>
+    public string? DefaultTerminalBackground { get; private set; }
+
+    /// <summary>
+    /// Whether terminals without their own colours draw the sixteen ANSI colours as brightnesses
+    /// of one hue. Applies to the default pair and to the theme's pair alike.
+    /// </summary>
+    public bool DefaultTerminalSinglePhosphor { get; private set; }
+
+    /// <summary>
+    /// Raised when the default terminal colours changed, so open terminals that use them redraw.
+    /// A window theme change raises <see cref="ThemeChanged"/> instead, and terminals follow both.
+    /// </summary>
+    public event Action? TerminalDefaultsChanged;
+
+    /// <summary>
+    /// Sets the default terminal colours and saves them.
+    /// </summary>
+    /// <param name="foreground">
+    /// Foreground hex, or null together with <paramref name="background"/> to follow the window theme.
+    /// </param>
+    /// <param name="background">
+    /// Background hex, or null together with <paramref name="foreground"/> to follow the window theme.
+    /// </param>
+    /// <param name="singlePhosphor">
+    /// Whether to collapse the ANSI colours onto one hue.
+    /// </param>
+    /// <param name="persist">
+    /// False in tests, so a test run never overwrites the user's real preferences.
+    /// </param>
+    public void SetTerminalDefaults(string? foreground, string? background, bool singlePhosphor, bool persist = true)
+    {
+        bool valid = RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(foreground, out _)
+                     && RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(background, out _);
+
+        DefaultTerminalForeground = valid ? RetroTerm.Core.Configuration.TerminalColourMath.Normalise(foreground!) : null;
+        DefaultTerminalBackground = valid ? RetroTerm.Core.Configuration.TerminalColourMath.Normalise(background!) : null;
+        DefaultTerminalSinglePhosphor = singlePhosphor;
+
+        if (persist) SavePreferences();
+        TerminalDefaultsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The colours a terminal gets, given what its connection saved (null for nothing).
+    /// </summary>
+    /// <param name="connectionForeground">
+    /// The connection's saved foreground, if any.
+    /// </param>
+    /// <param name="connectionBackground">
+    /// The connection's saved background, if any.
+    /// </param>
+    /// <param name="connectionSinglePhosphor">
+    /// The connection's single-phosphor flag.
+    /// </param>
+    public ResolvedTerminalColours ResolveTerminalColours(
+        string? connectionForeground = null, string? connectionBackground = null, bool connectionSinglePhosphor = false)
+        => TerminalColourResolver.Resolve(
+            connectionForeground, connectionBackground, connectionSinglePhosphor,
+            DefaultTerminalForeground, DefaultTerminalBackground, DefaultTerminalSinglePhosphor,
+            _currentTheme);
+
     public event Action? ThemeChanged;
 
     private ThemeManager()
@@ -283,6 +356,12 @@ public sealed class ThemeManager
             writer.WriteLine($"eth-mapping={(int)EthernetMapping}");
             writer.WriteLine($"eth-target={EthernetTarget}");
             writer.WriteLine($"eth-segment={EthernetSegment}");
+            if (DefaultTerminalForeground != null && DefaultTerminalBackground != null)
+            {
+                writer.WriteLine($"terminal-fg={DefaultTerminalForeground}");
+                writer.WriteLine($"terminal-bg={DefaultTerminalBackground}");
+            }
+            writer.WriteLine($"terminal-mono={DefaultTerminalSinglePhosphor}");
         }
         catch
         {
@@ -297,6 +376,8 @@ public sealed class ThemeManager
             if (!File.Exists(PreferencesPath)) return;
 
             string[] lines = File.ReadAllLines(PreferencesPath);
+            string? storedTerminalForeground = null;
+            string? storedTerminalBackground = null;
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
@@ -341,6 +422,20 @@ public sealed class ThemeManager
                     EthernetTarget = value;
                 else if (key == "eth-segment" && int.TryParse(value, out var es) && es >= 0 && es <= 255)
                     EthernetSegment = es;
+                else if (key == "terminal-fg" && RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(value, out _))
+                    storedTerminalForeground = RetroTerm.Core.Configuration.TerminalColourMath.Normalise(value);
+                else if (key == "terminal-bg" && RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(value, out _))
+                    storedTerminalBackground = RetroTerm.Core.Configuration.TerminalColourMath.Normalise(value);
+                else if (key == "terminal-mono")
+                    DefaultTerminalSinglePhosphor = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Only a complete pair counts, so a half-written file cannot give a terminal one colour
+            // from the file and the other from the theme.
+            if (storedTerminalForeground != null && storedTerminalBackground != null)
+            {
+                DefaultTerminalForeground = storedTerminalForeground;
+                DefaultTerminalBackground = storedTerminalBackground;
             }
         }
         catch

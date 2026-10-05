@@ -61,6 +61,20 @@ public sealed class TabSession : IDisposable
     public string? ColorPreset { get; set; }
 
     /// <summary>
+    /// The colours the user picked from THIS tab's context menu, or null when they have not. While
+    /// set it outranks the connection's colours, the Preferences default and the window theme, and
+    /// the tab no longer follows theme or default changes. "Default" in the menu clears it.
+    /// Session-only, like <see cref="ColorPreset"/>.
+    /// </summary>
+    public RetroTerm.Desktop.Themes.ResolvedTerminalColours? TabColourOverride { get; set; }
+
+    /// <summary>
+    /// The colours the terminal is drawing with now, whichever rule chose them. The tab menu reads
+    /// it to tick the right entry, and to build "single phosphor" on top of what is showing.
+    /// </summary>
+    public RetroTerm.Desktop.Themes.ResolvedTerminalColours? CurrentColours { get; set; }
+
+    /// <summary>
     /// When true, suppress "Connection closed" dialogs. Used during SSH host key
     /// verification where a rejected key causes a disconnect that should not show
     /// a spurious error dialog.
