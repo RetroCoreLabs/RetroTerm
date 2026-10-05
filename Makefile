@@ -71,7 +71,7 @@ check-built:
 install: $(INSTALL_DEP)
 	$(INSTALL) -d "$(DESTDIR)$(APPDIR)"
 	$(INSTALL) -d "$(DESTDIR)$(BINDIR)"
-	cp -a "$(PUBLISH_DIR)/." "$(DESTDIR)$(APPDIR)/"
+	cp -a --remove-destination "$(PUBLISH_DIR)/." "$(DESTDIR)$(APPDIR)/"
 	chmod +x "$(DESTDIR)$(APPDIR)/$(APP_BIN)"
 	printf '#!/bin/sh\nexec "%s/%s" "$$@"\n' "$(APPDIR)" "$(APP_BIN)" > "$(DESTDIR)$(BINDIR)/retroterm"
 	chmod +x "$(DESTDIR)$(BINDIR)/retroterm"
