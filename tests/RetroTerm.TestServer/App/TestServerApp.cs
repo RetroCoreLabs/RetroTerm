@@ -1611,13 +1611,15 @@ public partial class TestServerApp : ITelnetApp
         await session.WriteAsync("\r\nTesting ND Graphics Sequences:\r\n");
         await session.WriteAsync("NDDWA (Define Work Area): \x1b[10;10;100;50~\r\n");
         await Task.Delay(300);
-        await session.WriteAsync("NDSAR (Set Attribute Rectangle): \x1b[1;10;10;100;50z\r\n");
+        // Corners first, then the attribute or character (ND-1200 sections 5.50, 5.36, 5.46, 5.43).
+        // NDRAR is 7C '|' and NDFC is 7D '}'; this demo had them the wrong way round.
+        await session.WriteAsync("NDSAR (Set Attribute Rectangle): \x1b[10;10;100;50;7z\r\n");
         await Task.Delay(300);
-        await session.WriteAsync("NDAAR (Add Attribute Rectangle): \x1b[2;10;10;100;50{\r\n");
+        await session.WriteAsync("NDAAR (Add Attribute Rectangle): \x1b[10;10;100;50;2{\r\n");
         await Task.Delay(300);
-        await session.WriteAsync("NDRAR (Remove Attribute Rectangle): \x1b[1;10;10;100;50}\r\n");
+        await session.WriteAsync("NDRAR (Remove Attribute Rectangle): \x1b[10;10;100;50;7|\r\n");
         await Task.Delay(300);
-        await session.WriteAsync("NDFC (Fill Character Rectangle): \x1b[65;10;10;100;50|\r\n");
+        await session.WriteAsync("NDFC (Fill Character Rectangle): \x1b[10;10;100;50;65}\r\n");
         await Task.Delay(300);
         await session.WriteAsync("NDSREC (Save Rectangle): \x1b[10;10;100;50u\r\n");
         await Task.Delay(300);
@@ -1889,25 +1891,25 @@ public partial class TestServerApp : ITelnetApp
         await Task.Delay(300);
 
         await session.WriteAsync("NDSAR (Set Attribute Rectangle): ");
-        var ndsar = TDVSequenceBuilder.BuildNDSAR(1, 10, 10, 100, 50);
+        var ndsar = TDVSequenceBuilder.BuildNDSAR(10, 10, 100, 50, 7);
         await session.WriteBytesAsync(ndsar);
         await session.WriteAsync($" {TDVSequenceBuilder.ToVisibleString(ndsar)}\r\n");
         await Task.Delay(300);
 
         await session.WriteAsync("NDAAR (Add Attribute Rectangle): ");
-        var ndaar = TDVSequenceBuilder.BuildNDAAR(2, 10, 10, 100, 50);
+        var ndaar = TDVSequenceBuilder.BuildNDAAR(10, 10, 100, 50, 2);
         await session.WriteBytesAsync(ndaar);
         await session.WriteAsync($" {TDVSequenceBuilder.ToVisibleString(ndaar)}\r\n");
         await Task.Delay(300);
 
         await session.WriteAsync("NDRAR (Remove Attribute Rectangle): ");
-        var ndrar = TDVSequenceBuilder.BuildNDRAR(1, 10, 10, 100, 50);
+        var ndrar = TDVSequenceBuilder.BuildNDRAR(10, 10, 100, 50, 7);
         await session.WriteBytesAsync(ndrar);
         await session.WriteAsync($" {TDVSequenceBuilder.ToVisibleString(ndrar)}\r\n");
         await Task.Delay(300);
 
         await session.WriteAsync("NDFC (Fill Character Rectangle): ");
-        var ndfc = TDVSequenceBuilder.BuildNDFC(65, 10, 10, 100, 50); // 'A' = 65
+        var ndfc = TDVSequenceBuilder.BuildNDFC(10, 10, 100, 50, 65); // 'A' = 65
         await session.WriteBytesAsync(ndfc);
         await session.WriteAsync($" {TDVSequenceBuilder.ToVisibleString(ndfc)}\r\n");
         await Task.Delay(300);
@@ -2665,14 +2667,14 @@ public partial class TestServerApp : ITelnetApp
 
         // Draw a test rectangle with NDSAR
         await session.WriteAsync("Drawing test rectangle with NDSAR...\r\n");
-        var ndsarSequence = TDVSequenceBuilder.BuildNDSAR(1, 10, 5, 20, 10); // Set bold in rectangle
+        var ndsarSequence = TDVSequenceBuilder.BuildNDSAR(10, 5, 20, 10, 7); // Set inverse in rectangle
         await session.WriteBytesAsync(ndsarSequence);
         await session.WriteAsync($"  Sequence: {TDVSequenceBuilder.ToVisibleString(ndsarSequence)}\r\n");
         await Task.Delay(500);
 
         // Fill rectangle with character
         await session.WriteAsync("\r\nFilling rectangle with character...\r\n");
-        var ndfcSequence = TDVSequenceBuilder.BuildNDFC(65, 10, 5, 20, 10); // Fill with 'A' (ASCII 65)
+        var ndfcSequence = TDVSequenceBuilder.BuildNDFC(10, 5, 20, 10, 65); // Fill with 'A' (ASCII 65)
         await session.WriteBytesAsync(ndfcSequence);
         await session.WriteAsync($"  Sequence: {TDVSequenceBuilder.ToVisibleString(ndfcSequence)}\r\n");
         await Task.Delay(500);
@@ -2865,9 +2867,9 @@ public partial class TestServerApp : ITelnetApp
         if (ValidateFeature("NDGraphics"))
         {
             await session.WriteAsync("\r\n\x1b[1;36mDrawing Operations Demo:\x1b[0m\r\n");
-            var ndsarDemo = TDVSequenceBuilder.BuildNDSAR(1, 10, 10, 30, 15); // Set bold in rectangle
+            var ndsarDemo = TDVSequenceBuilder.BuildNDSAR(10, 10, 30, 15, 7); // Set inverse in rectangle
             await session.WriteBytesAsync(ndsarDemo);
-            var ndfcDemo = TDVSequenceBuilder.BuildNDFC(65, 10, 10, 30, 15); // Fill with 'A'
+            var ndfcDemo = TDVSequenceBuilder.BuildNDFC(10, 10, 30, 15, 65); // Fill with 'A'
             await session.WriteBytesAsync(ndfcDemo);
             await session.WriteAsync("  Rectangle operations executed\r\n");
             await Task.Delay(1000);

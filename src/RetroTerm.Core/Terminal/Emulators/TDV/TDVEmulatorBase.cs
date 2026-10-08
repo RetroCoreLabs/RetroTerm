@@ -926,81 +926,170 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
     }
 
     /// <summary>
-    /// Handles NDAAR - Add Attribute in Rectangle, <c>CSI attr;top;left;bottom;right {</c>.
+    /// Reads the rectangle of NDSAR, NDAAR, NDRAR and NDFC: <c>CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an</c>.
+    /// Returns false when the sequence is to be ignored.
+    /// </summary>
+    /// <param name="parameters">The CSI parameters, corners first.</param>
+    /// <param name="left">The left column, 0-based.</param>
+    /// <param name="top">The top row, 0-based.</param>
+    /// <param name="right">The right column, 0-based.</param>
+    /// <param name="bottom">The bottom row, 0-based.</param>
+    /// <param name="rest">What follows the four corners: attribute numbers, or character codes for NDFC.</param>
+    /// <returns>True when the corners are usable.</returns>
+    /// <remarks>
+    /// <para>Fixed 8 October 2026 (BUGS.md B1). These four handlers used to read the attribute or
+    /// the character FIRST and then four 0-based corners. ND Display Terminal 1200 gives the corners
+    /// first and the attributes or characters last (NDSAR 5.50, NDAAR 5.36, NDRAR 5.46, NDFC
+    /// 5.43), and counts from 1: 5.41 calls the work area's upper left corner "the home position
+    /// with coordinates 1,1".</para>
+    /// <para>No parameters at all means the default, "full screen or whole work area", which is the
+    /// current work area (the whole screen when none is defined). One to three parameters are
+    /// ignored: the manual does not say what they mean (BUGS.md B3). A second corner above or left
+    /// of the first is ignored, as each section's error handling says.</para>
+    /// <para>The manual also says the coordinates are relative to the work area while 'Origin Mode'
+    /// is on (private mode 6, <c>CSI ? 6 h</c>). The base class keeps that switch as DEC's DECOM,
+    /// which is relative to the scroll region and not to the TDV work area, and these functions do
+    /// not look at it, so their coordinates are always screen coordinates (BUGS.md B4).</para>
+    /// </remarks>
+    private bool TryReadRectangle(ReadOnlySpan<int> parameters, out int left, out int top, out int right, out int bottom, out ReadOnlySpan<int> rest)
+    {
+        left = 0;
+        top = 0;
+        right = 0;
+        bottom = 0;
+        rest = ReadOnlySpan<int>.Empty;
+
+        if (parameters.Length == 0)
+        {
+            (left, top, right, bottom) = WorkAreas.GetCurrentWorkArea();
+            return true;
+        }
+
+        // BUGS.md B3: one to three parameters. KNOWN: the manual's DEFAULT line for each of these
+        // functions covers only a missing rectangle ("full screen or whole work area"; NDFC "fill
+        // the current work area with space"; NDWA "the entire screen"). NOT KNOWN: what the terminal
+        // does with a partial list - fill the missing corners from the defaults, treat it as an
+        // error, or ignore it. No text held here says (see the note in HandleFillCharacter for
+        // where was looked). Ignoring is the safe choice, not a reading of the manual.
+        if (parameters.Length < 4) return false;
+
+        // The manual counts from 1; the buffer from 0. A 0 (an omitted parameter) lands on the
+        // first line or column, as it does for CUP.
+        top = Math.Max(0, parameters[0] - 1);
+        left = Math.Max(0, parameters[1] - 1);
+        bottom = Math.Max(0, parameters[2] - 1);
+        right = Math.Max(0, parameters[3] - 1);
+
+        if (bottom < top || right < left) return false;
+
+        rest = parameters.Slice(4);
+        return true;
+    }
+
+    /// <summary>
+    /// Handles NDAAR - Add Attribute in Rectangle, <c>CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an {</c>.
     /// </summary>
     /// <param name="parameters">
-    /// The attribute followed by the four 0-indexed corners.
+    /// The two corners, 1-based, then the attribute numbers of the SGR table.
     /// </param>
     /// <remarks>
-    /// Adds the attribute to the cells without clearing the ones already there. Lifted out of
+    /// Adds the attributes to the cells without clearing the ones already there. Lifted out of
     /// TDV2200Emulator on 11 September 2026 so the 2215 gets it too - ND Display Terminal 1200
-    /// section 2.8 lists NDAAR, NDRAR and NDFC for the family, not for one model.
+    /// section 2.8 lists NDAAR, NDRAR and NDFC for the family, not for one model. The parameter
+    /// layout was corrected on 8 October 2026, see TryReadRectangle.
     /// </remarks>
     protected virtual void HandleAddAttributeInRectangle(ReadOnlySpan<int> parameters)
     {
-        if (parameters.Length < 5) return;
+        if (!TryReadRectangle(parameters, out var left, out var top, out var right, out var bottom, out var attributes)) return;
 
-        var attr = parameters[0];
-        var top = Math.Max(0, parameters[1]);
-        var left = Math.Max(0, parameters[2]);
-        var bottom = Math.Max(0, parameters[3]);
-        var right = Math.Max(0, parameters[4]);
-
-        RectangleOperations.AddAttributeInRectangle(Buffer, attr, left, top, right, bottom);
+        RectangleOperations.AddAttributeInRectangle(Buffer, attributes, left, top, right, bottom);
         OnInvalidated();
     }
 
     /// <summary>
-    /// Handles NDRAR - Remove Attribute in Rectangle, <c>CSI attr;top;left;bottom;right |</c>.
+    /// Handles NDRAR - Remove Attribute in Rectangle, <c>CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an |</c>.
     /// </summary>
     /// <param name="parameters">
-    /// The attribute followed by the four 0-indexed corners.
+    /// The two corners, 1-based, then the attribute numbers of the SGR table.
     /// </param>
     /// <remarks>
     /// The final byte is <c>|</c>, hex 7C. It was <c>}</c> here until 11 September 2026, swapped
     /// with NDFC - both the ND-1200 table in section 2.8 and the TDV 2200 CSI table give 7C as
-    /// NDRAR and 7D as NDFC.
+    /// NDRAR and 7D as NDFC. The parameter layout was corrected on 8 October 2026, see
+    /// TryReadRectangle.
     /// </remarks>
     protected virtual void HandleRemoveAttributeInRectangle(ReadOnlySpan<int> parameters)
     {
-        if (parameters.Length < 5) return;
+        if (!TryReadRectangle(parameters, out var left, out var top, out var right, out var bottom, out var attributes)) return;
 
-        var attr = parameters[0];
-        var top = Math.Max(0, parameters[1]);
-        var left = Math.Max(0, parameters[2]);
-        var bottom = Math.Max(0, parameters[3]);
-        var right = Math.Max(0, parameters[4]);
-
-        RectangleOperations.RemoveAttributeInRectangle(Buffer, attr, left, top, right, bottom);
+        RectangleOperations.RemoveAttributeInRectangle(Buffer, attributes, left, top, right, bottom);
         OnInvalidated();
     }
 
     /// <summary>
-    /// Handles NDFC - Fill Character in Rectangle, <c>CSI char;top;left;bottom;right }</c>.
+    /// Handles NDFC - Fill Character(s) in Rectangle, <c>CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an }</c>.
     /// </summary>
     /// <param name="parameters">
-    /// The character code followed by the four 0-indexed corners.
+    /// The two corners, 1-based, then the character code or codes.
     /// </param>
     /// <remarks>
-    /// The final byte is <c>}</c>, hex 7D. See the remarks on HandleRemoveAttributeInRectangle for
-    /// the swap this corrects.
+    /// <para>The final byte is <c>}</c>, hex 7D. See the remarks on HandleRemoveAttributeInRectangle
+    /// for the swap this corrects. The parameter layout was corrected on 8 October 2026, see
+    /// TryReadRectangle.</para>
+    /// <para>With no character the rectangle is filled with a space (5.43, "Fill the current work
+    /// area with space"). One character fills it. The manual allows a string of up to ten
+    /// characters but does not say how a string is laid out over the rectangle, so a string is
+    /// counted as an unrecognised sequence and draws nothing (BUGS.md B3).</para>
     /// </remarks>
     protected virtual void HandleFillCharacter(ReadOnlySpan<int> parameters)
     {
-        if (parameters.Length < 5) return;
+        if (!TryReadRectangle(parameters, out var left, out var top, out var right, out var bottom, out var characters)) return;
 
-        var charCode = parameters[0];
-        var top = Math.Max(0, parameters[1]);
-        var left = Math.Max(0, parameters[2]);
-        var bottom = Math.Max(0, parameters[3]);
-        var right = Math.Max(0, parameters[4]);
+        if (characters.Length > 1)
+        {
+            // BUGS.md B3 - WHAT IS KNOWN, AND WHAT IS NOT. Checked 8 October 2026.
+            //
+            // KNOWN, from ND Display Terminal 1200 (ND-12054-1) section 5.43, spec\TDV1200:
+            //   - The sequence is CSI l1 ; c1 ; l2 ; c2 ; a1 ; .... an }  (hex 7D).
+            //   - FUNCTION: "NDFC is a sequence to fill the rectangle defined by l1, c1, l2, and c2
+            //     with a character or a string of characters. The string of characters is
+            //     restricted to the current G0 and G1 set and may not exceed 10 characters."
+            //   - DEFAULT: "Fill the current work area with space."
+            //   - PARAMETERS lists only the corners. It never says what a1 ... an are, so that they
+            //     are character codes (decimal, one parameter each) is read from FUNCTION, not stated.
+            //   - ERROR HANDLING: l2 >= l1 and c2 >= c1, otherwise ignored with a parameter error.
+            //
+            // NOT KNOWN, and not in any text held here:
+            //   - How a string of 2 to 10 characters is laid out over the rectangle: repeated along
+            //     each line, repeated across the whole rectangle in reading order, restarted on every
+            //     line, or the first N cells of a line only.
+            //   - What a string longer than ten characters does (the manual says only "may not
+            //     exceed"). What a character outside the current G0 and G1 sets does.
+            //   - Whether a1 ... an are character codes or something else.
+            //
+            // WHERE IT WAS LOOKED FOR, and is not: the TDV 2215, TDV 2115 and TDV 2200 files under
+            // spec (the 2200 manuals there have no rectangle text at all), the CSI tables in
+            // spec\TDV2200\Testing2200_9S (names and finals only, "CSI ms }"), docs, the retired
+            // documents in garbage (they give the old attribute-first order and no layout), and the
+            // web (no document defining NDFC turned up). The 2215 Functional Specifications, number
+            // 385604, would be the next place, and a real terminal the final answer.
+            //
+            // So this does NOT guess a layout. Any layout drawn here would look plausible and be
+            // wrong in an unknown way, and nothing would fail. It is counted as an unrecognised
+            // sequence so a host that sends one shows up in the counter. The test
+            // NdfcWithAStringOfSeveralCharactersIsNotImplementedYet pins this and must change with it.
+            CountUnrecognisedSequence("NDFC with a string of characters");
+            return;
+        }
+
+        uint codepoint = characters.Length == 0 ? (uint)' ' : (uint)characters[0];
 
         for (int row = top; row <= bottom && row < Height; row++)
         {
             for (int col = left; col <= right && col < Width; col++)
             {
                 ref var cell = ref Buffer[row, col];
-                cell.Codepoint = (uint)charCode;
+                cell.Codepoint = codepoint;
             }
         }
 
@@ -1008,22 +1097,21 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
     }
 
     /// <summary>
-    /// Handles NDSAR - Set Attribute in Rectangle
-    /// TDV rectangle operations use 0-indexed coordinates
+    /// Handles NDSAR - Set Attribute in Rectangle, <c>CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an z</c>.
     /// </summary>
+    /// <param name="parameters">
+    /// The two corners, 1-based, then the attribute numbers of the SGR table.
+    /// </param>
+    /// <remarks>
+    /// The aspects the cells had are reset and the ones given are set (5.50); no attribute number
+    /// gives normal rendition. BUGS.md B1: this read the attribute first and the corners 0-based
+    /// until 8 October 2026. See TryReadRectangle.
+    /// </remarks>
     protected virtual void HandleSetAttributeInRectangle(ReadOnlySpan<int> parameters)
     {
-        if (parameters.Length < 5) return;
+        if (!TryReadRectangle(parameters, out var left, out var top, out var right, out var bottom, out var attributes)) return;
 
-        var attr = parameters[0];
-        // TDV rectangle operations use 0-indexed coordinates (unlike standard CSI)
-        var row1 = Math.Max(0, parameters[1]);
-        var col1 = Math.Max(0, parameters[2]);
-        var row2 = Math.Max(0, parameters[3]);
-        var col2 = Math.Max(0, parameters[4]);
-
-        // SetAttributeInRectangle expects (attr, x1, y1, x2, y2) where x=column, y=row
-        RectangleOperations.SetAttributeInRectangle(Buffer, attr, col1, row1, col2, row2);
+        RectangleOperations.SetAttributeInRectangle(Buffer, attributes, left, top, right, bottom);
         OnInvalidated();
     }
 
@@ -1063,18 +1151,34 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
     }
 
     /// <summary>
-    /// Handles NDDWA - Define Work Area
-    /// TDV rectangle operations use 0-indexed coordinates
+    /// Handles NDDWA - Define Work Area, <c>CSI l1 ; c1 ; l2 ; c2 ~</c>
     /// </summary>
+    /// <remarks>
+    /// <para>The corners count from 1: ND Display Terminal 1200 section 5.41 calls the work area's
+    /// upper left corner "the home position with coordinates 1,1". They were read as 0-based until
+    /// 8 October 2026 (BUGS.md B1). With no parameters the default is the entire screen. A second
+    /// corner above or left of the first is ignored, as section 5.41 says. One to three
+    /// parameters are ignored too; the manual does not say what they mean (BUGS.md B3).</para>
+    /// <para>Section 5.41 also says the cursor goes to the home position, and that with Origin Mode
+    /// on the work area's upper left corner becomes coordinates 1,1. Neither is done here
+    /// (BUGS.md B4).</para>
+    /// </remarks>
     protected virtual void HandleDefineWorkArea(ReadOnlySpan<int> parameters)
     {
+        if (parameters.Length == 0)
+        {
+            WorkAreas.Clear();
+            return;
+        }
+
         if (parameters.Length < 4) return;
 
-        // TDV rectangle operations use 0-indexed coordinates (unlike standard CSI)
-        var row1 = Math.Max(0, parameters[0]);
-        var col1 = Math.Max(0, parameters[1]);
-        var row2 = Math.Max(0, parameters[2]);
-        var col2 = Math.Max(0, parameters[3]);
+        var row1 = Math.Max(0, parameters[0] - 1);
+        var col1 = Math.Max(0, parameters[1] - 1);
+        var row2 = Math.Max(0, parameters[2] - 1);
+        var col2 = Math.Max(0, parameters[3] - 1);
+
+        if (row2 < row1 || col2 < col1) return;
 
         // DefineWorkArea expects (x1, y1, x2, y2) where x=column, y=row
         WorkAreas.DefineWorkArea(col1, row1, col2, row2);
@@ -1575,8 +1679,11 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
     /// </summary>
     protected virtual string HandleSecondaryDeviceAttributesQuery()
     {
-        // Return model-specific version info
-        return "\x1b[?1;0;0c";
+        // A secondary DA reply is marked with '>' ('?' marks the PRIMARY reply). Every TDV class
+        // overrides this with its own firmware id; this is only the default for a class that
+        // does not. Fixed 8 October 2026 (BUGS.md B2): it said '?', which a host would take for
+        // a primary reply.
+        return "\x1b[>1;0;0c";
     }
 
     /// <summary>
@@ -1632,14 +1739,10 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
         return false; // Base implementation - override in TDV1200
     }
 
-    /// <summary>
-    /// Handles work area query
-    /// </summary>
-    protected virtual string HandleWorkAreaQuery()
-    {
-        var (left, top, right, bottom) = WorkAreas.GetCurrentWorkArea();
-        return $"\x1b[?1;{left};{top};{right};{bottom}$y";
-    }
+    // HandleWorkAreaQuery was deleted on 8 October 2026 (BUGS.md B2), like the two helpers named
+    // below. Nothing called it. It answered with "CSI ? 1 ; l ; t ; r ; b $ y", a reply shape that
+    // comes from the same uncited documents as DECRQM on a TDV - no TDV manual has a dollar
+    // intermediate anywhere.
 
     // HandleLEDStatusQuery and HandleProtectedAreaQuery were deleted on 11 September 2026.
     //
@@ -1648,33 +1751,10 @@ public abstract class TDVEmulatorBase : TerminalEmulatorBase
     // dollar intermediate anywhere. If a real lamp or protected-area report is ever needed, NDRQ is
     // the sequence a TDV actually has: see BuildTerminalParameterReport.
 
-    /// <summary>
-    /// Handles PUSH key query
-    /// </summary>
-    protected virtual string HandlePUSHKeyQuery(int keyNumber)
-    {
-        var sequence = PushKeys.GetKeySequence(keyNumber);
-        if (string.IsNullOrEmpty(sequence))
-        {
-            return $"\x1b[?0;{keyNumber}$y";
-        }
-
-        // Return key definition (encoded)
-        var encoded = EncodeSequence(sequence);
-        return $"\x1b[?1;{keyNumber};{encoded}$y";
-    }
-
-    /// <summary>
-    /// Encodes a sequence for transmission
-    /// </summary>
-    protected virtual string EncodeSequence(string sequence)
-    {
-        // Simple encoding - replace special characters
-        return sequence.Replace("\x1b", "\\e")
-                      .Replace("\r", "\\r")
-                      .Replace("\n", "\\n")
-                      .Replace("\t", "\\t");
-    }
+    // HandlePUSHKeyQuery was deleted on 8 October 2026 (BUGS.md B2), together with EncodeSequence,
+    // which only it called. Nothing called the query, and it answered with the same
+    // "CSI ? ... $ y" shape that no TDV manual has. If a PUSH-key report is ever needed, find
+    // what a TDV really sends in the manuals before writing one.
 
     /// <summary>
     /// Processes query sequences and sends responses

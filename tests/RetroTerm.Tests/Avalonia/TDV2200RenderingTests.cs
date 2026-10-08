@@ -24,21 +24,23 @@ public class TDV2200RenderingTests
     #region Rectangle Attribute Rendering Tests
 
     [AvaloniaFact]
-    public void NDAAR_Bold_ShouldSetBoldAttributeInBuffer()
+    public void NDAAR_LowIntensity_ShouldSetDimAttributeInBuffer()
     {
         // Arrange
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(Encoding.UTF8.GetBytes("ABCDE"));
 
-        // Act - NDAAR: Add Bold (1) to rectangle 0,0-0,4
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'{' });
+        // Act - NDAAR: add low intensity (2) to line 1, columns 1-5. ND-1200 section 5.36: the
+        // corners first, then the attributes, counted from 1. Attribute 1 (bold) is "Ignored" in
+        // the SGR table of section 5.67.
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'2', (byte)'{' });
 
-        // Assert - Verify Bold attribute is set
+        // Assert - Verify the Dim attribute is set
         for (int col = 0; col <= 4; col++)
         {
             var cell = emulator.Buffer.GetCell(0, col);
-            Assert.True((cell.Attributes & CharacterAttributes.Bold) != 0,
-                $"Cell at column {col} should have Bold attribute for rendering");
+            Assert.True((cell.Attributes & CharacterAttributes.Dim) != 0,
+                $"Cell at column {col} should have Dim attribute for rendering");
         }
     }
 
@@ -49,8 +51,8 @@ public class TDV2200RenderingTests
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(Encoding.UTF8.GetBytes("TEST"));
 
-        // Act - NDAAR: Add Underline (4)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'3', (byte)'{' });
+        // Act - NDAAR: Add Underline (4) to line 1, columns 1-4: ESC[1;1;1;4;4{
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'4', (byte)';', (byte)'4', (byte)'{' });
 
         // Assert
         for (int col = 0; col <= 3; col++)
@@ -68,8 +70,8 @@ public class TDV2200RenderingTests
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(Encoding.UTF8.GetBytes("REVERSE"));
 
-        // Act - NDAAR: Add Reverse (7)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'7', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'6', (byte)'{' });
+        // Act - NDAAR: Add Reverse (7) to line 1, columns 1-7: ESC[1;1;1;7;7{
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'7', (byte)';', (byte)'7', (byte)'{' });
 
         // Assert
         for (int col = 0; col <= 6; col++)
@@ -83,24 +85,25 @@ public class TDV2200RenderingTests
     [AvaloniaFact]
     public void NDRAR_ShouldRemoveAttributeForRendering()
     {
-        // Arrange - Set bold text
+        // Arrange - Set low intensity text
         var emulator = new TDV2200Emulator(80, 24);
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'m' }); // Set bold
-        emulator.ProcessData(Encoding.UTF8.GetBytes("BOLD"));
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'2', (byte)'m' }); // Set low intensity
+        emulator.ProcessData(Encoding.UTF8.GetBytes("DIM "));
         emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'0', (byte)'m' }); // Reset
 
-        // Verify bold is set
-        Assert.True((emulator.Buffer.GetCell(0, 0).Attributes & CharacterAttributes.Bold) != 0);
+        // Verify low intensity is set
+        Assert.True((emulator.Buffer.GetCell(0, 0).Attributes & CharacterAttributes.Dim) != 0);
 
-        // Act - NDRAR: Remove Bold (1)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'3', (byte)'|' });
+        // Act - NDRAR: remove low intensity (2) from line 1, columns 1-4. ND-1200 section 5.46:
+        // the corners first, then the attributes, counted from 1.
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'4', (byte)';', (byte)'2', (byte)'|' });
 
-        // Assert - Bold should be removed
+        // Assert - Low intensity should be removed
         for (int col = 0; col <= 3; col++)
         {
             var cell = emulator.Buffer.GetCell(0, col);
-            Assert.True((cell.Attributes & CharacterAttributes.Bold) == 0,
-                $"Cell at column {col} should NOT have Bold attribute after NDRAR");
+            Assert.True((cell.Attributes & CharacterAttributes.Dim) == 0,
+                $"Cell at column {col} should NOT have Dim attribute after NDRAR");
         }
     }
 
@@ -204,10 +207,10 @@ public class TDV2200RenderingTests
         emulator.CharacterSetVariant = (int)TDV2200ISO646Variant.International; // Use International to avoid mapping
 
         // Act - NDFC: Fill rectangle with '*' (ASCII 42)
-        // Format: ESC[char;top;left;bottom;right}
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)'2', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'2', (byte)';', (byte)'4', (byte)'}' });
+        // ND-1200 section 5.43: ESC[l1;c1;l2;c2;char} - corners first, counted from 1.
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'3', (byte)';', (byte)'5', (byte)';', (byte)'4', (byte)'2', (byte)'}' });
 
-        // Assert - Rectangle 0,0 to 2,4 should be filled with '*'
+        // Assert - Rectangle buffer 0,0 to 2,4 (lines 1-3, columns 1-5) should be filled with '*'
         for (int row = 0; row <= 2; row++)
         {
             for (int col = 0; col <= 4; col++)
@@ -231,8 +234,8 @@ public class TDV2200RenderingTests
         }
         emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'H' }); // Home
 
-        // Act - Fill small rectangle with '#'
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'3', (byte)'5', (byte)';', (byte)'0', (byte)';', (byte)'2', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'}' });
+        // Act - Fill small rectangle with '#': line 1, columns 3-5 (buffer columns 2-4)
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'3', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'3', (byte)'5', (byte)'}' });
 
         // Assert - Positions 0,1 should still be 'X', positions 2-4 should be '#'
         Assert.Equal('X', (char)emulator.Buffer.GetCell(0, 0).Codepoint);
@@ -416,7 +419,7 @@ public class TDV2200RenderingTests
     #region NDSAR - Set Attribute in Rectangle Rendering Tests
 
     [AvaloniaFact]
-    public void NDSAR_ShouldSetBoldAndClearOtherAttributes()
+    public void NDSAR_ShouldSetLowIntensityAndClearOtherAttributes()
     {
         // Arrange
         var emulator = new TDV2200Emulator(80, 24);
@@ -429,13 +432,15 @@ public class TDV2200RenderingTests
         // Verify underline is set
         Assert.True((emulator.Buffer.GetCell(0, 0).Attributes & CharacterAttributes.Underline) != 0);
 
-        // Act - NDSAR: Set Bold (1) in rectangle - should replace, not add
-        // Format: ESC[attr;top;left;bottom;right z
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'z' });
+        // Act - NDSAR: set low intensity (2) in line 1, columns 1-5 - should replace, not add.
+        // ND-1200 section 5.50: ESC[l1;c1;l2;c2;a1z - corners first, counted from 1; "previously
+        // specified aspects within the rectangle shall be reset".
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'2', (byte)'z' });
 
-        // Assert - Bold should be set, underline may or may not be preserved depending on implementation
+        // Assert - Low intensity is set and the underline from before is gone
         var cell = emulator.Buffer.GetCell(0, 0);
-        Assert.True((cell.Attributes & CharacterAttributes.Bold) != 0, "Bold should be set by NDSAR");
+        Assert.True((cell.Attributes & CharacterAttributes.Dim) != 0, "Low intensity should be set by NDSAR");
+        Assert.True((cell.Attributes & CharacterAttributes.Underline) == 0, "NDSAR resets the earlier underline");
     }
 
     [AvaloniaFact]
@@ -445,8 +450,8 @@ public class TDV2200RenderingTests
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(Encoding.UTF8.GetBytes("MULTI"));
 
-        // Act - NDSAR: Set Reverse (7) in rectangle 0,0 to 0,4
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'7', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'z' });
+        // Act - NDSAR: Set Reverse (7) in line 1, columns 1-5: ESC[1;1;1;5;7z
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'7', (byte)'z' });
 
         // Assert - Reverse should be set on all cells in rectangle
         for (int col = 0; col <= 4; col++)
@@ -487,8 +492,8 @@ public class TDV2200RenderingTests
         var emulator = new TDV2200Emulator(80, 24);
         emulator.ProcessData(Encoding.UTF8.GetBytes("FLASH"));
 
-        // Act - NDAAR: Add Blink (5) to rectangle 0,0-0,4
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'5', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'{' });
+        // Act - NDAAR: Add Blink (5) to line 1, columns 1-5: ESC[1;1;1;5;5{
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'5', (byte)'{' });
 
         // Assert - Blink should be added
         for (int col = 0; col <= 4; col++)

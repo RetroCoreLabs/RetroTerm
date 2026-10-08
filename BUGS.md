@@ -3,38 +3,68 @@
 Defects found in the source and not yet fixed. Each entry names the file and lines, the evidence,
 and how far it has been checked. Fix it or leave it here; never work around it.
 
-## B1 - NDSAR reads the attribute from the wrong parameter
+B1 and B2 were fixed on 8 October 2026 and are gone from this file:
 
-`src\RetroTerm.Core\Terminal\Emulators\TDV\TDVEmulatorBase.cs` lines 1014 to 1027,
-`HandleSetAttributeInRectangle`, reads `parameters[0]` as the attribute and `parameters[1..4]` as
-the two corners.
+- B1, NDSAR read the attribute from the wrong parameter. NDSAR, NDAAR, NDRAR and NDFC now take the
+  two corners first, counted from 1, then the attributes or characters, as ND-12054-1 sections 5.50,
+  5.36, 5.46 and 5.43 give them. NDDWA counts from 1 too (section 5.41). NDSAR resets what the cells
+  had, and the attribute numbers are the SGR table of section 5.67.
+  `tests\RetroTerm.Tests\TDV\TdvRectangleSequencesFollowTheManualTests.cs` is written from the manual.
+- B2, two dead `$y` reply helpers and a `?` where `>` is expected. The helpers are deleted and the
+  secondary DA default answers `>`.
 
-ND-1200 (`spec\TDV1200\ND-12054-1-EN_combined.md` lines 3184 to 3187, section 5.50) gives the
-sequence as `CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an z` - the two corners FIRST and the attributes
-LAST, more than one allowed. So the code takes a line number as the attribute and the first
-attribute as a column.
+## B3 - Rectangle functions: what the manual leaves open
 
-The retired `TDV-IMPLEMENTATION-REFERENCE.md` agreed with the code, and both disagree with the
-manual. Not verified beyond the two texts: no real terminal has been sent an NDSAR, and no test
-here pins either order against a citation. Fixing it means reading the manual's parameter list
-for a1..an (which attributes, and whether they combine), then writing the test from the manual
-before changing the code.
+`src\RetroTerm.Core\Terminal\Emulators\TDV\TDVEmulatorBase.cs`, `TryReadRectangle` and
+`HandleFillCharacter`.
 
-## B2 - Two dead `$y` reply helpers, and a `?` where `>` is expected
+- **One to three corner parameters.** NDSAR, NDAAR, NDRAR, NDFC and NDDWA ignore a sequence with
+  one, two or three parameters. The manual gives a default only for NO parameters ("full screen or
+  whole work area") and says nothing about a partial list, so ignoring is a choice, not a reading of
+  the manual.
+- **NDFC with more than one character.** Section 5.43 says NDFC fills the rectangle "with a
+  character or a string of characters", at most ten, but not how a string is laid out over the
+  rectangle (repeat along each line, along the whole rectangle, restart per line). A string is
+  counted as an unrecognised sequence and draws nothing. The test
+  `NdfcWithAStringOfSeveralCharactersIsNotImplementedYet` pins that and must change when this is
+  settled. Not checked against a real terminal.
+- **Parameter errors are not latched.** The manual says an invalid rectangle "occurs as a parameter
+  error"; this program ignores the sequence and records no error (NDRQ report type 5, bit 7).
+  See the notes at `TDVEmulatorBase.cs` lines 623 and 2011.
 
-`src\RetroTerm.Core\Terminal\Emulators\TDV\TDVEmulatorBase.cs`:
+## B4 - Origin Mode is DEC's, not the TDV's
 
-- Line 1638, `HandleWorkAreaQuery`, and line 1654, `HandlePUSHKeyQuery`, both answer with a
-  `CSI ? ... $ y` shape and have no callers. That shape comes from the same uncited documents
-  that gave this program DECRQM on a TDV; no TDV manual held here has a `$` intermediate
-  anywhere. Two sibling helpers with the same shape were deleted on 11 September 2026 (the
-  comment between them says why). These two were left behind.
-- Line 1578, `HandleSecondaryDeviceAttributesQuery`, returns `CSI ? 1 ; 0 ; 0 c`. A secondary
-  DA reply is marked with `>`, not `?`; `?` is the primary DA reply marker. The call site at
-  line 1724 only reaches this method for a `CSI > c` request, and all three TDV classes
-  (`TDV1200Emulator.cs` line 230, `TDV2200Emulator.cs` line 788, `TDV2215Emulator.cs` line 575)
-  override it and answer with `>`. So the wrong shape is never sent today; it is a wrong default
-  waiting for a fourth TDV class. Checked 29 September 2026 by reading the callers and overrides.
+Checked 8 October 2026 by reading the code and the manual, no terminal.
 
-Not verified beyond the two texts for the `$y` helpers: no manual, capture or host has been
-consulted about what a TDV really answers for a work-area or PUSH-key question, if anything.
+ND-12054-1 section 4.8 says that with Origin Mode on, line and column numbers are relative to the
+work area and the cursor cannot leave it. The switch is private mode 6, `CSI ? 6 h` (table at the
+start of the "ND Private Sequences" section of 5.64). `TerminalEmulatorBase.cs` keeps mode 6 as DEC's
+DECOM, which is relative to the SCROLL REGION (`RowAddressingOrigin`, line 5194) and has no idea of
+the TDV work area (`TDVWorkAreas`).
+
+What follows from it:
+
+- CUP, HVP and the rectangle functions NDSAR, NDAAR, NDRAR and NDFC never treat their coordinates as
+  work-area relative.
+- NDDWA (section 5.41) is also meant to put the cursor in the home position. It does not.
+
+Fixing it means deciding how the TDV work area and the DEC scroll region relate when both exist, and
+reading section 4.8 and 5.41 for what the cursor boundary is. Do it from the manual, with tests
+written first.
+
+## B5 - TDV `CSI m` and the manual's SGR table disagree
+
+`src\RetroTerm.Core\Terminal\Emulators\TerminalEmulatorBase.cs` `HandleSgr`, line 3771, which the
+three TDV classes inherit.
+
+ND-12054-1 section 5.67 lists SGR 0 reset, 1 ignored, 2 low intensity, 3 ignored, 4 underlined,
+5 slow blink, 6 ignored, 7 inverse, 8 invisible. `HandleSgr` is the ECMA-48 one: 1 is bold, 3 is
+italic, 6 is rapid blink, 9 is strikethrough and 30 to 49 set colours. The rectangle functions now
+follow the manual's table (so NDAAR with 1 does nothing), while a plain `CSI 1 m` still gives bold.
+The 2215 test `Ndrar_RemovesTheAttributeFromTheRectangle` used to set bold with `CSI 1 m`, which is
+how this was seen.
+
+Not decided: whether the real terminals ignore SGR 1 (the manual says so for the 1200), whether the
+TDV 2200 and 2215 differ, and what the 'Graphic Rendition Mode' switch (mode 62, ATTR / UNDERLINE /
+SGR, `TDVEmulatorBase.cs` line 799) changes. Needs the 2215 and 2200 manuals read for their own SGR
+tables before anything is changed.

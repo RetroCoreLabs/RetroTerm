@@ -169,7 +169,16 @@ public class EscapeSequenceDecoderTests
     {
         var decoded = Csi((byte)'z', 2, 5, 10, 40);
 
-        Assert.Equal("top=2 left=5 bottom=10 right=40", decoded.Arguments);
+        Assert.Equal("line1=2 column1=5 line2=10 column2=40", decoded.Arguments);
+    }
+
+    [Fact]
+    public void DecodeCsi_TdvRectangle_ReportsTheAttributesAfterTheCorners()
+    {
+        // ND-1200 section 5.50: l1;c1;l2;c2;a1...an. The attributes come last.
+        var decoded = Csi((byte)'z', 2, 5, 10, 40, 4, 7);
+
+        Assert.Equal("line1=2 column1=5 line2=10 column2=40 a1=4 a2=7", decoded.Arguments);
     }
 
     [Fact]

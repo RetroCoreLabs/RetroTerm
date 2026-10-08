@@ -514,18 +514,21 @@ public static class EscapeSequenceDecoder
 
     private static string DescribeRect(ReadOnlySpan<int> parameters)
     {
-        // TDV rectangle operations take top;left;bottom;right, optionally followed by an operand.
+        // TDV rectangle operations take l1;c1;l2;c2 - the corners first, counted from 1 - and then
+        // the attributes (NDSAR, NDAAR, NDRAR) or characters (NDFC): ND Display Terminal 1200
+        // sections 5.50, 5.36, 5.46, 5.43 and 5.41. This labelled the first four top, left,
+        // bottom, right and the operand as a trailing argument until 8 October 2026.
         if (parameters.Length >= 4)
         {
             var sb = new StringBuilder(48);
-            sb.Append("top=").Append(parameters[0])
-              .Append(" left=").Append(parameters[1])
-              .Append(" bottom=").Append(parameters[2])
-              .Append(" right=").Append(parameters[3]);
+            sb.Append("line1=").Append(parameters[0])
+              .Append(" column1=").Append(parameters[1])
+              .Append(" line2=").Append(parameters[2])
+              .Append(" column2=").Append(parameters[3]);
 
             for (int i = 4; i < parameters.Length; i++)
             {
-                sb.Append(" arg").Append(i - 3).Append('=').Append(parameters[i]);
+                sb.Append(" a").Append(i - 3).Append('=').Append(parameters[i]);
             }
 
             return sb.ToString();

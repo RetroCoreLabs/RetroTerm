@@ -91,21 +91,22 @@ public class TDV2215EmulatorTests
     [Fact]
     public void Ndrar_RemovesTheAttributeFromTheRectangle()
     {
-        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[1m"));    // bold on
-        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("BOLD"));
+        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[2m"));    // low intensity on
+        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("DIM "));
         _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[0m"));
 
         Assert.True((_emulator.Buffer.GetCell(0, 0).Attributes
-            & RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Bold) != 0);
+            & RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Dim) != 0);
 
-        // NDRAR: remove bold (1) from rows 0-0, columns 0-3. 0-indexed, as TDV rectangles are.
-        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[1;0;0;0;3|"));
+        // NDRAR: remove low intensity (2) from line 1, columns 1-4. ND-1200 section 5.46: the
+        // corners first, then the attributes, counted from 1.
+        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[1;1;1;4;2|"));
 
         for (int col = 0; col <= 3; col++)
         {
             Assert.True((_emulator.Buffer.GetCell(0, col).Attributes
-                & RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Bold) == 0,
-                "NDRAR left bold on column " + col);
+                & RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Dim) == 0,
+                "NDRAR left low intensity on column " + col);
         }
     }
 
@@ -120,8 +121,9 @@ public class TDV2215EmulatorTests
     [Fact]
     public void Ndfc_FillsTheRectangleWithTheCharacter()
     {
-        // Fill rows 0-1, columns 0-2 with 'X' (88).
-        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[88;0;0;1;2}"));
+        // Fill lines 1-2, columns 1-3 with 'X' (88). ND-1200 section 5.43: the corners first, then
+        // the character, counted from 1.
+        _emulator.ProcessInput(TestTDVEmulatorBase.StringToBytes("\x1B[1;1;2;3;88}"));
 
         for (int row = 0; row <= 1; row++)
         {

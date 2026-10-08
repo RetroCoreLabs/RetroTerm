@@ -525,56 +525,45 @@ public class TDV2200ScreenshotTests
     #region Rectangle Attribute Screenshots
 
     [AvaloniaFact]
-    public void Screenshot_NDAAR_BoldRectangle()
+    public void Screenshot_NDAAR_LowIntensityRectangle()
     {
         var emulator = new TDV2200Emulator(80, 24);
 
-        emulator.ProcessData(Encoding.UTF8.GetBytes("NDAAR Bold Rectangle Test:\r\n\r\n"));
+        emulator.ProcessData(Encoding.UTF8.GetBytes("NDAAR Low Intensity Rectangle Test:\r\n\r\n"));
         emulator.ProcessData(Encoding.UTF8.GetBytes("Normal Text Here\r\n"));
-        emulator.ProcessData(Encoding.UTF8.GetBytes("This text will be BOLD\r\n"));
+        emulator.ProcessData(Encoding.UTF8.GetBytes("This text will be DIM\r\n"));
         emulator.ProcessData(Encoding.UTF8.GetBytes("Normal again here"));
 
-        // NDAAR: Add Bold (1) to rectangle row 3, cols 0-21
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'3', (byte)';',
-            (byte)'0', (byte)';', (byte)'3', (byte)';', (byte)'2', (byte)'1', (byte)'{' });
+        // NDAAR: add low intensity (2) to the rectangle line 4 (buffer row 3), columns 1-22.
+        // ND-1200 section 5.36: corners first, then the attributes, counted from 1. Attribute 1
+        // (bold) is "Ignored" in the SGR table of section 5.67, so it cannot be used here.
+        emulator.ProcessData(Encoding.ASCII.GetBytes("\u001b[4;1;4;22;2{"));
 
         // The documentation sheet, drawn by this file's own SkiaSharp path. Kept because it is a
         // useful thing to LOOK at - but nothing below is asserted against it. See the note on
         // SaveRenderTargetAsPng.
-        SaveScreenshot(emulator, "03_ndaar_bold",
-            "NDAAR: Bold attribute added to rectangle (row 3, cols 0-21)");
+        SaveScreenshot(emulator, "03_ndaar_low_intensity",
+            "NDAAR: Low intensity attribute added to rectangle (line 4, columns 1-22)");
 
-        // Validate buffer has Bold attribute
+        // Validate buffer has the Dim attribute
         var cell = emulator.Buffer.GetCell(3, 5);
-        Assert.True((cell.Attributes & CharacterAttributes.Bold) != 0, "Buffer cell should have Bold attribute");
+        Assert.True((cell.Attributes & CharacterAttributes.Dim) != 0, "Buffer cell should have Dim attribute");
 
-        // THE PIXELS COME FROM THE REAL RENDERER, 28 August 2026.
-        //
-        // These two assertions used to read the PNG that SaveRenderTargetAsPng had just drawn with
-        // THIS FILE's own copy of the bold rule - brightness lifted 40%, then the glyph stamped a
-        // second time one pixel right. So the test asserted its own arithmetic. If TerminalRenderer
-        // stopped brightening bold altogether, both stayed green.
-        //
+        // THE PIXELS COME FROM THE REAL RENDERER, same reason as the underline test below:
         // RenderedScreenshot.Capture goes through TerminalCanvas -> TerminalRenderer ->
         // BitmapFontRenderer, which is the chain the screen actually uses.
-        using var shot = RenderedScreenshot.Capture(emulator, "03_ndaar_bold_rendered");
+        using var shot = RenderedScreenshot.Capture(emulator, "03_ndaar_low_intensity_rendered");
 
-        // Row 2 is normal text, row 3 carries the NDAAR bold rectangle. Column 5 is inside both
-        // ("Normal Text Here" / "This text will be BOLD"), so the same column can be compared.
+        // Row 2 is normal text, row 3 carries the NDAAR rectangle. Column 5 is inside both
+        // ("Normal Text Here" / "This text will be DIM"), so the same column can be compared.
         var normal = shot.BrightestColorInCell(2, 5);
-        var bold = shot.BrightestColorInCell(3, 5);
+        var dim = shot.BrightestColorInCell(3, 5);
 
         int normalSum = normal.Red + normal.Green + normal.Blue;
-        int boldSum = bold.Red + bold.Green + bold.Blue;
-        Assert.True(boldSum > normalSum,
-            $"Bold should render brighter through TerminalRenderer. Normal R={normal.Red},G={normal.Green},B={normal.Blue}; "
-            + $"bold R={bold.Red},G={bold.Green},B={bold.Blue}");
-
-        // Synthetic bold stamps the glyph twice, so the bold cell must carry MORE lit pixels.
-        int normalInk = shot.InkPixelsInCell(2, 5);
-        int boldInk = shot.InkPixelsInCell(3, 5);
-        Assert.True(boldInk > normalInk,
-            $"Synthetic bold should light more pixels. Normal {normalInk}, bold {boldInk}");
+        int dimSum = dim.Red + dim.Green + dim.Blue;
+        Assert.True(dimSum < normalSum,
+            $"Low intensity should render darker through TerminalRenderer. Normal R={normal.Red},G={normal.Green},B={normal.Blue}; "
+            + $"dim R={dim.Red},G={dim.Green},B={dim.Blue}");
     }
 
     [AvaloniaFact]
@@ -586,9 +575,9 @@ public class TDV2200ScreenshotTests
         emulator.ProcessData(Encoding.UTF8.GetBytes("Normal Text\r\n"));
         emulator.ProcessData(Encoding.UTF8.GetBytes("UNDERLINED TEXT\r\n"));
 
-        // NDAAR: Add Underline (4) to rectangle row 3, cols 0-14
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)';', (byte)'3', (byte)';',
-            (byte)'0', (byte)';', (byte)'3', (byte)';', (byte)'1', (byte)'4', (byte)'{' });
+        // NDAAR: Add Underline (4) to the rectangle line 4 (buffer row 3), columns 1-15.
+        // ND-1200 section 5.36: corners first, then the attributes, counted from 1.
+        emulator.ProcessData(Encoding.ASCII.GetBytes("\u001b[4;1;4;15;4{"));
 
         SaveScreenshot(emulator, "04_ndaar_underline",
             "NDAAR: Underline attribute added to rectangle");
@@ -664,9 +653,9 @@ public class TDV2200ScreenshotTests
         emulator.ProcessData(Encoding.UTF8.GetBytes("Normal Background\r\n"));
         emulator.ProcessData(Encoding.UTF8.GetBytes("REVERSED VIDEO\r\n"));
 
-        // NDAAR: Add Reverse (7)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'7', (byte)';', (byte)'3', (byte)';',
-            (byte)'0', (byte)';', (byte)'3', (byte)';', (byte)'1', (byte)'3', (byte)'{' });
+        // NDAAR: Add Reverse (7) to the rectangle line 4 (buffer row 3), columns 1-14.
+        // ND-1200 section 5.36: corners first, then the attributes, counted from 1.
+        emulator.ProcessData(Encoding.ASCII.GetBytes("\u001b[4;1;4;14;7{"));
 
         SaveScreenshot(emulator, "05_ndaar_reverse",
             "NDAAR: Reverse video attribute added to rectangle");
@@ -695,41 +684,42 @@ public class TDV2200ScreenshotTests
 
         emulator.ProcessData(Encoding.UTF8.GetBytes("NDRAR Remove Attribute Test:\r\n\r\n"));
 
-        // Row 2: Write text that will stay bold (for comparison)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'m' }); // Bold on
-        emulator.ProcessData(Encoding.UTF8.GetBytes("STAYS BOLD\r\n"));              // Row 2
+        // Row 2: Write text that will stay underlined (for comparison)
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)'m' }); // Underline on
+        emulator.ProcessData(Encoding.UTF8.GetBytes("UNDERLINED LINE\r\n"));         // Row 2
         emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'0', (byte)'m' }); // Reset
 
-        // Row 3: Write text that will have bold removed
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'m' }); // Bold on
-        emulator.ProcessData(Encoding.UTF8.GetBytes("WAS BOLD NOW NORMAL"));         // Row 3
+        // Row 3: Write text that will have the underline removed
+        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)'m' }); // Underline on
+        emulator.ProcessData(Encoding.UTF8.GetBytes("UNDERLINED LINE"));              // Row 3, same text
         emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'0', (byte)'m' }); // Reset
 
-        // Verify both have bold before removal
-        Assert.True((emulator.Buffer.GetCell(2, 0).Attributes & CharacterAttributes.Bold) != 0);
-        Assert.True((emulator.Buffer.GetCell(3, 0).Attributes & CharacterAttributes.Bold) != 0);
+        // Verify both are underlined before removal
+        Assert.True((emulator.Buffer.GetCell(2, 0).Attributes & CharacterAttributes.Underline) != 0);
+        Assert.True((emulator.Buffer.GetCell(3, 0).Attributes & CharacterAttributes.Underline) != 0);
 
-        // NDRAR: Remove Bold (1) from row 3 only (cols 0-19)
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'3', (byte)';',
-            (byte)'0', (byte)';', (byte)'3', (byte)';', (byte)'1', (byte)'9', (byte)'|' });
+        // NDRAR: remove underline (4) from line 4 only (buffer row 3), columns 1-20.
+        // ND-1200 section 5.46: corners first, then the attributes, counted from 1.
+        emulator.ProcessData(Encoding.ASCII.GetBytes("\u001b[4;1;4;20;4|"));
 
-        SaveScreenshot(emulator, "06_ndrar_remove_bold",
-            "NDRAR: Row 2 stays bold, Row 3 had bold removed");
+        SaveScreenshot(emulator, "06_ndrar_remove_underline",
+            "NDRAR: Row 2 stays underlined, Row 3 had the underline removed");
 
-        // Verify: Row 2 still bold, Row 3 no longer bold
-        Assert.True((emulator.Buffer.GetCell(2, 0).Attributes & CharacterAttributes.Bold) != 0,
-            "Row 2 should still have Bold");
-        Assert.True((emulator.Buffer.GetCell(3, 0).Attributes & CharacterAttributes.Bold) == 0,
-            "Row 3 should no longer have Bold");
+        // Verify: Row 2 still underlined, Row 3 no longer
+        Assert.True((emulator.Buffer.GetCell(2, 0).Attributes & CharacterAttributes.Underline) != 0,
+            "Row 2 should still have Underline");
+        Assert.True((emulator.Buffer.GetCell(3, 0).Attributes & CharacterAttributes.Underline) == 0,
+            "Row 3 should no longer have Underline");
 
-        // Validate PNG: Row 2 should be brighter than Row 3
-        var pngPath = Path.Combine(ImagesFolder, "06_ndrar_remove_bold.png");
-        const int headerHeight = 28;
-        double charHeight = 14;
-
-        var (row3Avg, row2Avg, isValid) = ValidateBoldBrightness(pngPath, 3, 2, headerHeight, charHeight);
-        Assert.True(isValid,
-            $"Row 2 (bold) should be brighter than Row 3 (normal). Row2: G={row2Avg.Green},B={row2Avg.Blue}. Row3: G={row3Avg.Green},B={row3Avg.Blue}");
+        // THE PIXELS COME FROM THE REAL RENDERER: the underline sits on the foot of the cell, so
+        // the underlined row carries more ink along the bottom of a cell than the one it was removed
+        // from. Both rows hold the same text, so the glyphs cancel out and only the underline differs.
+        // Column 1 is an 'N', which has ink at the bottom of its stems but a gap between them.
+        using var shot = RenderedScreenshot.Capture(emulator, "06_ndrar_remove_underline_rendered");
+        int stillUnderlined = InkOnBottomRowsOfCell(shot, 2, 1);
+        int removed = InkOnBottomRowsOfCell(shot, 3, 1);
+        Assert.True(stillUnderlined > removed,
+            $"Row 2 (underlined) should carry more ink along the bottom of the cell than Row 3. Row2 {stillUnderlined}, Row3 {removed}");
     }
 
     #endregion
@@ -993,12 +983,12 @@ public class TDV2200ScreenshotTests
         emulator.ProcessData(Encoding.UTF8.GetBytes("Surrounding text here\r\n"));
 
         // NDFC: Fill rectangle with '#' (ASCII 35)
-        // Format: ESC[char;top;left;bottom;right}
-        emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'3', (byte)'5', (byte)';',
-            (byte)'4', (byte)';', (byte)'5', (byte)';', (byte)'8', (byte)';', (byte)'1', (byte)'5', (byte)'}' });
+        // ND-1200 section 5.43: ESC[l1;c1;l2;c2;char} - corners first, counted from 1. Lines 5-9
+        // and columns 6-16 are buffer rows 4-8 and columns 5-15.
+        emulator.ProcessData(Encoding.ASCII.GetBytes("\u001b[5;6;9;16;35}"));
 
         SaveScreenshot(emulator, "12_ndfc_fill",
-            "NDFC: Fill rectangle (rows 4-8, cols 5-15) with '#' character");
+            "NDFC: Fill rectangle (lines 5-9, columns 6-16) with '#' character");
 
         Assert.Equal('#', (char)emulator.Buffer.GetCell(4, 5).Codepoint);
         Assert.Equal('#', (char)emulator.Buffer.GetCell(6, 10).Codepoint);

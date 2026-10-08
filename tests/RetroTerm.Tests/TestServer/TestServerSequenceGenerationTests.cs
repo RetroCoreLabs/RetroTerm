@@ -221,9 +221,9 @@ public class TestServerSequenceGenerationTests
     public void BuildNDSAR_ShouldGenerateCorrectBytes()
     {
         // Act
-        var bytes = TDVSequenceBuilder.BuildNDSAR(1, 10, 10, 100, 50);
+        var bytes = TDVSequenceBuilder.BuildNDSAR(10, 10, 100, 50, 7);
 
-        // Assert - Should be ESC [ 1 ; 10 ; 10 ; 100 ; 50 z
+        // Assert - Should be ESC [ 10 ; 10 ; 100 ; 50 ; 7 z - corners first, then the attribute
         Assert.True(bytes.Length >= 10);
         Assert.Equal(0x1B, bytes[0]); // ESC
         Assert.Equal(0x5B, bytes[1]); // '['

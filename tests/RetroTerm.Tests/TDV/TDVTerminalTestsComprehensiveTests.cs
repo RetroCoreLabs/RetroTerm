@@ -512,32 +512,37 @@ public class TDVTerminalTestsComprehensiveTests
     #region Test Suite 3: Drawing Operations Tests
 
     [Fact]
-    public async Task DrawingOps_NDSAR_SetAttributeRectangle_AppliesBoldToRegion()
+    public async Task DrawingOps_NDSAR_SetAttributeRectangle_AppliesInverseToRegion()
     {
         // Arrange
         var (emulator, connection) = CreateTestEmulator();
         await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
-        // Fill area with text first
-        emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 }); // Position 10,5
+        // Fill area with text first: CUP to line 10, column 5 (1-based), ten A's
+        emulator.ProcessInput(new byte[] { 0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x48 });
         emulator.ProcessInput(Encoding.ASCII.GetBytes("AAAAAAAAAA")); // 10 A's
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        // Act - Send NDSAR to set bold in rectangle (10,5)-(10,14): ESC[1;10;5;10;14z
+        // Act - Send NDSAR to set inverse (7) in the rectangle line 10 column 5 to line 10 column 14.
+        // ND-1200 section 5.50 gives the corners first, then the attributes, counted from 1:
+        // ESC[10;5;10;14;7z
         emulator.ProcessInput(new byte[]
         {
-            0x1B, 0x5B, 0x31, 0x3B, 0x31, 0x30, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x31, 0x34, 0x7A
+            0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x31, 0x34, 0x3B, 0x37, 0x7A
         });
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        // Assert - Verify cells in rectangle have bold attribute
-        for (int col = 5; col <= 14; col++)
+        // Assert - line 10 is buffer row 9, columns 5 to 14 are buffer columns 4 to 13
+        for (int col = 4; col <= 13; col++)
         {
-            var cell = emulator.Buffer[10, col];
-            Assert.True(cell.Attributes.HasFlag(RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Bold),
-                $"Cell at (10,{col}) should have bold attribute");
+            var cell = emulator.Buffer[9, col];
+            Assert.True(cell.Attributes.HasFlag(RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Reverse),
+                $"Cell at (9,{col}) should have the inverse attribute");
         }
+
+        // The column just past the rectangle is untouched
+        Assert.False(emulator.Buffer[9, 14].Attributes.HasFlag(RetroTerm.Core.Terminal.Buffer.CharacterAttributes.Reverse));
     }
 
     [Fact]
@@ -548,28 +553,30 @@ public class TDVTerminalTestsComprehensiveTests
         await connection.ConnectAsync(TestContext.Current.CancellationToken);
         await ClearScreenAsync(emulator);
 
-        // Act - Send NDFC to fill rectangle (5,10)-(7,15) with 'X' (ASCII 88): ESC[88;5;10;7;15}
+        // Act - Send NDFC to fill the rectangle line 5 column 10 to line 7 column 15 with 'X'
+        // (ASCII 88). ND-1200 section 5.43 gives the corners first, then the character, counted
+        // from 1: ESC[5;10;7;15;88}
         //
         // The final is 7D, not 7C. NDRAR and NDFC were swapped throughout this program until
         // 11 September 2026; ND-1200 section 2.8 gives 7C NDRAR and 7D NDFC.
         emulator.ProcessInput(new byte[]
         {
-            0x1B, 0x5B, 0x38, 0x38, 0x3B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x37, 0x3B, 0x31, 0x35, 0x7D
+            0x1B, 0x5B, 0x35, 0x3B, 0x31, 0x30, 0x3B, 0x37, 0x3B, 0x31, 0x35, 0x3B, 0x38, 0x38, 0x7D
         });
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        // Assert - Verify all cells in rectangle contain 'X'
-        for (int row = 5; row <= 7; row++)
+        // Assert - lines 5 to 7 are buffer rows 4 to 6, columns 10 to 15 are buffer columns 9 to 14
+        for (int row = 4; row <= 6; row++)
         {
-            for (int col = 10; col <= 15; col++)
+            for (int col = 9; col <= 14; col++)
             {
                 AssertBufferCell(emulator, row, col, (uint)'X');
             }
         }
 
         // Verify cells outside rectangle are not filled
-        AssertBufferCell(emulator, 4, 10, 0); // Above rectangle: never written, so codepoint 0
-        AssertBufferCell(emulator, 5, 9, 0);  // Left of rectangle: never written
+        AssertBufferCell(emulator, 3, 9, 0); // Above rectangle: never written, so codepoint 0
+        AssertBufferCell(emulator, 4, 8, 0); // Left of rectangle: never written
     }
 
     /// <summary>
@@ -580,10 +587,12 @@ public class TDVTerminalTestsComprehensiveTests
     /// require checking internal emulator state for work area". It does not: the boundaries are
     /// public, on <c>TDVEmulatorBase.CurrentWorkArea</c>.
     ///
-    /// The parameter order is the one <c>HandleDefineWorkArea</c> uses - row, column, row, column,
-    /// 0-indexed, which it passes on to <c>DefineWorkArea</c> as (x1, y1, x2, y2). So
-    /// <c>ESC [ 5;10;20;70 ~</c> is rows 5 to 20 and columns 10 to 70, and the reported tuple is
-    /// (Left, Top, Right, Bottom) = (10, 5, 70, 20).
+    /// The parameter order is the one <c>HandleDefineWorkArea</c> uses - line, column, line, column,
+    /// counted from 1 (ND-1200 section 5.41: the work area's upper left corner is "the home
+    /// position with coordinates 1,1"), which it turns into the 0-based (x1, y1, x2, y2) that
+    /// <c>DefineWorkArea</c> takes. So <c>ESC [ 5;10;20;70 ~</c> is lines 5 to 20 and columns 10
+    /// to 70, and the reported tuple is (Left, Top, Right, Bottom) = (9, 4, 69, 19). It was read
+    /// as 0-based until 8 October 2026.
     ///
     /// The default is checked first, so the test can tell "the sequence set these numbers" from
     /// "these numbers happened to be there already" - a whole-screen work area would be
@@ -602,10 +611,10 @@ public class TDVTerminalTestsComprehensiveTests
         connection.SimulateReceive(Encoding.ASCII.GetBytes("\x1b[5;10;20;70~"));
 
         var after = emulator.CurrentWorkArea;
-        Assert.Equal(10, after.Left);
-        Assert.Equal(5, after.Top);
-        Assert.Equal(70, after.Right);
-        Assert.Equal(20, after.Bottom);
+        Assert.Equal(9, after.Left);
+        Assert.Equal(4, after.Top);
+        Assert.Equal(69, after.Right);
+        Assert.Equal(19, after.Bottom);
     }
 
     [Fact]

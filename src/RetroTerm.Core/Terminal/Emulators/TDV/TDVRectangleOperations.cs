@@ -17,52 +17,104 @@ public class TDVRectangleOperations
     }
 
     /// <summary>
-    /// Sets attribute in rectangle (NDSAR)
+    /// Every graphic rendition aspect a cell can carry from SGR. NDSAR resets all of these before
+    /// it sets the ones it was given; the double-width, double-height and protected bits are not
+    /// graphic rendition and are left alone.
     /// </summary>
-    public void SetAttributeInRectangle(TerminalBuffer buffer, int attr, int x1, int y1, int x2, int y2)
+    private const CharacterAttributes AllRenditionAspects =
+        CharacterAttributes.Bold | CharacterAttributes.Dim | CharacterAttributes.Italic |
+        CharacterAttributes.Underline | CharacterAttributes.Blink | CharacterAttributes.RapidBlink |
+        CharacterAttributes.Reverse | CharacterAttributes.Hidden | CharacterAttributes.Strikethrough;
+
+    /// <summary>
+    /// Maps one attribute number to the aspect it stands for, using the SGR table of ND Display
+    /// Terminal 1200 section 5.67 - the table NDSAR, NDAAR and NDRAR point at ("see SGR").
+    /// </summary>
+    /// <remarks>
+    /// 0 is "reset to default rendition" and 1, 3 and 6 are "Ignored" in that table, so they, and
+    /// every number the table does not list, map to <see cref="CharacterAttributes.None"/>: they
+    /// change nothing. 2 is low intensity, 4 underlined, 5 slow blink, 7 inverse, 8 invisible.
+    /// </remarks>
+    public static CharacterAttributes AspectForAttributeNumber(int attribute)
+    {
+        switch (attribute)
+        {
+            case 2: return CharacterAttributes.Dim;
+            case 4: return CharacterAttributes.Underline;
+            case 5: return CharacterAttributes.Blink;
+            case 7: return CharacterAttributes.Reverse;
+            case 8: return CharacterAttributes.Hidden;
+            default: return CharacterAttributes.None;
+        }
+    }
+
+    /// <summary>
+    /// Folds a list of attribute numbers into one set of aspects.
+    /// </summary>
+    private static CharacterAttributes AspectsFor(ReadOnlySpan<int> attributes)
+    {
+        var aspects = CharacterAttributes.None;
+        for (int i = 0; i < attributes.Length; i++)
+        {
+            aspects |= AspectForAttributeNumber(attributes[i]);
+        }
+
+        return aspects;
+    }
+
+    /// <summary>
+    /// Sets the attributes in a rectangle (NDSAR). Whatever rendition the cells had is reset
+    /// first: "previously specified aspects within the rectangle shall be reset" (section 5.50).
+    /// An empty list leaves the cells in normal rendition, which is the function's default.
+    /// </summary>
+    public void SetAttributeInRectangle(TerminalBuffer buffer, ReadOnlySpan<int> attributes, int x1, int y1, int x2, int y2)
     {
         var (left, top, right, bottom) = NormalizeRectangle(x1, y1, x2, y2, buffer.Width, buffer.Height);
+        var aspects = AspectsFor(attributes);
 
         for (int row = top; row <= bottom; row++)
         {
             for (int col = left; col <= right; col++)
             {
                 ref var cell = ref buffer[row, col];
-                ApplyAttribute(ref cell, attr);
+                cell.Attributes = (cell.Attributes & ~AllRenditionAspects) | aspects;
             }
         }
     }
 
     /// <summary>
-    /// Adds attribute in rectangle (NDAAR)
+    /// Adds attributes to a rectangle (NDAAR). Aspects already there "shall remain in effect"
+    /// (section 5.36).
     /// </summary>
-    public void AddAttributeInRectangle(TerminalBuffer buffer, int attr, int x1, int y1, int x2, int y2)
+    public void AddAttributeInRectangle(TerminalBuffer buffer, ReadOnlySpan<int> attributes, int x1, int y1, int x2, int y2)
     {
         var (left, top, right, bottom) = NormalizeRectangle(x1, y1, x2, y2, buffer.Width, buffer.Height);
+        var aspects = AspectsFor(attributes);
 
         for (int row = top; row <= bottom; row++)
         {
             for (int col = left; col <= right; col++)
             {
                 ref var cell = ref buffer[row, col];
-                AddAttribute(ref cell, attr);
+                cell.Attributes |= aspects;
             }
         }
     }
 
     /// <summary>
-    /// Removes attribute in rectangle (NDRAR)
+    /// Removes attributes from a rectangle (NDRAR). Only the aspects named are removed.
     /// </summary>
-    public void RemoveAttributeInRectangle(TerminalBuffer buffer, int attr, int x1, int y1, int x2, int y2)
+    public void RemoveAttributeInRectangle(TerminalBuffer buffer, ReadOnlySpan<int> attributes, int x1, int y1, int x2, int y2)
     {
         var (left, top, right, bottom) = NormalizeRectangle(x1, y1, x2, y2, buffer.Width, buffer.Height);
+        var aspects = AspectsFor(attributes);
 
         for (int row = top; row <= bottom; row++)
         {
             for (int col = left; col <= right; col++)
             {
                 ref var cell = ref buffer[row, col];
-                RemoveAttribute(ref cell, attr);
+                cell.Attributes &= ~aspects;
             }
         }
     }
@@ -155,72 +207,5 @@ public class TDVRectangleOperations
         var bottom = Math.Min(maxHeight - 1, Math.Max(y1, y2));
 
         return (left, top, right, bottom);
-    }
-
-    /// <summary>
-    /// Applies attribute to a cell
-    /// </summary>
-    private void ApplyAttribute(ref TerminalCell cell, int attr)
-    {
-        // Apply TDV-specific attributes based on the attribute value
-        switch (attr)
-        {
-            case 1: // Bold
-                cell.Attributes |= CharacterAttributes.Bold;
-                break;
-            case 2: // Dim
-                cell.Attributes |= CharacterAttributes.Dim;
-                break;
-            case 4: // Underline
-                cell.Attributes |= CharacterAttributes.Underline;
-                break;
-            case 5: // Blink
-                cell.Attributes |= CharacterAttributes.Blink;
-                break;
-            case 7: // Reverse
-                cell.Attributes |= CharacterAttributes.Reverse;
-                break;
-            case 8: // Hidden
-                cell.Attributes |= CharacterAttributes.Hidden;
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Adds attribute to a cell
-    /// </summary>
-    private void AddAttribute(ref TerminalCell cell, int attr)
-    {
-        // Add TDV-specific attributes
-        ApplyAttribute(ref cell, attr);
-    }
-
-    /// <summary>
-    /// Removes attribute from a cell
-    /// </summary>
-    private void RemoveAttribute(ref TerminalCell cell, int attr)
-    {
-        // Remove TDV-specific attributes
-        switch (attr)
-        {
-            case 1: // Bold
-                cell.Attributes &= ~CharacterAttributes.Bold;
-                break;
-            case 2: // Dim
-                cell.Attributes &= ~CharacterAttributes.Dim;
-                break;
-            case 4: // Underline
-                cell.Attributes &= ~CharacterAttributes.Underline;
-                break;
-            case 5: // Blink
-                cell.Attributes &= ~CharacterAttributes.Blink;
-                break;
-            case 7: // Reverse
-                cell.Attributes &= ~CharacterAttributes.Reverse;
-                break;
-            case 8: // Hidden
-                cell.Attributes &= ~CharacterAttributes.Hidden;
-                break;
-        }
     }
 }

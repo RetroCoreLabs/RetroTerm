@@ -398,33 +398,37 @@ public static class TDVSequenceBuilder
         return BuildCSI(null, new[] { row1, col1, row2, col2 }, '~');
     }
 
-    public static byte[] BuildNDSAR(int attr, int row1, int col1, int row2, int col2)
+    // NDSAR, NDAAR, NDRAR and NDFC below take the two corners FIRST and the attribute or the
+    // character LAST, counted from 1: ND Display Terminal 1200 sections 5.50, 5.36, 5.46 and 5.43.
+    // They took the attribute first and 0-based corners until 8 October 2026 (BUGS.md B1).
+
+    public static byte[] BuildNDSAR(int line1, int column1, int line2, int column2, int attribute)
     {
-        return BuildCSI(null, new[] { attr, row1, col1, row2, col2 }, 'z');
+        return BuildCSI(null, new[] { line1, column1, line2, column2, attribute }, 'z');
     }
 
-    public static byte[] BuildNDAAR(int attr, int row1, int col1, int row2, int col2)
+    public static byte[] BuildNDAAR(int line1, int column1, int line2, int column2, int attribute)
     {
-        return BuildCSI(null, new[] { attr, row1, col1, row2, col2 }, '{');
+        return BuildCSI(null, new[] { line1, column1, line2, column2, attribute }, '{');
     }
 
     /// <summary>
     /// NDRAR - Remove Attribute in Rectangle. The final byte is <c>|</c>, hex 7C.
     /// </summary>
-    /// <param name="attr">
-    /// The attribute to remove.
+    /// <param name="line1">
+    /// Top line, counted from 1.
     /// </param>
-    /// <param name="row1">
-    /// Top row.
+    /// <param name="column1">
+    /// Left column, counted from 1.
     /// </param>
-    /// <param name="col1">
-    /// Left column.
+    /// <param name="line2">
+    /// Bottom line.
     /// </param>
-    /// <param name="row2">
-    /// Bottom row.
-    /// </param>
-    /// <param name="col2">
+    /// <param name="column2">
     /// Right column.
+    /// </param>
+    /// <param name="attribute">
+    /// The attribute to remove, a number from the SGR table of section 5.67.
     /// </param>
     /// <returns>
     /// The sequence bytes.
@@ -435,28 +439,28 @@ public static class TDVSequenceBuilder
     /// section 2.8 gives hex 7C as NDRAR and hex 7D as NDFC, and so does the TDV 2200 CSI list at
     /// <c>spec\TDV2200\Testing2200_9S\nd_csi_sequences.md</c>.
     /// </remarks>
-    public static byte[] BuildNDRAR(int attr, int row1, int col1, int row2, int col2)
+    public static byte[] BuildNDRAR(int line1, int column1, int line2, int column2, int attribute)
     {
-        return BuildCSI(null, new[] { attr, row1, col1, row2, col2 }, '|');
+        return BuildCSI(null, new[] { line1, column1, line2, column2, attribute }, '|');
     }
 
     /// <summary>
     /// NDFC - Fill Character(s) in Rectangle. The final byte is <c>}</c>, hex 7D.
     /// </summary>
+    /// <param name="line1">
+    /// Top line, counted from 1.
+    /// </param>
+    /// <param name="column1">
+    /// Left column, counted from 1.
+    /// </param>
+    /// <param name="line2">
+    /// Bottom line.
+    /// </param>
+    /// <param name="column2">
+    /// Right column.
+    /// </param>
     /// <param name="character">
     /// The character code to fill with.
-    /// </param>
-    /// <param name="row1">
-    /// Top row.
-    /// </param>
-    /// <param name="col1">
-    /// Left column.
-    /// </param>
-    /// <param name="row2">
-    /// Bottom row.
-    /// </param>
-    /// <param name="col2">
-    /// Right column.
     /// </param>
     /// <returns>
     /// The sequence bytes.
@@ -464,9 +468,9 @@ public static class TDVSequenceBuilder
     /// <remarks>
     /// See the remarks on <see cref="BuildNDRAR"/> for the swap this corrects.
     /// </remarks>
-    public static byte[] BuildNDFC(int character, int row1, int col1, int row2, int col2)
+    public static byte[] BuildNDFC(int line1, int column1, int line2, int column2, int character)
     {
-        return BuildCSI(null, new[] { character, row1, col1, row2, col2 }, '}');
+        return BuildCSI(null, new[] { line1, column1, line2, column2, character }, '}');
     }
 
     // ── The message lamps, ND Display Terminal 1200 sections 5.37, 5.38 and 5.52 ─────────────

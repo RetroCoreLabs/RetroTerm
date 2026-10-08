@@ -23,20 +23,21 @@ public class TDV2200AdvancedFeaturesTests
     #region NDAAR - Add Attribute in Rectangle Tests
 
     [Fact]
-    public void NDAAR_ShouldAddBoldAttribute()
+    public void NDAAR_ShouldAddLowIntensityAttribute()
     {
         // Arrange - Write some text first
         _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("HELLO"));
 
-        // Act - Send NDAAR: Add Bold (1) in rectangle 0,0 to 0,4
-        // Format: ESC[attr;top;left;bottom;right{
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'4', (byte)'{' });
+        // Act - Send NDAAR: add low intensity (2) in the rectangle line 1 column 1 to line 1 column 5.
+        // Format (ND-1200 section 5.36): ESC[l1;c1;l2;c2;a1{ - corners first, counted from 1.
+        // Attribute 1 is "Ignored" in the SGR table of section 5.67, so it is not used here.
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'5', (byte)';', (byte)'2', (byte)'{' });
 
-        // Assert - Check that bold was added
+        // Assert - Check that low intensity was added
         for (int col = 0; col <= 4; col++)
         {
             var cell = _emulator.Buffer.GetCell(0, col);
-            Assert.True((cell.Attributes & CharacterAttributes.Bold) != 0, $"Cell at col {col} should have Bold attribute");
+            Assert.True((cell.Attributes & CharacterAttributes.Dim) != 0, $"Cell at col {col} should have Dim attribute");
         }
     }
 
@@ -46,8 +47,8 @@ public class TDV2200AdvancedFeaturesTests
         // Arrange
         _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("TEST"));
 
-        // Act - Add Underline (4) in rectangle 0,0 to 0,3
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'3', (byte)'{' });
+        // Act - Add Underline (4) in the rectangle line 1 column 1 to line 1 column 4: ESC[1;1;1;4;4{
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'4', (byte)';', (byte)'4', (byte)'{' });
 
         // Assert
         for (int col = 0; col <= 3; col++)
@@ -60,16 +61,16 @@ public class TDV2200AdvancedFeaturesTests
     [Fact]
     public void NDAAR_ShouldPreserveExistingAttributes()
     {
-        // Arrange - Set bold on text
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'m' }); // Set bold
+        // Arrange - Set low intensity on text
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'2', (byte)'m' }); // Set low intensity
         _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("TEXT"));
 
-        // Act - Add underline without removing bold
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'4', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'3', (byte)'{' });
+        // Act - Add underline without removing low intensity: ESC[1;1;1;4;4{
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'4', (byte)';', (byte)'4', (byte)'{' });
 
-        // Assert - Both bold and underline should be present
+        // Assert - Both low intensity and underline should be present (5.36: earlier aspects remain)
         var cell = _emulator.Buffer.GetCell(0, 0);
-        Assert.True((cell.Attributes & CharacterAttributes.Bold) != 0, "Bold should be preserved");
+        Assert.True((cell.Attributes & CharacterAttributes.Dim) != 0, "Low intensity should be preserved");
         Assert.True((cell.Attributes & CharacterAttributes.Underline) != 0, "Underline should be added");
     }
 
@@ -78,41 +79,41 @@ public class TDV2200AdvancedFeaturesTests
     #region NDRAR - Remove Attribute in Rectangle Tests
 
     [Fact]
-    public void NDRAR_ShouldRemoveBoldAttribute()
+    public void NDRAR_ShouldRemoveLowIntensityAttribute()
     {
-        // Arrange - Set bold text
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'m' }); // Set bold
-        _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("BOLD"));
+        // Arrange - Set low intensity text
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'2', (byte)'m' }); // Set low intensity
+        _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("DIM "));
         _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'0', (byte)'m' }); // Reset
 
-        // Verify bold is set
-        Assert.True((_emulator.Buffer.GetCell(0, 0).Attributes & CharacterAttributes.Bold) != 0, "Bold should be set initially");
+        // Verify low intensity is set
+        Assert.True((_emulator.Buffer.GetCell(0, 0).Attributes & CharacterAttributes.Dim) != 0, "Low intensity should be set initially");
 
-        // Act - Remove Bold (1) from rectangle 0,0 to 0,3
-        // Format: ESC[attr;top;left;bottom;right|
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'3', (byte)'|' });
+        // Act - Remove low intensity (2) from the rectangle line 1 column 1 to line 1 column 4
+        // Format (ND-1200 section 5.46): ESC[l1;c1;l2;c2;a1|
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'4', (byte)';', (byte)'2', (byte)'|' });
 
-        // Assert - Bold should be removed
+        // Assert - Low intensity should be removed
         for (int col = 0; col <= 3; col++)
         {
             var cell = _emulator.Buffer.GetCell(0, col);
-            Assert.True((cell.Attributes & CharacterAttributes.Bold) == 0, $"Cell at col {col} should not have Bold attribute");
+            Assert.True((cell.Attributes & CharacterAttributes.Dim) == 0, $"Cell at col {col} should not have Dim attribute");
         }
     }
 
     [Fact]
     public void NDRAR_ShouldPreserveOtherAttributes()
     {
-        // Arrange - Set bold and underline
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'4', (byte)'m' }); // Bold + Underline
+        // Arrange - Set low intensity and underline
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'2', (byte)';', (byte)'4', (byte)'m' }); // Low intensity + Underline
         _emulator.ProcessData(System.Text.Encoding.UTF8.GetBytes("MIX"));
 
-        // Act - Remove only bold (1)
-        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'0', (byte)';', (byte)'2', (byte)'|' });
+        // Act - Remove only low intensity (2): ESC[1;1;1;3;2|
+        _emulator.ProcessData(new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'1', (byte)';', (byte)'3', (byte)';', (byte)'2', (byte)'|' });
 
-        // Assert - Bold removed, underline preserved
+        // Assert - Low intensity removed, underline preserved
         var cell = _emulator.Buffer.GetCell(0, 0);
-        Assert.True((cell.Attributes & CharacterAttributes.Bold) == 0, "Bold should be removed");
+        Assert.True((cell.Attributes & CharacterAttributes.Dim) == 0, "Low intensity should be removed");
         Assert.True((cell.Attributes & CharacterAttributes.Underline) != 0, "Underline should be preserved");
     }
 
