@@ -4,8 +4,9 @@
 **Updated:** 11 September 2026
 **Next:** parked on 11 September 2026 at Ronny's call - "these are not very important right now".
 When it resumes, the TDV thread's next step is the GRM rendered test (Phase 4), and everything
-else needs Ronny or a machine. The two code defects found in the September document audit are in
-`BUGS.md` at the repo root.
+else needs Ronny or a machine. The open code defects are in `BUGS.md` at the repo root (B3 to B5,
+all about the TDV rectangle, Origin Mode and SGR details the manuals leave open; B1 and B2 from the
+September audit were fixed on 8 October 2026).
 
 **What this program is, in one line:** a Windows desktop terminal emulator (C#, Avalonia) that
 speaks VT100/VT220/xterm, the DEC VT240/VT340 graphics terminals with Sixel and ReGIS, Tektronix

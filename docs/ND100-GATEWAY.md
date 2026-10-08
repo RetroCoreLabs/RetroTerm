@@ -58,10 +58,36 @@ been run against real hardware is listed in `docs\PLAN.md`, section "Gateway Eth
 3. The status bar shows "GW: N terminals" when the emulator connects and registers
 4. Open **Connection > Connect...** (or Ctrl+Shift+N)
 5. Select **Gateway** protocol
-6. Pick a terminal from the list
-7. Click Connect
+6. Click Connect
 
-Each terminal (identCode) supports only one connection at a time, like a physical serial port. The connection dialog shows "(In Use)" for terminals that are already connected in another tab.
+The terminal is NOT chosen in the dialog and a saved connection does not remember one. Until
+8 October 2026 a gateway connection also stored an ident code and a terminal name that the connect
+code never read, and the list printed it as "Gateway identCode 44"; both are gone, and the list now
+says just "Gateway". Files saved with the old fields still load.
+
+The choice is made in the terminal after connecting. RetroTerm prints the list the emulator
+registered, one numbered line per terminal:
+
+```
+  Available terminals:
+
+   1. TERMINAL 12   device 51 [in use]
+   2. TERMINAL 13   device 52
+   ...
+  Select terminal (1-8, Enter=first free, 0=quit):
+```
+
+Type the number and Enter, Enter alone for the first free terminal, or 0 to leave. If the connection
+has **Auto-connect to first free terminal** ticked (Manage Connections > Protocol), the list is
+still printed and RetroTerm connects to the first free terminal itself. The list is exactly what the
+emulator registered; RetroTerm adds and removes nothing.
+
+The name is the emulator's own label. **device** is the SINTRAN logical device number, the one
+`@WHO` prints, so TERMINAL 12 is device 51. The third number, the ident code, is what travels on the
+wire (TERMINAL 12 is 43); `terminal_gateway` and the `GATEWAY` script command show all three.
+
+Each terminal (identCode) supports only one connection at a time, like a physical serial port. A
+terminal that is already connected in another tab is marked `[in use]` in the list.
 
 ## WebSocket Protocol
 
@@ -93,8 +119,8 @@ A 100-byte terminal output = 102 bytes on the wire (2-byte header + raw data). N
 {
   "type": "register",
   "terminals": [
-    { "identCode": 43, "name": "TERMINAL 12", "logicalDevice": 1 },
-    { "identCode": 44, "name": "TERMINAL 13", "logicalDevice": 2 }
+    { "identCode": 43, "name": "TERMINAL 12", "logicalDevice": 51 },
+    { "identCode": 44, "name": "TERMINAL 13", "logicalDevice": 52 }
   ]
 }
 ```

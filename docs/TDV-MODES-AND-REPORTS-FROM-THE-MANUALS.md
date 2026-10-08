@@ -380,6 +380,37 @@ Found by driving it over a socket rather than by reading it:
   the first had left, on the terminal type the first had chosen. The fields are reset per client
   now; two clients AT ONCE would still share them.
 
+### 6.7 The rectangle functions took their parameters in the wrong order
+
+Fixed 8 October 2026 (it was `BUGS.md` B1). ND Display Terminal 1200 gives all four of these as
+`CSI l1 ; c1 ; l2 ; c2 ; a1 ; ... an` - the two corners FIRST, the attributes or characters LAST:
+
+| Function | Section | Final | The last parameters are |
+|---|---|---|---|
+| NDSAR - Set attribute in rectangle | 5.50 | `z` | attribute numbers; earlier aspects are reset |
+| NDAAR - Add attribute in rectangle | 5.36 | `{` | attribute numbers; earlier aspects stay |
+| NDRAR - Remove attribute in rectangle | 5.46 | `|` | attribute numbers |
+| NDFC - Fill character(s) in rectangle | 5.43 | `}` | character codes, at most ten |
+| NDDWA - Define work area | 5.41 | `~` | none, just the corners |
+
+This program read the attribute or character first and then four 0-BASED corners, and the old
+`TDV-IMPLEMENTATION-REFERENCE.md` agreed with the code, so the code and its own reference confirmed
+each other against the manual. Coordinates count from 1: section 5.41 says the work area's upper
+left corner "becomes the home position with coordinates 1,1".
+
+The attribute numbers are the SGR table of section 5.67, not ECMA-48's: 0 reset, 1 ignored,
+2 low intensity, 3 ignored, 4 underlined, 5 slow blink, 6 ignored, 7 inverse, 8 invisible. So
+`NDAAR` with 1 changes nothing. `CSI 1 m` still gives bold on a TDV here; that disagreement is
+`BUGS.md` B5.
+
+With no parameters the default is "full screen or whole work area". A second corner above or left
+of the first is ignored, as each section's error handling says.
+
+Still open, and recorded in `BUGS.md`: B3 - how an NDFC string of several characters is laid out,
+and what a list of one to three corner parameters means; neither is in any text held here. B4 -
+Origin Mode (`CSI ? 6`) is kept as DEC's, relative to the scroll region, not to the work area, and
+NDWA does not move the cursor home.
+
 ---
 
 ## 7. Character sets - what the manuals say, and why nothing was changed
