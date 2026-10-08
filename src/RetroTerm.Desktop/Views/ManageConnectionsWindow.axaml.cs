@@ -1121,7 +1121,7 @@ public partial class ManageConnectionsWindow : Window
         else if (string.Equals(protocol, "Gateway", StringComparison.OrdinalIgnoreCase))
         {
             _protocolPanel.Children.Add(_gatewayProtocolPanel!);
-            RefreshGatewayTerminalList(_viewModel.CurrentProfile.GatewayIdentCode);
+            RefreshGatewayTerminalList();
         }
         else if (string.Equals(protocol, "SSH", StringComparison.OrdinalIgnoreCase))
         {
@@ -1405,7 +1405,7 @@ public partial class ManageConnectionsWindow : Window
 
     #region Gateway / Serial Helpers
 
-    private void RefreshGatewayTerminalList(int? selectIdentCode = null)
+    private void RefreshGatewayTerminalList()
     {
         if (_gatewayStatusLabel == null) return;
 

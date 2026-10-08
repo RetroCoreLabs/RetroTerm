@@ -146,8 +146,6 @@ public class HostConfiguration
     public string? OnDisconnectScript { get; set; }
 
     // Gateway-specific properties
-    public int? GatewayIdentCode { get; set; }
-    public string? GatewayTerminalName { get; set; }
     public bool GatewaySelectFirstFree { get; set; }
 
     /// <summary>
@@ -279,8 +277,6 @@ public class HostConfiguration
             BackgroundColor = BackgroundColor,
             SinglePhosphor = SinglePhosphor,
             Language = Language,
-            GatewayIdentCode = GatewayIdentCode,
-            GatewayTerminalName = GatewayTerminalName,
             GatewaySelectFirstFree = GatewaySelectFirstFree,
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
@@ -320,7 +316,6 @@ public class HostConfiguration
             StopBitsValue = StopBitsValue,
             ParityValue = ParityValue,
             HandshakeValue = HandshakeValue,
-            GatewayIdentCode = GatewayIdentCode,
             GatewaySelectFirstFree = GatewaySelectFirstFree,
             ForegroundColor = string.IsNullOrWhiteSpace(ForegroundColor) ? null : ForegroundColor,
             BackgroundColor = string.IsNullOrWhiteSpace(BackgroundColor) ? null : BackgroundColor,

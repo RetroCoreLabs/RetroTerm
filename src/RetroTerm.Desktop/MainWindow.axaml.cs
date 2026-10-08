@@ -2369,7 +2369,9 @@ public partial class MainWindow : Window
             bool inUse = _gatewayListener != null && _gatewayListener.IsIdentCodeInUse(t.IdentCode);
             string num = (i + 1).ToString().PadLeft(2);
             string status = inUse ? " [in use]" : "";
-            sb.Append($"  {num}. {t.Name}{status}\r\n");
+            // The logical device number is what SINTRAN prints (@WHO), so it is shown next to
+            // the emulator's label; the menu number on the left is still what you type.
+            sb.Append($"  {num}. {t.Name,-12} device {t.LogicalDevice}{status}\r\n");
         }
         sb.Append("\r\n   0. Disconnect\r\n");
         sb.Append("\r\n  Select terminal (1-");

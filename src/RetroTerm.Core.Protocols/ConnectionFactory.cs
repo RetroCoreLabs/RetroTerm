@@ -103,7 +103,6 @@ public static class ConnectionFactory
         public int HandshakeValue { get; set; } = 0;    // 0=None, 1=XOnXOff, 2=RtsCts, 3=Both
 
         // Gateway-specific
-        public int? GatewayIdentCode { get; set; }
         public bool GatewaySelectFirstFree { get; set; }
 
         // Terminal emulator settings
@@ -195,7 +194,7 @@ public static class ConnectionFactory
         {
             ProtocolType.Serial => $"{PortName ?? "?"} @ {BaudRate}bps",
             ProtocolType.OpcomSimulator => "OPCOM Simulator",
-            ProtocolType.Gateway => $"Gateway identCode {GatewayIdentCode}",
+            ProtocolType.Gateway => "Gateway",
             _ => $"{Host}:{Port}"
         };
     }
@@ -487,10 +486,8 @@ public static class ConnectionFactory
         }
         else if (parameters.Protocol == ProtocolType.Gateway)
         {
-            if (parameters.GatewayIdentCode == null)
-            {
-                throw new ArgumentException("GatewayIdentCode must be set for gateway connections", nameof(parameters));
-            }
+            // Nothing to validate: the terminal is chosen at connect time, from the list the
+            // emulator registers (menu, or first free).
         }
         else if (parameters.Protocol == ProtocolType.OpcomSimulator)
         {

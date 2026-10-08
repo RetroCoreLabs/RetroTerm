@@ -27,8 +27,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private int _snapshotStopBitsValue = 1;
     private int _snapshotParityValue;
     private int _snapshotHandshakeValue;
-    private int? _snapshotGatewayIdentCode;
-    private string? _snapshotGatewayTerminalName;
     private bool _snapshotGatewaySelectFirstFree;
     private string _snapshotForegroundColor = "";
     private string _snapshotBackgroundColor = "";
@@ -60,8 +58,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private int _stopBitsValue = 1;
     private int _parityValue;
     private int _handshakeValue;
-    private int? _gatewayIdentCode;
-    private string? _gatewayTerminalName;
     private bool _gatewaySelectFirstFree;
     private string _foregroundColor = "";
     private string _backgroundColor = "";
@@ -185,18 +181,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     {
         get => _handshakeValue;
         set { if (_handshakeValue != value) { _handshakeValue = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
-    }
-
-    public int? GatewayIdentCode
-    {
-        get => _gatewayIdentCode;
-        set { if (_gatewayIdentCode != value) { _gatewayIdentCode = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
-    }
-
-    public string? GatewayTerminalName
-    {
-        get => _gatewayTerminalName;
-        set { if (_gatewayTerminalName != value) { _gatewayTerminalName = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
     }
 
     public bool GatewaySelectFirstFree
@@ -419,8 +403,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _stopBitsValue != _snapshotStopBitsValue
                 || _parityValue != _snapshotParityValue
                 || _handshakeValue != _snapshotHandshakeValue
-                || _gatewayIdentCode != _snapshotGatewayIdentCode
-                || _gatewayTerminalName != _snapshotGatewayTerminalName
                 || _gatewaySelectFirstFree != _snapshotGatewaySelectFirstFree
                 || _foregroundColor != _snapshotForegroundColor
                 || _backgroundColor != _snapshotBackgroundColor
@@ -470,8 +452,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _stopBitsValue = config.StopBitsValue;
         _parityValue = config.ParityValue;
         _handshakeValue = config.HandshakeValue;
-        _gatewayIdentCode = config.GatewayIdentCode;
-        _gatewayTerminalName = config.GatewayTerminalName;
         _gatewaySelectFirstFree = config.GatewaySelectFirstFree;
         _foregroundColor = config.ForegroundColor ?? "";
         _backgroundColor = config.BackgroundColor ?? "";
@@ -518,8 +498,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _stopBitsValue = 1;
         _parityValue = 0;
         _handshakeValue = 0;
-        _gatewayIdentCode = null;
-        _gatewayTerminalName = null;
         _gatewaySelectFirstFree = false;
         _foregroundColor = "";
         _backgroundColor = "";
@@ -569,8 +547,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             LocalEcho = _localEcho,
             TransmitDelayPerCharMs = _transmitDelayPerCharMs,
             TransmitDelayPerLineMs = _transmitDelayPerLineMs,
-            GatewayIdentCode = _gatewayIdentCode,
-            GatewayTerminalName = _gatewayTerminalName,
             GatewaySelectFirstFree = _gatewaySelectFirstFree,
             OnConnectScript = string.IsNullOrWhiteSpace(_onConnectScript) ? null : _onConnectScript,
             OnDisconnectScript = string.IsNullOrWhiteSpace(_onDisconnectScript) ? null : _onDisconnectScript
@@ -600,7 +576,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             StopBitsValue = _stopBitsValue,
             ParityValue = _parityValue,
             HandshakeValue = _handshakeValue,
-            GatewayIdentCode = _gatewayIdentCode,
             GatewaySelectFirstFree = _gatewaySelectFirstFree,
             ForegroundColor = string.IsNullOrWhiteSpace(_foregroundColor) ? null : _foregroundColor,
             BackgroundColor = string.IsNullOrWhiteSpace(_backgroundColor) ? null : _backgroundColor,
@@ -649,8 +624,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotStopBitsValue = _stopBitsValue;
         _snapshotParityValue = _parityValue;
         _snapshotHandshakeValue = _handshakeValue;
-        _snapshotGatewayIdentCode = _gatewayIdentCode;
-        _snapshotGatewayTerminalName = _gatewayTerminalName;
         _snapshotGatewaySelectFirstFree = _gatewaySelectFirstFree;
         _snapshotForegroundColor = _foregroundColor;
         _snapshotBackgroundColor = _backgroundColor;
@@ -697,8 +670,6 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(StopBitsValue));
         OnPropertyChanged(nameof(ParityValue));
         OnPropertyChanged(nameof(HandshakeValue));
-        OnPropertyChanged(nameof(GatewayIdentCode));
-        OnPropertyChanged(nameof(GatewayTerminalName));
         OnPropertyChanged(nameof(GatewaySelectFirstFree));
         OnPropertyChanged(nameof(ForegroundColor));
         OnPropertyChanged(nameof(BackgroundColor));
