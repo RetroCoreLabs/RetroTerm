@@ -137,8 +137,9 @@ Write-Host ""
 Write-Host "Published:  $exe"
 Write-Host "Launch via: $current\RetroTerm.Desktop.exe"
 Write-Host ""
-Write-Host "The build that is already running is untouched and still running. Close it when you"
-Write-Host "are ready; nothing here will close it for you."
+Write-Host "A RetroTerm that was already open is a copy of an OLDER build (this publish would have"
+Write-Host "stopped if one were running from this version's folder). Close it and start it again"
+Write-Host "from the path above to get this one; nothing here will close it for you."
 
 # Prune, oldest first. A folder still in use will refuse to delete - say so rather than hiding it,
 # because a folder that will not delete is usually a RetroTerm somebody forgot is open.
