@@ -152,6 +152,43 @@ public class ClosingTheMainWindowWithActiveConnectionsDoesNotCrashTests
         Assert.True(closed, "Close All must actually close the window");
     }
 
+    [AvaloniaFact]
+    public async Task ClosingAllWithTwoConnectedTabsActuallyClosesTheWindow()
+    {
+        // Ronny, 9 October 2026: two tabs open, the window's X pressed, "Close All" answered yes,
+        // the dialog went away and the main window and the connections stayed.
+        var window = new MainWindow();
+        window.Show();
+
+        var first = window.AddTabForTesting("localhost:23");
+        await first.Session.ConnectAsync(new InMemoryConnection());
+        var second = window.AddTabForTesting("localhost:24");
+        await second.Session.ConnectAsync(new InMemoryConnection());
+
+        var closed = false;
+        window.Closed += (_, _) => closed = true;
+
+        window.Close();
+
+        var dialog = await WaitForOwnedWindowAsync(window);
+        Assert.NotNull(dialog);
+
+        var closeAllButton = FindButtonByName(dialog!, "CloseConfirmationCloseAllButton");
+        Assert.NotNull(closeAllButton);
+        closeAllButton!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!closed && DateTime.UtcNow < deadline)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            await Task.Delay(20);
+        }
+
+        Assert.True(closed, "Close All with two tabs must close the window");
+        Assert.False(first.IsConnected, "the first connection must be closed");
+        Assert.False(second.IsConnected, "the second connection must be closed");
+    }
+
     /// <summary>
     /// Reads the rendered fill of a button: a point at mid-height, six pixels in from its left
     /// edge, which is inside the button's padding and clear of the text.

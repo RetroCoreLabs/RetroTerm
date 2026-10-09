@@ -1493,6 +1493,38 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Replaces the window's gateway listener with one the test made, on a port of its own.
+    /// </summary>
+    /// <param name="listener">
+    /// The listener to use. The test starts it and owns its port; the window stops and disposes it
+    /// when it closes, as it does its own.
+    /// </param>
+    /// <remarks>
+    /// A window starts its own listener from the saved gateway settings, on the port a real machine
+    /// is probably using (a browser emulator reconnects to it every three seconds), so a test that
+    /// needs a gateway under its tabs cannot use that one. The window's own listener is stopped and
+    /// dropped first.
+    /// </remarks>
+    internal async Task UseGatewayListenerForTesting(GatewayListener listener)
+    {
+        var own = _gatewayListener;
+        if (own != null)
+        {
+            own.EmulatorConnected -= OnGatewayStatusChanged;
+            own.EmulatorDisconnected -= OnGatewayStatusChanged;
+            own.TerminalListChanged -= OnGatewayStatusChanged;
+            own.DiskWorkerConnected -= OnGatewayStatusChanged;
+            own.DiskWorkerDisconnected -= OnGatewayStatusChanged;
+            own.ListeningChanged -= OnGatewayStatusChanged;
+            try { await own.StopAsync(); }
+            catch { /* the window's own listener may never have started */ }
+            own.Dispose();
+        }
+
+        _gatewayListener = listener;
+    }
+
+    /// <summary>
     /// Writes the disconnection notice onto a tab, for the test that pins its wording.
     /// </summary>
     /// <param name="tab">
@@ -3691,6 +3723,31 @@ public partial class MainWindow : Window
 
         e.Cancel = true;
 
+        // ASK FIRST, tear down afterwards (9 October 2026). This used to stop the MCP server and the
+        // gateway listener BEFORE the question, so answering Cancel left a window that was still
+        // open with no MCP and no gateway. It also made the count below wrong: stopping the
+        // listener disconnects every gateway tab, so those tabs were no longer "active" by the time
+        // they were counted and the dialog never mentioned them.
+        int activeCount = 0;
+        for (int i = 0; i < _tabs.Count; i++)
+        {
+            if (_tabs[i].IsConnected) activeCount++;
+        }
+        for (int i = 0; i < _popoutWindows.Count; i++)
+        {
+            if (_popoutWindows[i].TabSession.IsConnected) activeCount++;
+        }
+
+        if (activeCount > 0)
+        {
+            var confirmed = await ShowCloseConfirmationDialog(activeCount);
+            if (!confirmed)
+            {
+                // e.Cancel is already true — the window stays open, and nothing was stopped.
+                return;
+            }
+        }
+
         // Stop the MCP server first so no new LLM calls arrive during teardown
         await ShutdownMcpServerAsync();
 
@@ -3716,27 +3773,6 @@ public partial class MainWindow : Window
             catch { /* ignore */ }
             _gatewayListener.Dispose();
             _gatewayListener = null;
-        }
-
-        // Count active connections
-        int activeCount = 0;
-        for (int i = 0; i < _tabs.Count; i++)
-        {
-            if (_tabs[i].IsConnected) activeCount++;
-        }
-        for (int i = 0; i < _popoutWindows.Count; i++)
-        {
-            if (_popoutWindows[i].TabSession.IsConnected) activeCount++;
-        }
-
-        if (activeCount > 0)
-        {
-            var confirmed = await ShowCloseConfirmationDialog(activeCount);
-            if (!confirmed)
-            {
-                // e.Cancel is already true — the window stays open.
-                return;
-            }
         }
 
         _isClosingConfirmed = true;

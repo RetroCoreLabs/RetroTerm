@@ -187,25 +187,20 @@ public class SSHConnection : IConnection
 
         try
         {
-            // Stop receive loop
+            // Stop receive loop. Cancelling the token is NOT enough: the loop is inside
+            // ShellStream.ReadAsync(buffer, 0, count, token), which is System.IO.Stream's and looks
+            // at the token once, before it starts. On an idle session that read never returns, and
+            // this method used to wait for it BEFORE closing the stream - for ever. So the stream
+            // and the client are closed first (ReceiveLoopShutdown), which is what ends the read,
+            // and the wait after that is bounded. See ReceiveLoopShutdown for the whole story.
             _receiveCts?.Cancel();
-            if (_receiveTask != null)
+            await ReceiveLoopShutdown.StopAsync(_receiveTask, () =>
             {
-                try
-                {
-                    await _receiveTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected
-                }
-            }
+                _stream?.Dispose();
+                _client?.Disconnect();
+            }, ReceiveLoopShutdownTimeoutMs);
 
-            // Close stream and client
-            _stream?.Dispose();
             _stream = null;
-
-            _client?.Disconnect();
             _client?.Dispose();
             _client = null;
         }
@@ -335,10 +330,22 @@ public class SSHConnection : IConnection
         }
         catch (Exception ex)
         {
+            // A deliberate disconnect closes the stream under this loop, which makes the pending
+            // read throw. That is how it ends, not an error to tell the user about.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             ErrorOccurred?.Invoke(ex);
             Status = ConnectionStatus.Disconnected;
         }
     }
+
+    /// <summary>
+    /// How long a disconnect waits for the receive loop after the stream has been closed under it.
+    /// </summary>
+    private const int ReceiveLoopShutdownTimeoutMs = 2000;
 
     public void Dispose()
     {
