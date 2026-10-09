@@ -31,9 +31,10 @@ fortnight came from "that looks wrong" rather than from an assertion.
 **Recording goes on FIRST.** `terminal_logstart` for the transcript, `terminal_tracestart` for the
 bytes. A screen that looks wrong is worth little without the bytes that made it. If I forget, stop me.
 
-**The app no longer has to be closed.** `.\scripts\publish.ps1` publishes to
-`publish\versions\<version>-<n>\` and repoints the `publish\current` junction while the old build is
-still running. The paragraph that used to sit here asking you to close RetroTerm by hand is gone.
+`.\scripts\publish.ps1` publishes to `publish\versions\<version>\` and repoints the `publish\current`
+junction. Since 8 October 2026 the folder carries no `-n` counter and a second publish of the same
+version replaces it, so a RetroTerm that is running from `publish\current` has to be closed first
+(the script says so and changes nothing otherwise). A new version number publishes beside it.
 
 ---
 
