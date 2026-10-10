@@ -706,6 +706,65 @@ public class TerminalBuffer
         var current = new List<TerminalCell>(Width * 2);
         var paragraphStartRow = 0;
 
+        // THE HISTORY COMES FIRST, BUT ONLY WHEN WIDENING. Until 10 October 2026 only the screen was
+        // ever re-laid out. Narrowing the window pushed the rows that no longer fit into scrollback
+        // at the NARROW width, and widening it again never reached them: they stayed wrapped at 20
+        // or 27 columns in the history while the screen showed only the tail of what had been
+        // there. A welcome screen dragged small and big again came back with its logo in pieces.
+        // History rows are stored exactly like screen rows - one row, one wrap flag - so when the
+        // window gets wider they join the same paragraphs as the screen, and the document is split
+        // again below: the last rows fill the screen, anything older goes back into scrollback at
+        // the new width.
+        //
+        // NARROWING LEAVES OLD HISTORY ALONE, as it always did. Re-wrapping it narrower multiplies
+        // its rows (a 110-column line becomes six rows at 20), and the ring holds a fixed number of
+        // ROWS: measured, a 12,000-line history dragged to 20 columns needed about 70,000 rows and
+        // the ring kept the newest 10,000, so the oldest lines were deleted for good by a window
+        // drag. Only the rows that spill off the screen NOW are written at the narrow width, and
+        // widening rejoins exactly those.
+        // WIDENING STOPS AT THE LAST OLD LINE THAT IS WIDER THAN THE NEW WIDTH. A line written at 120
+        // columns and met again at 40 would be wrapped into three rows, and a history near the ring's
+        // limit would lose its oldest lines to that, only because the window passed through 40 on
+        // its way to 100 (measured: 10,000 rows became 3,308 over one drag). So history is folded in
+        // only from the row after the last STANDALONE row (not part of a wrapped paragraph) longer
+        // than the new width. Everything before that stays exactly as it was stored. The rows a
+        // shrink wrapped narrow have no such row after them, and those are the ones that must come
+        // back.
+        bool foldHistoryIn = newWidth > Width;
+        int foldFrom = 0;
+        if (foldHistoryIn)
+        {
+            for (int i = _scrollbackCount - 1; i >= 0; i--)
+            {
+                var candidate = GetScrollbackLine(i);
+                bool standalone = !IsScrollbackLineWrapped(i) && (i == 0 || !IsScrollbackLineWrapped(i - 1));
+                if (standalone && candidate != null && UsedLengthOf(candidate) > newWidth)
+                {
+                    foldFrom = i + 1;
+                    break;
+                }
+            }
+        }
+
+        int historyRows = foldHistoryIn ? _scrollbackCount : 0;
+        for (int i = foldFrom; i < historyRows; i++)
+        {
+            var historyLine = GetScrollbackLine(i);
+            bool historyContinues = IsScrollbackLineWrapped(i);
+            int historyUsed = historyLine == null ? 0 : (historyContinues ? historyLine.Length : UsedLengthOf(historyLine));
+
+            for (int col = 0; col < historyUsed; col++)
+            {
+                current.Add(historyLine![col]);
+            }
+
+            if (!historyContinues)
+            {
+                paragraphs.Add(current.ToArray());
+                current.Clear();
+            }
+        }
+
         for (int row = 0; row < Height; row++)
         {
             bool continues = row < Height - 1 && _lineWrapped[row];
@@ -801,6 +860,19 @@ public class TerminalBuffer
             int drop = rows.Count - 1 - lastMeaningful;
             rows.RemoveRange(lastMeaningful + 1, drop);
             wrapped.RemoveRange(lastMeaningful + 1, drop);
+        }
+
+        // When the history was folded into the document above, the ring starts again empty and takes
+        // back only what does not fit on the screen. Its row arrays stay in the ring for reuse.
+        // When it was not (narrowing), the ring keeps what it has and the overflow is added to it.
+        if (foldHistoryIn)
+        {
+            // The rows before foldFrom were not touched and stay; the rest went into the document.
+            _scrollbackCount = foldFrom;
+            if (foldFrom == 0)
+            {
+                _scrollbackStart = 0;
+            }
         }
 
         int overflow = rows.Count - newHeight;
@@ -1078,6 +1150,23 @@ public class TerminalBuffer
         for (int col = Width - 1; col >= 0; col--)
         {
             if (_screen[row, col].Codepoint != 0)
+            {
+                return col + 1;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// How many cells of a stored line were written to, ignoring the untouched tail. The same rule
+    /// as <see cref="UsedLength"/>, for a line that is not on the screen.
+    /// </summary>
+    private static int UsedLengthOf(TerminalCell[] line)
+    {
+        for (int col = line.Length - 1; col >= 0; col--)
+        {
+            if (line[col].Codepoint != 0)
             {
                 return col + 1;
             }

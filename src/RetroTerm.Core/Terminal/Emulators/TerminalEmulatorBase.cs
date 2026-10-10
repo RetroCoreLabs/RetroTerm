@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Text;
 using RetroTerm.Core.Logging;
@@ -6826,6 +6826,14 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
         int cursorRow = Cursor.Row;
         int cursorColumn = Cursor.Column;
         Buffer.ResizeWithReflow(newWidth, newHeight, ref cursorRow, ref cursorColumn);
+
+        // Reflow re-lays out the history as well as the screen, so the number of history lines can
+        // change - growing the window pulls them back onto the screen. A view position kept from
+        // before would then point past the start of the history and show nothing.
+        if (ViewScrollOffset > Buffer.ScrollbackLineCount)
+        {
+            ViewScrollOffset = Buffer.ScrollbackLineCount;
+        }
 
         // Re-bound the cursor IN PLACE. Building a replacement and copying back Row/Column left
         // the live cursor with the old _maxRows/_maxCols, so after a shrink it stopped wrapping at

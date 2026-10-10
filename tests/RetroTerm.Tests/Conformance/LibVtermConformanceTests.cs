@@ -152,6 +152,19 @@ public class LibVtermConformanceTests
         // Our scrollback lives in the buffer and RIS clears it, which is what xterm does. Verified
         // by reading the script rather than assumed. The fifth is the pending-wrap representation.
         { "63screen_resize.test", 5 },
+
+        // 69screen_reflow 0 -> 5 on 10 October 2026, a DELIBERATE difference. BUGS.md B6.
+        // "Shell wrapped prompt behaviour", last step, RESIZE 5,16: libvterm keeps the five screen
+        // rows where they are, so the screen reads "> ", "", "PROMPT GOES HERE", "> " and a blank row,
+        // and the first prompt stays in history. We re-lay out history and screen as ONE document, so
+        // when widening leaves room the history comes back onto the screen: the first prompt is on
+        // row 0, the second prompt on row 4, the cursor on row 4. Five assertions (screen rows 0 to 3
+        // and the cursor).
+        // Why: libvterm's scrollback lives in the host, outside the terminal, so it CANNOT reflow
+        // or pull anything back. Ours is in the buffer. A window dragged small and big again, or
+        // only narrow and wide, with libvterm's rule leaves its first rows stranded in history with
+        // a blank band below the cursor - Ronny's welcome screen, 10 October 2026.
+        { "69screen_reflow.test", 5 },
         { "16state_resize.test", 2 },    // the column-80/81 pending-wrap representation, see above
 
         // ── Remaining singles, each a genuinely separate question ─────────────────────────

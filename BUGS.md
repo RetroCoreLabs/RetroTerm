@@ -68,3 +68,29 @@ Not decided: whether the real terminals ignore SGR 1 (the manual says so for the
 TDV 2200 and 2215 differ, and what the 'Graphic Rendition Mode' switch (mode 62, ATTR / UNDERLINE /
 SGR, `TDVEmulatorBase.cs` line 799) changes. Needs the 2215 and 2200 manuals read for their own SGR
 tables before anything is changed.
+
+## B6 - Widening pulls history back onto the screen; libvterm's corpus says it should not
+
+`src\RetroTerm.Core\Terminal\Buffer\TerminalBuffer.cs`, `ResizeWithReflow`. Decided 10 October 2026
+after Ronny's welcome screen came back from a shrink-and-grow with its logo in pieces.
+
+`ResizeWithReflow` used to re-lay out the screen only. Narrowing pushed rows into scrollback at the
+narrow width and widening never re-wrapped or pulled them back. When the window gets WIDER it now
+takes the history and the screen as one document, so the rows a shrink wrapped are rejoined and, when
+widening leaves room, come back onto the screen. Two limits, both measured: narrowing leaves old
+history alone, and widening folds history in only from the row after the last old line that is longer
+than the new width. The ring holds a fixed number of ROWS, and re-wrapping every old line at every
+width a drag passes through deleted the oldest history of a full ring (10,000 rows became 3,308 over
+one drag).
+
+The libvterm script `69screen_reflow.test`, "Shell wrapped prompt behaviour", last step (`RESIZE 5,16`),
+expects the opposite for that one case: the screen keeps its five rows in place, a blank row appears at
+the bottom and the first prompt stays in history. We disagree on five assertions there (screen rows 0
+to 3 and the cursor). They are recorded in `ExpectedFailures` in
+`tests\RetroTerm.Tests\Conformance\LibVtermConformanceTests.cs` with the reason.
+
+This is a choice, not a mistake: libvterm's scrollback lives in the host, outside the terminal, so it
+cannot reflow history or pull anything back. Ours is in the buffer. Not decided: whether xterm,
+Windows Terminal or a real DEC terminal fill a screen from history like this. DEC terminals could not
+resize at all, and no capture of the others is held here. If a capture of xterm shows it keeps the
+rows in place, this entry becomes a real defect and the old rule comes back.
