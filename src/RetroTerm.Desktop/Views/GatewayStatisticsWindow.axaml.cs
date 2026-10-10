@@ -48,6 +48,9 @@ public partial class GatewayStatisticsWindow : Window
     private void OnRefreshTimerTick(object? sender, EventArgs e)
     {
         RefreshUptime();
+        // Ethernet frames raise no StatisticsUpdated event (one per frame would flood the
+        // UI thread), so their counters are read once a second here.
+        RefreshCounters();
     }
 
     private void RefreshAll()
@@ -101,6 +104,31 @@ public partial class GatewayStatisticsWindow : Window
             diskWrite.Text = $"{stats.DiskWriteOps:N0} ops / {FormatBytes(stats.DiskWriteBytes)}";
         if (diskError != null)
             diskError.Text = stats.DiskErrors.ToString("N0");
+        // Every WebSocket message on the emulator and disk worker sockets, all types together.
+        var totalSent = this.FindControl<TextBlock>("TotalSentLabel");
+        var totalReceived = this.FindControl<TextBlock>("TotalReceivedLabel");
+        if (totalSent != null)
+            totalSent.Text = $"{stats.WsSentMessages:N0} packets / {FormatBytes(stats.WsSentBytes)}";
+        if (totalReceived != null)
+            totalReceived.Text = $"{stats.WsReceivedMessages:N0} packets / {FormatBytes(stats.WsReceivedBytes)}";
+
+        var ethMapping = this.FindControl<TextBlock>("EthMappingLabel");
+        var ethFrom = this.FindControl<TextBlock>("EthFromGuestLabel");
+        var ethTo = this.FindControl<TextBlock>("EthToGuestLabel");
+        var ethBad = this.FindControl<TextBlock>("EthBadLabel");
+        if (ethMapping != null)
+        {
+            var bridge = _listener.Ethernet;
+            ethMapping.Text = bridge == null
+                ? "none"
+                : $"{bridge.Description} ({(bridge.IsActive ? "active" : "not active")})";
+        }
+        if (ethFrom != null)
+            ethFrom.Text = $"{stats.EthFromGuestFrames:N0} frames / {FormatBytes(stats.EthFromGuestBytes)}";
+        if (ethTo != null)
+            ethTo.Text = $"{stats.EthToGuestFrames:N0} frames / {FormatBytes(stats.EthToGuestBytes)}";
+        if (ethBad != null)
+            ethBad.Text = stats.EthBadFrames.ToString("N0");
         if (clientConnects != null)
             clientConnects.Text = stats.ClientConnects.ToString("N0");
         if (clientDisconnects != null)
@@ -132,7 +160,9 @@ public partial class GatewayStatisticsWindow : Window
             return $"{bytes / 1024.0:F1} KB";
         if (bytes < 1024L * 1024 * 1024)
             return $"{bytes / (1024.0 * 1024):F1} MB";
-        return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
+        if (bytes < 1024L * 1024 * 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
+        return $"{bytes / (1024.0 * 1024 * 1024 * 1024):F2} TB";
     }
 
     private void OnResetClick(object? sender, RoutedEventArgs e)

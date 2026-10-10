@@ -46,13 +46,17 @@
                            FontSize="13"
                            FontWeight="SemiBold"
                            Margin="0,0,0,4"/>
-                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto" Margin="4,0">
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="4,0">
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Emulator:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" Name="EmulatorStatus" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"/>
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Disk Worker:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="1" Grid.Column="1" Name="DiskWorkerStatus" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Uptime:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="1" Name="UptimeLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Total sent:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Name="TotalSentLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Total received:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Name="TotalReceivedLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                 </Grid>
             </StackPanel>
         </Border>
@@ -101,6 +105,33 @@
                     <TextBlock Grid.Row="1" Grid.Column="1" Name="DiskWriteLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Errors:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="1" Name="DiskErrorLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Ethernet Section -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SectionBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12,8"
+                Margin="0,0,0,8">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Ethernet frames"
+                           Foreground="{DynamicResource SectionHeader3Brush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"/>
+                <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="4,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Mapping:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Name="EthMappingLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="From machine:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Name="EthFromGuestLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="To machine:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Name="EthToGuestLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Bad frames:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Name="EthBadLabel" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Margin="0,2,0,0"/>
                 </Grid>
             </StackPanel>
         </Border>

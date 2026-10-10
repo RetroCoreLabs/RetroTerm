@@ -84,7 +84,20 @@ public partial class MainWindow : Window
     private GatewayListener? _gatewayListener;
     private GatewaySettings? _gatewaySettings;
     private GatewayDiskSettings? _gatewayDiskSettings;
-    private TextBlock? _gatewayStatus;
+    private StackPanel? _gatewayStatus;
+    private Avalonia.Controls.Shapes.Ellipse? _gatewayLed;
+    private Avalonia.Controls.Shapes.Ellipse? _gatewayRxLed;
+    private Avalonia.Controls.Shapes.Ellipse? _gatewayTxLed;
+    private TextBlock? _gatewayPort;
+    private DispatcherTimer? _gatewayActivityTimer;
+    private long _gatewayLastRx;
+    private long _gatewayLastTx;
+
+    private static readonly SolidColorBrush s_ledGreen = new(Color.Parse("#3FD46A"));
+    private static readonly SolidColorBrush s_ledRed = new(Color.Parse("#E05050"));
+    private static readonly SolidColorBrush s_ledRxOn = new(Color.Parse("#F2C94C"));
+    private static readonly SolidColorBrush s_ledTxOn = new(Color.Parse("#4EC9B0"));
+    private static readonly SolidColorBrush s_ledOff = new(Color.Parse("#404040"));
 
     // File transfer
     private FileTransferProgressWindow? _transferProgressWindow;
@@ -294,7 +307,17 @@ public partial class MainWindow : Window
 
     private async void InitializeGateway()
     {
-        _gatewayStatus = this.FindControl<TextBlock>("GatewayStatus");
+        _gatewayStatus = this.FindControl<StackPanel>("GatewayStatus");
+        _gatewayLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayLed");
+        _gatewayRxLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayRxLed");
+        _gatewayTxLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayTxLed");
+        _gatewayPort = this.FindControl<TextBlock>("GatewayPort");
+
+        // RX/TX lights: lit for one 100 ms tick after any WebSocket message moved. The counters
+        // are Interlocked in GatewayStatistics, so reading them here races with nothing.
+        _gatewayActivityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _gatewayActivityTimer.Tick += OnGatewayActivityTick;
+        _gatewayActivityTimer.Start();
         _gatewayListener = new GatewayListener();
         _gatewaySettings = GatewaySettings.Load();
         _gatewayDiskSettings = GatewayDiskSettings.Load();
@@ -347,27 +370,43 @@ public partial class MainWindow : Window
     {
         if (_gatewayStatus == null || _gatewayListener == null) return;
 
-        if (!_gatewayListener.IsListening)
-        {
-            _gatewayStatus.IsVisible = false;
-            return;
-        }
+        // Nothing at all unless the gateway is enabled in Preferences.
+        bool enabled = _gatewaySettings?.Enabled == true;
+        _gatewayStatus.IsVisible = enabled;
+        if (!enabled) return;
 
-        _gatewayStatus.IsVisible = true;
+        bool connected = _gatewayListener.IsEmulatorConnected;
+        if (_gatewayLed != null) _gatewayLed.Fill = connected ? s_ledGreen : s_ledRed;
+        if (_gatewayPort != null) _gatewayPort.Text = $":{(_gatewayListener.IsListening ? _gatewayListener.Port : _gatewaySettings!.Port)}";
 
-        if (_gatewayListener.IsEmulatorConnected)
-        {
-            int count = _gatewayListener.TerminalCount;
-            var termWord = count == 1 ? "terminal" : "terminals";
-            _gatewayStatus.Text = $"GW: {count} {termWord}";
-            _gatewayStatus.Foreground = s_connectedDot; // green
-        }
-        else
-        {
-            _gatewayStatus.Text = $"GW: :{_gatewayListener.Port}";
-            _gatewayStatus.Foreground = new SolidColorBrush(Color.Parse("#999999"));
-        }
+        var stats = _gatewayListener.Statistics;
+        string state = connected ? "emulator connected"
+            : _gatewayListener.IsListening ? "listening, no emulator" : "not listening (port in use?)";
+        ToolTip.SetTip(_gatewayStatus,
+            $"Gateway {state}\n" +
+            $"Received: {stats.WsReceivedMessages:N0} packets, {stats.WsReceivedBytes:N0} bytes\n" +
+            $"Sent: {stats.WsSentMessages:N0} packets, {stats.WsSentBytes:N0} bytes");
     }
+
+    private void OnGatewayActivityTick(object? sender, EventArgs e)
+    {
+        if (_gatewayListener == null || _gatewayStatus == null) return;
+
+        // The connection LED, the tooltip and showing/hiding (Preferences can enable or disable
+        // the gateway at any time) once a second, every tenth tick.
+        if (++_gatewayStatusTicks % 10 == 0) UpdateGatewayStatus();
+        if (!_gatewayStatus.IsVisible) return;
+
+        var stats = _gatewayListener.Statistics;
+        long rx = stats.WsReceivedMessages;
+        long tx = stats.WsSentMessages;
+        if (_gatewayRxLed != null) _gatewayRxLed.Fill = rx != _gatewayLastRx ? s_ledRxOn : s_ledOff;
+        if (_gatewayTxLed != null) _gatewayTxLed.Fill = tx != _gatewayLastTx ? s_ledTxOn : s_ledOff;
+        _gatewayLastRx = rx;
+        _gatewayLastTx = tx;
+    }
+
+    private int _gatewayStatusTicks;
 
     // ───────────────────────────────────────────────────────────────────
     // Tab System (custom tab bar — no TabControl)
@@ -3473,15 +3512,6 @@ public partial class MainWindow : Window
                 await _activeTab.Session.SendInputAsync(byteString);
         };
         pushKeysDialog.ShowDialog(this);
-    }
-
-    private async void OnGatewaySettingsClick(object? sender, RoutedEventArgs e)
-    {
-        if (_gatewayListener == null || _gatewaySettings == null) return;
-
-        var dialog = new GatewaySettingsDialog(this, _gatewayListener, _gatewaySettings);
-        await dialog.ShowAsync();
-        UpdateGatewayStatus();
     }
 
     private void OnGatewayDebugClick(object? sender, RoutedEventArgs e)

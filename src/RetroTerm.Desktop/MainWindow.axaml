@@ -106,8 +106,6 @@
                               IsEnabled="False"/>
                 </MenuItem>
                 <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
-                <MenuItem Header="Gateway Settings..."
-                          Click="OnGatewaySettingsClick"/>
                 <MenuItem Header="Gateway Disk Images..."
                           Click="OnGatewayDiskImagesClick"/>
                 <MenuItem Header="Gateway Statistics..."
@@ -194,11 +192,23 @@
                            Grid.Column="4"
                            IsVisible="False"/>
 
-                <TextBlock Name="GatewayStatus"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           Grid.Column="5"
-                           Margin="12,0,0,0"
-                           IsVisible="False"/>
+                <!-- Gateway: shown only while the gateway is enabled in Preferences. The LED is
+                     green with an emulator connected and red without one; RX and TX flash on
+                     WebSocket traffic, like a modem's lights. -->
+                <StackPanel Name="GatewayStatus"
+                            Orientation="Horizontal" Spacing="4"
+                            Grid.Column="5"
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center"
+                            IsVisible="False">
+                    <TextBlock Text="GW" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <Ellipse Name="GatewayLed" Width="9" Height="9" VerticalAlignment="Center" Fill="#E05050"/>
+                    <TextBlock Name="GatewayPort" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="RX" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                    <Ellipse Name="GatewayRxLed" Width="7" Height="7" VerticalAlignment="Center" Fill="#404040"/>
+                    <TextBlock Text="TX" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    <Ellipse Name="GatewayTxLed" Width="7" Height="7" VerticalAlignment="Center" Fill="#404040"/>
+                </StackPanel>
 
                 <!-- Display size, as a percentage of the normal view. 100% is the picture the
                      window shows on its own, and it also lets the window decide how many columns

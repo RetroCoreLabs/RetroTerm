@@ -24,6 +24,7 @@
                 <CheckBox Name="AutoScrollCheckBox"
                           Content="Auto-scroll"
                           IsChecked="True"
+                          IsCheckedChanged="OnAutoScrollChanged"
                           Foreground="{DynamicResource PrimaryTextBrush}"
                           Margin="12,0,0,0"
                           VerticalAlignment="Center"/>
@@ -33,6 +34,58 @@
                            VerticalAlignment="Center"
                            Margin="20,0,0,0"/>
             </StackPanel>
+        </Border>
+
+        <!-- Filters, one row: a toggle per category (lit = shown), then a text match that
+             takes the rest of the width. What is captured is kept; these decide what is shown
+             and copied. -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,4">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                <TextBlock Grid.Column="0" Text="Show:" Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <ToggleButton Name="FilterTerminal" Content="Terminal" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterDisk" Content="Disk" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterEthernet" Content="Ethernet" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterHDLC" Content="HDLC" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterEvents" Content="Events" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterUnknown" Content="Unknown" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                    <ToggleButton Name="FilterOther" Content="Other" IsChecked="True"
+                                  FontSize="11" Padding="10,3" MinWidth="64"
+                                  HorizontalContentAlignment="Center"
+                                  IsCheckedChanged="OnFilterChanged"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="Text:" Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="11" VerticalAlignment="Center" Margin="16,0,8,0"/>
+                <TextBox Grid.Column="3" Name="FilterText"
+                         PlaceholderText="e.g. TCP, ARP, 192.168.199.40"
+                         FontSize="11" MinWidth="120" VerticalAlignment="Center"
+                         Background="{DynamicResource SecondaryButtonBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         TextChanged="OnFilterTextChanged"/>
+            </Grid>
         </Border>
 
         <!-- Message List -->

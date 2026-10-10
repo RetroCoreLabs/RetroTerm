@@ -1411,7 +1411,7 @@ public partial class ManageConnectionsWindow : Window
 
         if (_gatewayListener == null || !_gatewayListener.IsListening)
         {
-            _gatewayStatusLabel.Text = "Gateway listener is not active. Enable it in Connection > Gateway Settings.";
+            _gatewayStatusLabel.Text = "Gateway listener is not active. Enable it in Preferences > Gateway.";
             return;
         }
 

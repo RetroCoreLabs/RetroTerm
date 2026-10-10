@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using FrameSummary = RetroTerm.Core.Protocols.WebSocket.Gateway.Ethernet.EthernetFrameSummary;
 
 namespace RetroTerm.Core.Protocols.WebSocket.Gateway;
 
@@ -77,8 +78,16 @@ public class GatewayListener : IDisposable
     /// <param name="segment">The emulated segment number these frames belong to.</param>
     public void ConfigureEthernet(string? spec, int segment)
     {
-        _ethernet ??= new Ethernet.GatewayEthernetBridge(
-            (frame, label) => EnqueueSend(frame, label, true));
+        _ethernet ??= new Ethernet.GatewayEthernetBridge((frame, label) =>
+        {
+            if (frame.Length > 4 && frame[0] == 0x30)
+            {
+                Statistics.RecordEthToGuest(frame.Length - 4);
+                if (DebugMessage != null)
+                    LogDebug("TX", $"{label} {FrameSummary.Describe(frame, 4, frame.Length - 4)}");
+            }
+            EnqueueSend(frame, label, true);
+        });
 
         _ethernet.Configure(spec, segment);
     }
@@ -515,6 +524,8 @@ public class GatewayListener : IDisposable
                     break;
                 }
 
+                Statistics.RecordWsReceived(result.Count, result.EndOfMessage);
+
                 if (result.EndOfMessage && messageBuffer == null)
                 {
                     // Fast path: single-fragment message — process directly from buffer, no copy
@@ -623,6 +634,8 @@ public class GatewayListener : IDisposable
                     break;
                 }
 
+                Statistics.RecordWsReceived(result.Count, result.EndOfMessage);
+
                 if (result.EndOfMessage && messageBuffer == null)
                 {
                     if (result.MessageType == WebSocketMessageType.Binary)
@@ -705,6 +718,7 @@ public class GatewayListener : IDisposable
                             WebSocketMessageType.Binary,
                             true,
                             ct);
+                        Statistics.RecordWsSent(frame.Length);
                     }
                     catch (WebSocketException ex)
                     {
@@ -1021,6 +1035,7 @@ public class GatewayListener : IDisposable
                         WebSocketMessageType.Text,
                         true,
                         CancellationToken.None);
+                    Statistics.RecordWsSent(diskBytes.Length);
 
                     LogDebug("TX", $"disk-list (disk worker): {Truncate(json, 200)}");
                 }
@@ -1239,6 +1254,22 @@ public class GatewayListener : IDisposable
         // connection that has nothing to do with this frame.
         if (type == 0x31)
         {
+            int frameLength = length >= 4 ? (buffer[2] << 8) | buffer[3] : -1;
+            if (frameLength <= 0 || length < 4 + frameLength)
+            {
+                Statistics.RecordEthBadFrame();
+                if (DebugMessage != null)
+                    LogDebug("RX", $"eth-tx seg={identCode} BAD length field {frameLength} in a {length}B message - dropped");
+                return;
+            }
+
+            Statistics.RecordEthFromGuest(frameLength);
+            if (DebugMessage != null)
+            {
+                string where = _ethernet == null ? " (no Ethernet mapping - dropped)" : string.Empty;
+                LogDebug("RX", $"eth-tx seg={identCode} {frameLength}B {FrameSummary.Describe(buffer, 4, frameLength)}{where}");
+            }
+
             _ethernet?.TryHandleEmulatorFrame(buffer, length);
             return;
         }
@@ -1322,6 +1353,7 @@ public class GatewayListener : IDisposable
                             item.IsBinary ? WebSocketMessageType.Binary : WebSocketMessageType.Text,
                             true,
                             ct);
+                        Statistics.RecordWsSent(item.Data.Length);
 
                         if (DebugMessage != null && item.DebugLabel.Length > 0)
                             LogDebug("TX", $"SENT {item.DebugLabel}");

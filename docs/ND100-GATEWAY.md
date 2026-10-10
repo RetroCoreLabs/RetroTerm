@@ -35,8 +35,8 @@ ND-100 Emulator ──WebSocket──▸ GatewayListener (singleton, background)
 
 ## Configuration
 
-1. Open **Connection > Gateway Settings...**, or the **Gateway** tab of Preferences
-   (`src\RetroTerm.Desktop\Views\PreferencesWindow.axaml`). The Preferences tab holds the same
+1. Open the **Gateway** tab of Preferences
+   (`src\RetroTerm.Desktop\Views\PreferencesWindow.axaml`). It holds the
    enable switch and port, plus the Ethernet mapping described below.
 2. Enable the gateway and set the port (default: 8765)
 3. Click Apply — the listener starts immediately

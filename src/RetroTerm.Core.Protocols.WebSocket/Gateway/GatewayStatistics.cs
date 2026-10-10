@@ -4,7 +4,7 @@ using System.Threading;
 namespace RetroTerm.Core.Protocols.WebSocket.Gateway;
 
 /// <summary>
-/// Tracks gateway I/O statistics for terminal and disk operations.
+/// Tracks gateway I/O statistics for terminal, disk and Ethernet traffic.
 /// All counters use Interlocked for thread-safe increment.
 /// </summary>
 public class GatewayStatistics
@@ -22,6 +22,19 @@ public class GatewayStatistics
     private long _diskWriteBytes;
     private long _diskErrors;
 
+    // Ethernet (0x31 from the guest, 0x30 to the guest)
+    private long _ethFromGuestFrames;
+    private long _ethFromGuestBytes;
+    private long _ethToGuestFrames;
+    private long _ethToGuestBytes;
+    private long _ethBadFrames;
+
+    // Every WebSocket message, whatever its type (emulator and disk worker sockets)
+    private long _wsSentMessages;
+    private long _wsSentBytes;
+    private long _wsReceivedMessages;
+    private long _wsReceivedBytes;
+
     // Connection
     private long _clientConnects;
     private long _clientDisconnects;
@@ -36,6 +49,17 @@ public class GatewayStatistics
     public long DiskWriteOps => Interlocked.Read(ref _diskWriteOps);
     public long DiskWriteBytes => Interlocked.Read(ref _diskWriteBytes);
     public long DiskErrors => Interlocked.Read(ref _diskErrors);
+
+    public long EthFromGuestFrames => Interlocked.Read(ref _ethFromGuestFrames);
+    public long EthFromGuestBytes => Interlocked.Read(ref _ethFromGuestBytes);
+    public long EthToGuestFrames => Interlocked.Read(ref _ethToGuestFrames);
+    public long EthToGuestBytes => Interlocked.Read(ref _ethToGuestBytes);
+    public long EthBadFrames => Interlocked.Read(ref _ethBadFrames);
+
+    public long WsSentMessages => Interlocked.Read(ref _wsSentMessages);
+    public long WsSentBytes => Interlocked.Read(ref _wsSentBytes);
+    public long WsReceivedMessages => Interlocked.Read(ref _wsReceivedMessages);
+    public long WsReceivedBytes => Interlocked.Read(ref _wsReceivedBytes);
 
     public long ClientConnects => Interlocked.Read(ref _clientConnects);
     public long ClientDisconnects => Interlocked.Read(ref _clientDisconnects);
@@ -79,6 +103,38 @@ public class GatewayStatistics
         Interlocked.Increment(ref _diskErrors);
     }
 
+    public void RecordEthFromGuest(int frameBytes)
+    {
+        Interlocked.Increment(ref _ethFromGuestFrames);
+        Interlocked.Add(ref _ethFromGuestBytes, frameBytes);
+    }
+
+    public void RecordEthToGuest(int frameBytes)
+    {
+        Interlocked.Increment(ref _ethToGuestFrames);
+        Interlocked.Add(ref _ethToGuestBytes, frameBytes);
+    }
+
+    /// <summary>A 0x31 message whose length field does not fit the message.</summary>
+    public void RecordEthBadFrame()
+    {
+        Interlocked.Increment(ref _ethBadFrames);
+    }
+
+    /// <summary>One WebSocket message sent by the gateway.</summary>
+    public void RecordWsSent(int bytes)
+    {
+        Interlocked.Increment(ref _wsSentMessages);
+        Interlocked.Add(ref _wsSentBytes, bytes);
+    }
+
+    /// <summary>One received fragment; a message is counted when its last fragment arrives.</summary>
+    public void RecordWsReceived(int bytes, bool endOfMessage)
+    {
+        if (endOfMessage) Interlocked.Increment(ref _wsReceivedMessages);
+        Interlocked.Add(ref _wsReceivedBytes, bytes);
+    }
+
     public void RecordClientConnect()
     {
         Interlocked.Increment(ref _clientConnects);
@@ -103,6 +159,15 @@ public class GatewayStatistics
         Interlocked.Exchange(ref _diskWriteOps, 0);
         Interlocked.Exchange(ref _diskWriteBytes, 0);
         Interlocked.Exchange(ref _diskErrors, 0);
+        Interlocked.Exchange(ref _ethFromGuestFrames, 0);
+        Interlocked.Exchange(ref _ethFromGuestBytes, 0);
+        Interlocked.Exchange(ref _ethToGuestFrames, 0);
+        Interlocked.Exchange(ref _ethToGuestBytes, 0);
+        Interlocked.Exchange(ref _ethBadFrames, 0);
+        Interlocked.Exchange(ref _wsSentMessages, 0);
+        Interlocked.Exchange(ref _wsSentBytes, 0);
+        Interlocked.Exchange(ref _wsReceivedMessages, 0);
+        Interlocked.Exchange(ref _wsReceivedBytes, 0);
         Interlocked.Exchange(ref _clientConnects, 0);
         Interlocked.Exchange(ref _clientDisconnects, 0);
         EmulatorConnectedSince = null;

@@ -32,6 +32,36 @@ public partial class PreferencesWindow : Window
     /// </summary>
     private readonly List<PcapEthernetBackend.AdapterInfo> _adapters = new();
 
+    /// <summary>The text each text mapping had last, so switching modes never carries one
+    /// mode's value into another's box - an adapter's \\Device\\NPF_{GUID} showing up as a
+    /// "host:port" was exactly that.</summary>
+    private readonly Dictionary<EthernetMappingMode, string> _targetByMode = new();
+
+    /// <summary>What a text mapping's box holds when it has never been set.</summary>
+    private static string DefaultTarget(EthernetMappingMode mode) => mode switch
+    {
+        EthernetMappingMode.JoinSegment => "127.0.0.1:3094",
+        EthernetMappingMode.HostSegment => "3094",
+        EthernetMappingMode.Multicast => "239.3.9.4:3094",
+        _ => string.Empty
+    };
+
+    /// <summary>True when <paramref name="text"/> can be a value for <paramref name="mode"/>.
+    /// An adapter system name never is a valid address, port or group.</summary>
+    private static bool FitsMode(EthernetMappingMode mode, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        if (text.Contains('\\') || text.Contains('{')) return false;
+        return mode switch
+        {
+            EthernetMappingMode.HostSegment => int.TryParse(text, out int p) && p > 0 && p < 65536,
+            EthernetMappingMode.JoinSegment or EthernetMappingMode.Multicast => text.Contains(':'),
+            _ => true
+        };
+    }
+
+    private EthernetMappingMode _shownMode = EthernetMappingMode.None;
+
     private static readonly (EthernetMappingMode Mode, string Label, string Hint)[] EthernetModes =
     {
         (EthernetMappingMode.None, "Not mapped",
@@ -39,7 +69,7 @@ public partial class PreferencesWindow : Window
         (EthernetMappingMode.HostAdapter, "Bridge to a host adapter (pcap)",
             "Adapter index or part of its name. Needs npcap on Windows and puts the guest on your real LAN."),
         (EthernetMappingMode.JoinSegment, "Join a segment (TCP)",
-            "host:port to dial, e.g. 127.0.0.1:3094. Blank uses 127.0.0.1:3094."),
+            "Address of the other gateway's segment, host:port. 127.0.0.1:3094 reaches an nd100x gateway running in WSL on this PC."),
         (EthernetMappingMode.HostSegment, "Host a segment (TCP)",
             "Port to listen on, e.g. 3094. Every member sees every other, so three machines work as readily as two."),
         (EthernetMappingMode.Multicast, "Multicast segment (UDP)",
@@ -418,8 +448,12 @@ public partial class PreferencesWindow : Window
         var ethEnabled = this.FindControl<CheckBox>("EthernetEnabledCheck");
         if (ethEnabled != null) ethEnabled.IsChecked = tm.EthernetEnabled;
 
-        var target = this.FindControl<TextBox>("EthernetTargetBox");
-        if (target != null) target.Text = tm.EthernetTarget;
+        // Only a text mapping's own value goes in the text box; an adapter's lives in the list.
+        if (tm.EthernetMapping != EthernetMappingMode.HostAdapter &&
+            FitsMode(tm.EthernetMapping, tm.EthernetTarget))
+        {
+            _targetByMode[tm.EthernetMapping] = tm.EthernetTarget;
+        }
 
         PopulateAdapters(tm.EthernetTarget);
 
@@ -503,6 +537,21 @@ public partial class PreferencesWindow : Window
 
         bool isAdapter = mode == EthernetMappingMode.HostAdapter;
         bool needsParameter = mode != EthernetMappingMode.None;
+
+        // Keep what the previous text mode had, then show this mode's own value.
+        if (_shownMode != EthernetMappingMode.None && _shownMode != EthernetMappingMode.HostAdapter)
+        {
+            _targetByMode[_shownMode] = targetBox.Text?.Trim() ?? string.Empty;
+        }
+        if (needsParameter && !isAdapter)
+        {
+            string text = _targetByMode.TryGetValue(mode, out var saved) && FitsMode(mode, saved)
+                ? saved
+                : DefaultTarget(mode);
+            targetBox.Text = text;
+            targetBox.PlaceholderText = DefaultTarget(mode);
+        }
+        _shownMode = mode;
 
         label.IsVisible = needsParameter;
         adapterCombo.IsVisible = needsParameter && isAdapter;

@@ -73,7 +73,7 @@ Delete the folder to start from scratch. The exe itself never writes next to its
   what bytes go on the wire. It is generated from the same table the keyboard uses.
 - **Backspace and Delete.** Manage Connections, Keyboard tab. A TDV sends DEL for Backspace by
   default, which is what SINTRAN wants; a VT sends BS. The connection can override either way.
-- **ND-100 gateway.** Connection, Gateway Settings, for a RetroCore ND-100 emulator's terminal
+- **ND-100 gateway.** Preferences, Gateway tab, for a RetroCore ND-100 emulator's terminal
   ports.
 - **File transfer.** Transfer, Send File(s) and Receive File(s), over Kermit.
 
