@@ -87,15 +87,18 @@ document `MERMAID_COLOR_STANDARDS`, which lives in the RetroCore Labs standards 
 here.
 
 The documents are also published as a site, <https://retrocorelabs.github.io/RetroTerm/>, built
-by `.github/workflows/docs.yml` on every push to `main`. Its page tree is generated from the
-tracked files; a new document under `docs\` is on the site after the next push, and keeping one
-off takes a line in `src\docs-site\gen_nav.py` with the reason. Build it the way CI does before
-you push a documentation change - `--strict` fails on any warning, a broken link included:
+with DocFX by `.github/workflows/docs.yml` on every push to `main`: the API reference of every
+project from the XML comments, and the documents under `docs\` as articles. The page tree is
+generated from the tracked files by `src\docfx\gen_toc.py`; after adding or removing a document
+under `docs\`, run the script and commit the `docfx.json` and `toc.yml` it rewrites - CI runs it
+with `--check` and fails when they are stale. Keeping a document off the site takes a line in the
+script's `EXCLUDED_DOCS` with the reason. Build it the way CI does before you push a documentation
+change; a warning is a failure there, a broken link included:
 
 ```powershell
-python -m pip install -r src\docs-site\requirements.txt
-python src\docs-site\gen_nav.py
-python -m mkdocs build --strict -f src\docs-site\generated\mkdocs.yml -d "$env:TEMP\retroterm-site"
+dotnet tool install -g docfx            # once
+python src\docfx\gen_toc.py
+docfx src\docfx\docfx.json --warningsAsErrors
 ```
 
 > [!WARNING]

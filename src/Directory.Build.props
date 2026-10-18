@@ -23,6 +23,16 @@
     
     <!-- Enable long paths on Windows -->
     <LongPathsEnabled>true</LongPathsEnabled>
+
+    <!-- Every project produces a reference assembly, the netstandard2.1 ones included (the SDK
+         turns this on by default only from net5.0 up). Measured 18 October 2026: without it the
+         DocFX build warned "Found project reference without a matching metadata reference" for
+         RetroTerm.Core.Protocols and RetroTerm.Core, and the docs workflow treats warnings as
+         errors. The message is Roslyn's: MSBuildProjectLoader.Worker_ResolveReferences.cs matches
+         a project reference only when the referenced project has BOTH an output path AND a
+         reference-assembly path, so a project with no ref assembly can never match. A reference
+         assembly also means a change to a method body no longer rebuilds everything downstream. -->
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
     
     <!-- No debug symbols in Release. A published RetroTerm is ONE .exe: no .pdb files
          beside it, and nothing embedded inside it either (DebugType=embedded would put

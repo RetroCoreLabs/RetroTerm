@@ -803,15 +803,15 @@ Scanned by Torfinn Ingolfsen © 2013
 
 # Table of Contents
 
-- [LIST OF FIGURES](#list-of-figures)
+- LIST OF FIGURES
 - [INTRODUCTION](#introduction)
-- [CONVENTIONS USED IN THIS DOCUMENT](#conventions-used-in-this-document)
-- [KEY CAPABILITIES AND FEATURES](#key-capabilities-and-features)
-- [GETTING STARTED](#getting-started)
-- [SYSTEM ADMINISTRATION](#system-administration)
-- [USER MANAGEMENT](#user-management)
-- [TROUBLESHOOTING](#troubleshooting)
-- [APPENDICES](#appendices)
+- CONVENTIONS USED IN THIS DOCUMENT
+- KEY CAPABILITIES AND FEATURES
+- GETTING STARTED
+- SYSTEM ADMINISTRATION
+- USER MANAGEMENT
+- TROUBLESHOOTING
+- APPENDICES
 
 | Section | Page |
 |---------|------|

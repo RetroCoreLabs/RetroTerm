@@ -1,22 +1,18 @@
 name: Docs
 
-# Builds the documentation site with MkDocs and publishes it to GitHub Pages on every push to
+# Builds the DocFX site - the API reference from the XML comments of the eight projects, plus
+# the documents under docs/ as articles - and publishes it to GitHub Pages on every push to
 # main. Repository Settings -> Pages -> Source must be "GitHub Actions".
 #
-# This workflow builds the site only - no compiling, no tests, no release; build.yml does those.
-# The nav comes from gen_nav.py, which reads `git ls-files`, so a page is on the site when its
-# file is tracked and not named in the script's exclusion policy. --strict fails the build on
-# any warning, a broken link included; the same command runs locally (src/docs-site/README.md).
+# This workflow builds the site only; build.yml does the tests and the releases. DocFX
+# restores and compiles the projects itself to read the comments, and that is the only
+# compiling here. gen_toc.py --check fails the run when docfx.json's article list or toc.yml
+# is stale against the tracked files, so a document added without rerunning the script is
+# caught here rather than silently missing from the tree.
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'README.md'
-      - 'docs/**'
-      - 'src/assets/**'
-      - 'src/docs-site/**'
-      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -30,26 +26,36 @@ concurrency:
 
 jobs:
   build:
-    name: Build the site
+    name: Build DocFX site
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - uses: actions/configure-pages@v6
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: src/global.json
 
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - run: pip install -r src/docs-site/requirements.txt
+      - uses: actions/configure-pages@v6
 
-      - run: python src/docs-site/gen_nav.py
+      - name: Article list and page tree match the tracked files
+        run: python src/docfx/gen_toc.py --check
 
-      - run: python -m mkdocs build --strict -f src/docs-site/generated/mkdocs.yml -d "${{ runner.temp }}/site"
+      - name: Install DocFX
+        run: dotnet tool install -g docfx
+
+      - name: Build site
+        working-directory: src
+        run: docfx docfx/docfx.json --warningsAsErrors
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: ${{ runner.temp }}/site
+          path: src/docfx/_site
 
   deploy:
     name: Deploy to GitHub Pages

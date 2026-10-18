@@ -663,7 +663,7 @@ The terminal display maps 13 code positions to different glyphs depending on the
 | 135 | 0x5D | ] | Å | Å | Å | Ü | ] | § |
 | 136 | 0x5E | ^ | ^ | ^ | ^ | ^ | ^ | ^ |
 | 137 | 0x5F | _ | _ | _ | _ | _ | _ | _ |
-| 140 | 0x60 | ` | ` | ` | ` | ` | ` | ` |
+| 140 | 0x60 | \` | ` | \` | ` | \` | ` | \` |
 | 173 | 0x7B | { | æ | æ | ä | ä | { | é |
 | 174 | 0x7C | \| | ø | ø | ö | ö | \| | ù |
 | 175 | 0x7D | } | å | å | å | ü | } | è |
@@ -1556,8 +1556,8 @@ Row F only has keys in cols 47–49 and 51–54 (no keys in cols 0–14).
 | E9 | `9` / `)` ![](keys/E9.png) | 9 | ) | 9 | ) | |
 | E10 | `0` / `=` ![](keys/E10.png) | 0 | = | 0 | _ | |
 | E11 | `+` / `?` ![](keys/E11.png) | + | ? | - | = | |
-| E12 | `@` / `` ` `` ![](keys/E12.png) | @ | ` | ^ | \| | |
-| E13 | `pilcrow` (¶) ![](keys/E13.png) | NewParagraph | (shift) | @ | ` | New paragraph (NOTIS) |
+| E12 | `@` / `` ` `` ![](keys/E12.png) | @ | \` | ^ | \| | |
+| E13 | `pilcrow` (¶) ![](keys/E13.png) | NewParagraph | (shift) | @ | \` | New paragraph (NOTIS) |
 | E14 | Del ![](keys/E14.png) | Del | | (unused) | | Erase char at cursor or backspace+erase |
 | |  | | |  | | **physical gap** |
 | E47 | `<<` / `>>` ![](keys/E47.png) | << | >> | (unused) | | Indent left / Indent right (NOTIS) |

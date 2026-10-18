@@ -186,8 +186,5 @@ README.template.md
 # Instructions to the AI assistant working on this machine. Kept locally, not published.
 CLAUDE.md
 
-# Output of src/docs-site/gen_nav.py - the site's nav and exclusion list, remade on every build.
-src/docs-site/generated/
-
-# Python bytecode from running src/docs-site/gen_nav.py and the MkDocs hooks.
+# Python bytecode from running src/docfx/gen_toc.py.
 __pycache__/
