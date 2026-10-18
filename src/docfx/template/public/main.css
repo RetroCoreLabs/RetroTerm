@@ -42,11 +42,22 @@
   }
 }
 
-/* Between 768 and 900 px even the tightened menu leaves no room for the search box and the page
-   scrolls sideways. The box is hidden there; it is back at 900 px and wider, and the search
+/* Between 768 and 1100 px even the tightened menu leaves no room for the search box and the page
+   scrolls sideways. The box is hidden there; it is back above 1100 px, and the search
    shortcut still works. */
-@media (min-width: 768px) and (max-width: 900px) {
+@media (min-width: 768px) and (max-width: 1100px) {
   .navbar form#search {
     display: none;
   }
+}
+
+/* The template puts a wbr inside camel-case words, and Chromium breaks there even under
+   nowrap, so "GitHub" is drawn "Git" / "Hub" when the menu is squeezed. Remove the break
+   point and keep each entry at its natural width. */
+.navbar .navbar-nav .nav-item {
+  flex-shrink: 0;
+}
+
+.navbar .navbar-nav .nav-link wbr {
+  display: none;
 }
