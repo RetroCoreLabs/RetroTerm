@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,7 +41,7 @@ public class ManualTestDocumentConsistencyTests
     /// </summary>
     private static string DocsFolder => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(typeof(ManualTestDocumentConsistencyTests).Assembly.Location) ?? "",
-        "..", "..", "..", "..", "..", "docs", "manual-tests"));
+        "..", "..", "..", "..", "..", "..", "docs", "manual-tests"));
 
     /// <summary>
     /// A case heading and the result recorded under it.

@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -181,7 +188,8 @@ public class XmlCommentStructureTests
     private static List<DocBlock> AllDocBlocks()
     {
         var blocks = new List<DocBlock>();
-        var roots = new[] { Path.Combine(RepositoryRoot, "src"), Path.Combine(RepositoryRoot, "tests") };
+        // The repository root is the src folder, and tests\ lives inside it, so one root covers both.
+        var roots = new[] { RepositoryRoot };
 
         for (int r = 0; r < roots.Length; r++)
         {
@@ -192,7 +200,8 @@ public class XmlCommentStructureTests
             {
                 // Generated and intermediate output is not ours to police.
                 if (files[f].Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar)
-                    || files[f].Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
+                    || files[f].Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar)
+                    || files[f].Contains(Path.DirectorySeparatorChar + "garbage" + Path.DirectorySeparatorChar))
                 {
                     continue;
                 }

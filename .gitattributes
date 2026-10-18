@@ -12,9 +12,9 @@
 # diff - the files would look identical.
 #
 # -text means "never convert line endings in either direction".
-tests/RetroTerm.Tests/Conformance/xtermjs/*.in    -text
-tests/RetroTerm.Tests/Conformance/xtermjs/*.text  -text
-tests/RetroTerm.Tests/Conformance/xtermjs/NOTES   -text
-tests/RetroTerm.Tests/Conformance/libvterm/*.test -text
-tests/RetroTerm.Tests/Conformance/tektronix/**    -text
-tests/RetroTerm.Tests/Conformance/vt340test/**    -text
+src/tests/RetroTerm.Tests/Conformance/xtermjs/*.in    -text
+src/tests/RetroTerm.Tests/Conformance/xtermjs/*.text  -text
+src/tests/RetroTerm.Tests/Conformance/xtermjs/NOTES   -text
+src/tests/RetroTerm.Tests/Conformance/libvterm/*.test -text
+src/tests/RetroTerm.Tests/Conformance/tektronix/**    -text
+src/tests/RetroTerm.Tests/Conformance/vt340test/**    -text

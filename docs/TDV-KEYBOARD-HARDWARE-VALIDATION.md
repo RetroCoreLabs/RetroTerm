@@ -14,8 +14,8 @@ Use sources in this order:
 | Priority | Source | What it tells you |
 |----------|--------|-------------------|
 | 1 | **TDV-2200/9 User's Guide** §7–8 | Bytes on the serial line (host view), per Extended Control switch position |
-| 2 | **Keyboard EPROM layout** (`spec/Keyboards/keyboard-spec.md` §3–4) | Internal keyboard-microcontroller codes before terminal firmware translation |
-| 3 | **Terminal firmware** (2215 ROM notes in `spec/TDV2200/Testing2215/`) | How received bytes affect the display (e.g. `0x08` → `handle_backspace` at `0x2a6c`) |
+| 2 | **Keyboard EPROM layout** (`docs/spec/Keyboards/keyboard-spec.md` §3–4) | Internal keyboard-microcontroller codes before terminal firmware translation |
+| 3 | **Terminal firmware** (2215 ROM notes in `docs/spec/TDV2200/Testing2215/`) | How received bytes affect the display (e.g. `0x08` → `handle_backspace` at `0x2a6c`) |
 | 4 | **NOTIS termcap / terminfo** (`docs/TermCap.txt`, `nd246.ti`) | What Unix hosts *expected* — may disagree with each other and with the User's Guide |
 | 5 | **RetroTerm implementation** | Best-effort emulation policy — not ground truth |
 
@@ -27,7 +27,7 @@ Use sources in this order:
 
 ### 2.1 Keyboard EPROM (layout 965313-0, TDV-2200/9S Norwegian)
 
-From `spec/Keyboards/keyboard-spec.md` §4.1:
+From `docs/spec/Keyboards/keyboard-spec.md` §4.1:
 
 | Grid | Label | ROM Normal | ROM Shift | ROM Ctrl |
 |------|-------|------------|-----------|----------|
@@ -40,7 +40,7 @@ Internal code map (appendix): `0xEE`/`0xFE` → E13, `0xF1` → G47 STRYK.
 
 ### 2.2 User's Guide — wire bytes
 
-Source: `spec/TDV2200/OCR/TDV-2200_9-User-s_Guide-ND_combined.md`
+Source: `docs/spec/TDV2200/OCR/TDV-2200_9-User-s_Guide-ND_combined.md`
 
 **DEL key (E14) — text behaviour (§4):**  
 Erases character at cursor, or moves left one column and erases there.
@@ -78,7 +78,7 @@ Erases character at cursor, or moves left one column and erases there.
 
 ### 2.4 Firmware (2215 analysis — receive side only)
 
-From `spec/TDV2200/Testing2215/control_char_handlers_analysis.md`:
+From `docs/spec/TDV2200/Testing2215/control_char_handlers_analysis.md`:
 
 - Dispatch: `0x08` → BS handler ~`0x2a6c`
 - NVRAM `backspace_enable_flag` at `0x5f22` can disable backspace handling
@@ -113,7 +113,7 @@ Aliases: `BACKSPACE` → E13, `DELETE`/`DEL` → E14 (virtual keyboard labels).
 | **Alt+Delete** | `CSI 10 _` | Default Alt binding → G47 | ⏳ (PC convenience) |
 | **Left arrow** (VK 37) | `0x08` | B47 fixed key | ⏳ |
 
-Tests encoding this policy: `tests/RetroTerm.Tests/TDV/TDVMapperNavigationTests.cs`.
+Tests encoding this policy: `src/tests/RetroTerm.Tests/TDV/TDVMapperNavigationTests.cs`.
 
 ### 3.3 Known gaps / intentional guesses
 
@@ -204,7 +204,7 @@ HW-A01 | TDV-2200/9 NO | ROM 5313 | Ext=OFF | E13 | none | 08
 HW-A01 | TDV-2200/9 NO | ROM 5313 | Ext=ON  | E13 | none | 1B 58 36 36 5F
 ```
 
-Store captures under `spec/TDV2200/captures/keyboard/` (create when first capture exists).
+Store captures under `docs/spec/TDV2200/captures/keyboard/` (create when first capture exists).
 
 ### 5.4 Without TDV hardware (interim)
 
@@ -241,7 +241,7 @@ Then:
 
 1. Update `TDV2200KeyRegistry` / `TDV2200KeyboardMapper` if wire bytes differ.
 2. Add regression tests with captured hex strings.
-3. Note confirmed behaviour in `spec/Keyboards/keyboard-spec.md` §6.8 footnotes.
+3. Note confirmed behaviour in `docs/spec/Keyboards/keyboard-spec.md` §6.8 footnotes.
 4. Record the confirmed rows in `docs/TDV-KEYBOARD-COMPLETE-REFERENCE.md`, the document the
    registry test pins. (The separate validation matrix this step used to name was retired in
    August 2026.)
@@ -252,14 +252,14 @@ Then:
 
 | Path | Content |
 |------|---------|
-| `spec/TDV2200/OCR/TDV-2200_9-User-s_Guide-ND_combined.md` | §7.1–7.2 (Ext OFF), §8 (Ext ON) |
-| `spec/Keyboards/keyboard-spec.md` | ROM layouts, §6.8 mode tables |
-| `spec/TDV2200/DOC TDV2200/keyboard_documentation.md` | SDL-oriented table (secondary) |
-| `spec/TDV2200/Testing2215/control_char_handlers_analysis.md` | BS handler at `0x2a6c` |
+| `docs/spec/TDV2200/OCR/TDV-2200_9-User-s_Guide-ND_combined.md` | §7.1–7.2 (Ext OFF), §8 (Ext ON) |
+| `docs/spec/Keyboards/keyboard-spec.md` | ROM layouts, §6.8 mode tables |
+| `docs/spec/TDV2200/DOC TDV2200/keyboard_documentation.md` | SDL-oriented table (secondary) |
+| `docs/spec/TDV2200/Testing2215/control_char_handlers_analysis.md` | BS handler at `0x2a6c` |
 | `docs/TermCap.txt` | NOTIS termcap `tdv2200` |
 | `src/RetroTerm.Core/Terminal/Emulators/TDV/TDV2200KeyRegistry.cs` | Virtual key sequences |
 | `src/RetroTerm.Core/Terminal/Input/KeyboardMapper.cs` | PC key mapping |
-| `tests/RetroTerm.Tests/TDV/TDVMapperNavigationTests.cs` | Mapper regression tests |
+| `src/tests/RetroTerm.Tests/TDV/TDVMapperNavigationTests.cs` | Mapper regression tests |
 
 ---
 

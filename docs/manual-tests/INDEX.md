@@ -58,7 +58,7 @@ In this order, because this is where the unknowns are:
 ## What the suite writes for these documents
 
 Artefacts live beside the rendered PNGs in
-`tests\RetroTerm.Tests\Avalonia\images\rendered\`. They are produced by the
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\`. They are produced by the
 test run, so they are always current:
 
  - `compare-*.png` — our Sixel beside the same stream drawn by real VT340 hardware, eleven pairs.
@@ -106,7 +106,7 @@ A case that can be checked headlessly gets an `[AvaloniaFact]` whose method name
 public void M8_2a_ScrollingBackShowsRowsThatHaveLeftTheScreen()
 ```
 
-Live in `tests\RetroTerm.Tests\Avalonia\ManualPlan\`, one file per section.
+Live in `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\`, one file per section.
 
 So the link runs both ways: the document names the test, the test names the case. Rename one and the
 other is found by searching for the ID.

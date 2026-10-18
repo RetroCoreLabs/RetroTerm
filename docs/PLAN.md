@@ -147,7 +147,7 @@ appeared the day they came back - and it failed with them off. Capturing the act
 one run of a loop that kept the output; the single-variable test that found the real cause took
 five. Neither was tried until three ticks in.
 
-The runner cap at four parallel collections in `tests\RetroTerm.Tests\xunit.runner.json` stays. It costs
+The runner cap at four parallel collections in `src\tests\RetroTerm.Tests\xunit.runner.json` stays. It costs
 nothing measurable. It was never proven to help on its own.
 
 **The 37 switched-off integration tests are CLOSED, 10 September 2026.** All of them run now.
@@ -212,7 +212,7 @@ Running it again would destroy memory to learn nothing new. The recorded bytes a
 
 - [ ] **Run the OPCOM hardware tests whenever the D100 is on the bench anyway.**
       `$env:RETROTERM_OPCOM_PORT = "COM11"` then
-      `dotnet test tests\RetroTerm.Tests\RetroTerm.Tests.csproj --filter "FullyQualifiedName~OpcomAgainstRealHardwareTests"`.
+      `dotnet test src\tests\RetroTerm.Tests\RetroTerm.Tests.csproj --filter "FullyQualifiedName~OpcomAgainstRealHardwareTests"`.
       Costs 30 seconds, needs the machine at the OPCOM prompt and RetroTerm closed.
       They cross-check a block dump against single examines rather than hardcoding values, so
       they stay valid whatever the machine is doing.
@@ -426,14 +426,14 @@ Nothing here should be started to look busy.
       old TODO-PLAN.md, with no manual, capture or source behind any of them. Carry them as
       "find the capture or drop", never as facts.
 
-- [ ] **STX, ETX and EOT outside 2115 mode.** 2215 section 8.4 (`spec\TDV2215\TDV2215.md` lines
+- [ ] **STX, ETX and EOT outside 2115 mode.** 2215 section 8.4 (`docs\spec\TDV2215\TDV2215.md` lines
       2367 to 2396) lists them in the general accepted C0 set - video off, video on, erase line -
       with no Extended Control qualifier, while the test
       `TDV2200_NormalMode_LeavesTheGenuinelyTwoOneOneFiveOnlyCodesAlone` keeps EOT off in normal
       mode. Decide with the manual open, and change the test with the citation in it.
 
 - [ ] **TDV printing from the keyboard.** The 2200 guide
-      (`spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md` lines 805 to 809) gives
+      (`docs\spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md` lines 805 to 809) gives
       CTRL+STOP PRINT on G51 and CTRL+START PRINT on G52 - a screen print to a local printer.
       `TDV2200KeyRegistry.cs` gives G52 `ESC[44_` and G51 `ESC[42_` and has no CTRL column for
       either. Read 2215 sections 4.2.14, 7.4 and 8.7 before building anything; DEC media copy
@@ -624,7 +624,7 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
 | Display zoom is measured from the FITTED picture, so 100% is the normal view | Decided 2026-08-19 after Ronny found three faults. Pinned by `DisplayZoomPixelTests` |
 | A zoomed picture larger than the window follows the CURSOR, and is never centred | Centring an over-sized picture put the origin off the corner and the screen came up blank. Pinned by `M8WholeTerminalTests.M8_7b_*` |
 | Changing the emulation keeps the connection, the screen and the scrollback; graphics are dropped and said so | Decided 2026-08-19. One registry command behind the menu, the DSL and MCP alike |
-| ReGIS graphics input takes a CLICK to place the cursor and the arrow keys to refine it | Decided 2026-08-20 as keyboard-only, and OVERTURNED by Ronny on 31 August 2026. The original reason was that the manual describes only the arrow keys and nothing said who wins when a program is also asking for xterm mouse reports - but one-shot input SUSPENDS the host, so no program is listening for mouse reports while the cursor is up and no new text is arriving to select. The click can only round to the nearest plane pixel, because the plane is stretched into the text area, so the arrows keep their job. NOT known: whether a real VT330/VT340 took a mouse or tablet as a ReGIS locator - nothing in `spec\` covers it. Pinned by `RegisGraphicsInputKeyTests` and `RegisGraphicsInputMouseTests` |
+| ReGIS graphics input takes a CLICK to place the cursor and the arrow keys to refine it | Decided 2026-08-20 as keyboard-only, and OVERTURNED by Ronny on 31 August 2026. The original reason was that the manual describes only the arrow keys and nothing said who wins when a program is also asking for xterm mouse reports - but one-shot input SUSPENDS the host, so no program is listening for mouse reports while the cursor is up and no new text is arriving to select. The click can only round to the nearest plane pixel, because the plane is stretched into the text area, so the arrows keep their job. NOT known: whether a real VT330/VT340 took a mouse or tablet as a ReGIS locator - nothing in `docs\spec\` covers it. Pinned by `RegisGraphicsInputKeyTests` and `RegisGraphicsInputMouseTests` |
 | One-shot graphics input suspends the host, and Esc cancels | The suspension is the manual's. The cancel is OURS — a real VT340 has no way out except answering, and a suspended session here would look dead |
 | A host must send `R(P(I))` in the SAME command string as `R(I0)` | Not a choice, a consequence: everything after the mode change is buffered, including a later request |
 | The multiple-mode position report carries the null button code | The two chapters disagree; the worked example in chapter 15 wins |
@@ -667,7 +667,7 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
 - **Clean-room only.** Outside code is a specification to read and an oracle to run, never something
   to copy. Corpus files are fetched, never committed.
 - **Finish with** `dotnet format` → `dotnet build` (0 warnings) → `dotnet test` (quote the number) →
-  **`.\scripts\publish.ps1`** → `dotnet build-server shutdown`. Pass `-nodeReuse:false` to builds,
+  **`src\tools\build-release.bat`** → `dotnet build-server shutdown`. Pass `-nodeReuse:false` to builds,
   or MSBuild worker nodes pile up and the shutdown will not clear them.
 - **A GREEN BUILD DOES NOT MEAN THE APP CAN BE SHIPPED.** Debug and Release compile XAML
   differently, so a Release publish can fail on something the Debug build and every test accepted -

@@ -65,7 +65,7 @@ TestResults/
 *.coveragexml
 
 # Generated test screenshot images (visual inspection only, regenerated each run)
-tests/RetroTerm.Tests/Avalonia/images/
+src/tests/RetroTerm.Tests/Avalonia/images/
 
 # NuGet
 *.nupkg
@@ -170,15 +170,15 @@ session.txt
 # nothing, while the same behaviour was already covered by real tests in
 # tests\RetroTerm.Tests\TDV\. They were bait for anyone grepping for TDV key tests.
 # If a scratch program is ever genuinely needed, it does not live here.
-/test-*.cs
+/src/test-*.cs
 
 # Outside conformance corpora. These belong to other projects and are NOT committed here:
 # nothing from another codebase lives in this repository. Fetch them when you want to run
 # them with tools\fetch-conformance-corpora.ps1; the tests skip themselves when absent.
-tests/RetroTerm.Tests/Conformance/xtermjs/
-tests/RetroTerm.Tests/Conformance/libvterm/
-tests/RetroTerm.Tests/Conformance/vt340test/
-tests/RetroTerm.Tests/Conformance/vt340regis/
+src/tests/RetroTerm.Tests/Conformance/xtermjs/
+src/tests/RetroTerm.Tests/Conformance/libvterm/
+src/tests/RetroTerm.Tests/Conformance/vt340test/
+src/tests/RetroTerm.Tests/Conformance/vt340regis/
 
 # Scaffold written by repo-standards\tools\apply-standards.ps1. Copy from it, then delete it.
 README.template.md

@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0.."
 REM Start RetroTerm with Test Server
 REM This batch file starts both the test server and RetroTerm application
 

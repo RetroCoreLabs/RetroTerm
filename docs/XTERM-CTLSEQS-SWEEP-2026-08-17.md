@@ -2,7 +2,7 @@
 
 **Full path:** `docs\XTERM-CTLSEQS-SWEEP-2026-08-17.md`
 
-This is the P1.4 deliverable: every sequence in `spec\DEC\xterm-ctlseqs.txt` marked **implemented**,
+This is the P1.4 deliverable: every sequence in `docs\spec\DEC\xterm-ctlseqs.txt` marked **implemented**,
 **deliberately not**, or **missing**. 224 sequences were pulled out of the document — 117 CSI, 93
 ESC, 14 DCS/OSC. **All three sections are walked**: the CSI, ESC and DCS/OSC lists below each
 carry an implemented, deliberately-not and missing list.

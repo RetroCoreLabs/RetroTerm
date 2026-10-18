@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0.."
 
 :: RetroTerm Build & Publish Script
 :: Builds both client and test server to publish/ folder
@@ -10,7 +11,7 @@ echo ========================================================================
 echo.
 
 set "PUBLISH_DIR=.\publish"
-set "CLIENT_PROJ=.\src\RetroTerm.Desktop\RetroTerm.Desktop.csproj"
+set "CLIENT_PROJ=.\RetroTerm.Desktop\RetroTerm.Desktop.csproj"
 set "SERVER_PROJ=.\tests\RetroTerm.TestServer\RetroTerm.TestServer.csproj"
 
 :: Create publish directory if it doesn't exist

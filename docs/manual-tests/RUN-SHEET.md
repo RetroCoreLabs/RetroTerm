@@ -31,10 +31,12 @@ fortnight came from "that looks wrong" rather than from an assertion.
 **Recording goes on FIRST.** `terminal_logstart` for the transcript, `terminal_tracestart` for the
 bytes. A screen that looks wrong is worth little without the bytes that made it. If I forget, stop me.
 
-`.\scripts\publish.ps1` publishes to `publish\versions\<version>\` and repoints the `publish\current`
-junction. Since 8 October 2026 the folder carries no `-n` counter and a second publish of the same
-version replaces it, so a RetroTerm that is running from `publish\current` has to be closed first
-(the script says so and changes nothing otherwise). A new version number publishes beside it.
+`src\tools\build-release.bat` publishes the client and the test server into `src\publish\`. It
+closes a running RetroTerm and TestServer first (by name, so every copy on the machine), then
+replaces the exes in place. Run it from a terminal of your own, not from a session that is driving
+RetroTerm over MCP, or that session loses its server. (Until 18 October 2026 a second script,
+`scripts\publish.ps1`, published into versioned folders behind a `publish\current` junction so a
+running copy could stay open; it was removed as a duplicate of this one.)
 
 ---
 

@@ -1,3 +1,7 @@
-// Backup of current layout before restructuring
-// Created: 2025-11-21
-// This file is just for reference
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+

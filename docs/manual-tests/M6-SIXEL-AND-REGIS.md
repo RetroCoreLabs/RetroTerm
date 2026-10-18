@@ -2,7 +2,7 @@
 
 **Full path:** `docs\manual-tests\M6-SIXEL-AND-REGIS.md`
 **Parent:** `docs\manual-tests\INDEX.md`
-**Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M6SixelAndRegisTests.cs`
+**Machine cover:** `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\M6SixelAndRegisTests.cs`
 
 Graphics is the area where **looking is the test**. Three defects shipped here that every assertion
 in the suite was blind to — a thrown-away aspect ratio, red and blue swapped in every image, and
@@ -19,11 +19,11 @@ Run the suite once, so every artefact below is current:
 
     dotnet test src\RetroTerm.slnx
 
-Everything lands in `tests\RetroTerm.Tests\Avalonia\images\rendered\`.
+Everything lands in `src\tests\RetroTerm.Tests\Avalonia\images\rendered\`.
 
 **The corpus must be fetched** or the comparison cases have nothing to compare against:
 
-    powershell -File tools\fetch-conformance-corpora.ps1
+    powershell -File src\tools\fetch-conformance-corpora.ps1
 
 It is CC0 and deliberately **not** committed. With it absent every test here still passes and simply
 produces nothing — so an empty images folder means the fetch, not the decoder.
@@ -39,7 +39,7 @@ Eleven of the sixteen streams come with a capture of what a real VT340 or VT240 
 
 **Needs:** nothing but the fetched corpus and one test run.
 **Do:** open every
-`tests\RetroTerm.Tests\Avalonia\images\rendered\compare-*.png`.
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\compare-*.png`.
 
 Each sheet is one fixture, stacked:
 
@@ -69,7 +69,7 @@ findings came out of that sitting, and they were different things:
    the graphics plane over it unconditionally, whatever arrived last. A real VT340 has one picture
    memory for both, so the later write wins per pixel - which `DrawSixelImage`'s own comment already
    predicted. Cells now carry `TextIsNewerThanGraphics` and the plane is punched transparent over
-   them. Pinned by `tests\RetroTerm.Tests\Terminal\Graphics\TextAfterASixelImageTests.cs`.
+   them. Pinned by `src\tests\RetroTerm.Tests\Terminal\Graphics\TextAfterASixelImageTests.cs`.
    **The two halves still read different words** - the capture says "This text should be at the top
    line of the screen." while the fixture sends "* left-arrow A VT340 leaves the text cursor at the
    top of the screen." Judge placement and the unbroken black bar, not the wording.
@@ -102,7 +102,7 @@ Ours is the smaller picture, so the fraction is what matters: **97% green agains
 
 **Fixed.** A ReGIS write to output map location 0 now sets the page background —
 `RegisDecoder.BackgroundMapLocationChanged`, turned into `ImageTextBackground` in `DrawRegis`.
-Pinned by `tests\RetroTerm.Tests\Terminal\Graphics\RegisPageBackgroundTests.cs`.
+Pinned by `src\tests\RetroTerm.Tests\Terminal\Graphics\RegisPageBackgroundTests.cs`.
 
 **What is different about that one fixture.** `cat-original.six` opens with four ReGIS commands —
 `S(M0(H280L35S60))`, `S(M1(H0L0S0))`, `S(M2(H120L50S100))`, `S(M3(H0L99S0))` — and then sends a Sixel
@@ -179,7 +179,7 @@ register 1     51,51,204        36,138,102
 **Our blue is not a setting, and not a connection.** That was the first question asked and the
 answer is no: 51,51,204 is `20,20,80` percent, entry 1 of DEC's Table 2-3 default colour map,
 transcribed in `GraphicsColorMap.DefaultMapPercent` from
-`spec\DEC\EK-VT3XX-GP-002_VT330_VT340_Graphics_Programming_May88.pdf`. It is the power-on colour,
+`docs\spec\DEC\EK-VT3XX-GP-002_VT330_VT340_Graphics_Programming_May88.pdf`. It is the power-on colour,
 showing because the fixture never successfully redefines register 1.
 
 **Why the fixture fails to redefine it, from the bytes.** `cat-vt240.six` opens with four colour
@@ -210,7 +210,7 @@ of that firmware being wrong. **Unproven.**
 definition is still a definition with the missing coordinates taken as zero. A host sending the
 perfectly legal `#2;1;120;50` had its register left at the power-on colour and its picture drawn in
 the wrong one, silently. Fixed 26 August; pinned by
-`tests\RetroTerm.Tests\Terminal\Graphics\SixelShortColourIntroducerTests.cs`. Every Sixel stream in
+`src\tests\RetroTerm.Tests\Terminal\Graphics\SixelShortColourIntroducerTests.cs`. Every Sixel stream in
 the corpus was scanned first: there is exactly one short introducer in the whole set and it is the
 malformed one above, so no fixture moved — verified by histogramming all eleven `plane-*.png` before
 and after.
@@ -493,7 +493,7 @@ same.
 ### M6.4f — The write controls, one panel each
 
 **Needs:** one test run. The sheet is
-`tests\RetroTerm.Tests\Avalonia\images\rendered\regis-write-controls.png`.
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\regis-write-controls.png`.
 
 **Do:** open it. Six panels, labelled below, each drawn at one pixel per plane pixel — nothing is
 scaled, so what you see is what the decoder put down.
@@ -559,8 +559,8 @@ emulator with a device control string and reads what it puts on the wire.
 ### M6.4h — Coloured text through ReGIS: it works, and it matches the hardware
 
 **Needs:** one test run. Open, side by side:
-`tests\RetroTerm.Tests\Conformance\vt340regis\faketextcolor.png` (real hardware),
-`tests\RetroTerm.Tests\Avalonia\images\rendered\regis-faketextcolor-ours.png` (ours).
+`src\tests\RetroTerm.Tests\Conformance\vt340regis\faketextcolor.png` (real hardware),
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\regis-faketextcolor-ours.png` (ours).
 
 **What the hardware does.** A VT340 cannot show multicoloured text — every text pixel holds the same
 value, `0111`, so recolouring one recolours all of them. hackerb9's trick gets round it by writing
@@ -618,7 +618,7 @@ ordinary text value over whatever was underneath.
 ### M6.4j — Line attributes erase the graphics on their row
 
 **Needs:** the corpus fetched. Open
-`tests\RetroTerm.Tests\Conformance\vt340regis\regis-decdwl.png` (real hardware) and read
+`src\tests\RetroTerm.Tests\Conformance\vt340regis\regis-decdwl.png` (real hardware) and read
 `regis-decdwl.sh` beside it.
 
 **What the hardware does.** Changing a line's attribute — DECDWL, DECDHL or DECSWL — **clears any
@@ -657,7 +657,7 @@ is erased stayed green, which is the split that proves they are testing the righ
 ### M6.4k — A Sixel image puts every line back to single width
 
 **Needs:** the corpus fetched. Open, in this order:
-`tests\RetroTerm.Tests\Conformance\vt340test\decdwl-quirk2.png` then `decdwl-quirk1.png`. Both
+`src\tests\RetroTerm.Tests\Conformance\vt340test\decdwl-quirk2.png` then `decdwl-quirk1.png`. Both
 captures carry their own explanation printed underneath the picture, which is why no script is
 needed to read them.
 
@@ -769,7 +769,7 @@ shift-press moves ten, and running off any edge wraps to the far side rather tha
 screen takes so long that the shift step is the only one anybody would use.
 **Result:** the steps are EXACT, measured through the host's own report. One Right and one Up gave `X[401,239]` from 400,240. Nineteen shifted presses (nine right, ten up) gave `Z[490,140]` — every one landed. **JUDGED BY RONNY, 31 August 2026: PASS.** Driving it himself through all four rounds he navigated with the arrow keys and with shift, and reported every cursor style working. One pixel per press is usable; the shifted step is a convenience, not the only usable step. M6.5b is CLOSED.
 
-**What the run also produced: a decision to ADD the mouse.** Aiming across the 800-pixel plane is 800 unshifted presses or 80 shifted, and a click is one action. The 2026-08-20 keyboard-only decision was made because the ReGIS manual describes only the arrow keys and nothing said who wins when a program is also asking for xterm mouse reports. That objection does not reach this case: one-shot graphics input SUSPENDS the host, so no program is listening for mouse reports in the window where the mouse would be used, and nothing new is arriving to select as text. Ronny decided on 31 August 2026 that a click places the cursor and the arrows still refine it, because the plane is scaled into the text area and a click can only round to the nearest ReGIS pixel. NOT verified: whether a real VT330/VT340 accepted a mouse or tablet as a ReGIS locator - nothing in `spec\` covers it.  **Date:** 2026-08-27  **By:** measured
+**What the run also produced: a decision to ADD the mouse.** Aiming across the 800-pixel plane is 800 unshifted presses or 80 shifted, and a click is one action. The 2026-08-20 keyboard-only decision was made because the ReGIS manual describes only the arrow keys and nothing said who wins when a program is also asking for xterm mouse reports. That objection does not reach this case: one-shot graphics input SUSPENDS the host, so no program is listening for mouse reports in the window where the mouse would be used, and nothing new is arriving to select as text. Ronny decided on 31 August 2026 that a click places the cursor and the arrows still refine it, because the plane is scaled into the text area and a click can only round to the nearest ReGIS pixel. NOT verified: whether a real VT330/VT340 accepted a mouse or tablet as a ReGIS locator - nothing in `docs\spec\` covers it.  **Date:** 2026-08-27  **By:** measured
 
 **c. The session really does stop, and says why.** While one-shot mode is running the host's output
 is held. **Pass:** the status line reads "Graphics input: arrow keys move the crosshair…", nothing
@@ -872,7 +872,7 @@ early, is not established here and no cause is claimed.
 
 
 
-Every sheet in `tests\RetroTerm.Tests\Avalonia\images
+Every sheet in `src\tests\RetroTerm.Tests\Avalonia\images
 endered\compare-*.png` was opened and
 
 compared against its hardware photograph. Ours on top, hackerb9's VT340 capture below, both at the
@@ -907,7 +907,7 @@ for 1:1.
 
 Verified, not recalled: `DCS Pa ; Pb ; Ph q` and `Pa -> pixel aspect ratio` are in the xterm control
 
-sequences document held in `spec\DEC\`; Table 5-1 of the Level 2 Sixel Programming Reference gives
+sequences document held in `docs\spec\DEC\`; Table 5-1 of the Level 2 Sixel Programming Reference gives
 
 Pa 0 and Pa 1 as aspect 200:100 and an omitted parameter as 0. The rest of that table is not held
 
@@ -1082,7 +1082,7 @@ turned out to be nothing.** None has been fixed: each touches behaviour well bey
 
    So the pixels we DRAW are right. What is missing is the fill behind them. `extremeratio`'s
    picture DCS is `ESC P 9;0;0 q`, and the middle parameter is Pb, the background colour option -
-   "Pb -> background color option" in the xterm control sequences document held in `spec\DEC\`.
+   "Pb -> background color option" in the xterm control sequences document held in `docs\spec\DEC\`.
    `TerminalEmulatorBase` reads `Parameters[0]` for the aspect and **nothing else**, so every image
    is treated as though its zero bits were transparent.
 
@@ -1090,7 +1090,7 @@ turned out to be nothing.** None has been fixed: each touches behaviour well bey
    case - and that background does look right.
 
    **FIXED 28 August 2026, and the manual answered the colour question.** The VT330/VT340 Graphics
-   Programming manual in `spec\DEC` gives the P2 table outright: 0 or 2, the default, means "pixel
+   Programming manual in `docs\spec\DEC` gives the P2 table outright: 0 or 2, the default, means "pixel
    positions specified as 0 are set to the current background color"; 1 means they "remain at their
    current color". The area is the raster one - "The VT300 uses Ph and Pv to erase the background
    when P2 is set to 0 or 2".

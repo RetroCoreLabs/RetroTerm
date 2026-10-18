@@ -42,8 +42,8 @@ DATADIR     ?= $(PREFIX)/share
 
 CONFIG      ?= Release
 RID         ?= linux-x64
-PROJECT     := src/RetroTerm.Desktop/RetroTerm.Desktop.csproj
-PUBLISH_DIR := src/RetroTerm.Desktop/bin/$(CONFIG)/net10.0/$(RID)/publish
+PROJECT     := RetroTerm.Desktop/RetroTerm.Desktop.csproj
+PUBLISH_DIR := RetroTerm.Desktop/bin/$(CONFIG)/net10.0/$(RID)/publish
 APP_BIN     := RetroTerm.Desktop
 
 DOTNET      ?= dotnet
@@ -92,4 +92,4 @@ uninstall:
 
 clean:
 	$(DOTNET) clean $(PROJECT) -c $(CONFIG) || true
-	rm -rf src/RetroTerm.Desktop/bin src/RetroTerm.Desktop/obj
+	rm -rf RetroTerm.Desktop/bin RetroTerm.Desktop/obj

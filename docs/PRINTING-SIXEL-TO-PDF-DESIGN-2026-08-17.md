@@ -47,7 +47,7 @@ by the host, the CR is not sent so the host can initialize the starting sixel po
  - Level 2, which a VT340 speaks: all of those supported, and the full form
    `ESC P Ps1;Ps2;Pn3 q " Pn4;Pn5;Pn6;Pn7 ... ESC \`.
 
-**The mode numbers, from the manual itself.** `spec\DEC\EK-VT3XX-GP-002_VT330_VT340_Graphics_Programming_May88.pdf`,
+**The mode numbers, from the manual itself.** `docs\spec\DEC\EK-VT3XX-GP-002_VT330_VT340_Graphics_Programming_May88.pdf`,
 chapter "Printing Graphics", gives each one with its character-cell codes, so these are read rather
 than inferred:
  - **DECGEPM, private mode 43.** `CSI ? 43 h` selects an expanded image of about 300 by 200 mm
@@ -123,7 +123,7 @@ The way in to both is **media copy**.
 that watches for `CSI 4 i`). `TerminalEmulatorBase` has `PrintSink`, `PrinterControllerMode`,
 `AutoPrintMode`, `PrintFormFeedMode` and `PrintExtentFullScreen`, and answers `CSI ? 15 n` with
 "printer ready" when a sink is attached and "no printer" when it is not. 21 tests in
-`tests\RetroTerm.Tests\Terminal\Printing\MediaCopyTests.cs`.
+`src\tests\RetroTerm.Tests\Terminal\Printing\MediaCopyTests.cs`.
 
 **Two defects this found in the existing code, both of the same shape as ones already fixed:**
 
@@ -145,7 +145,7 @@ can actually produce a page, not when the bytes merely reach a sink.
 
 ## The sequences
 
-From `spec\DEC\xterm-ctlseqs.txt` lines 1047 to 1061, quoted rather than remembered:
+From `docs\spec\DEC\xterm-ctlseqs.txt` lines 1047 to 1061, quoted rather than remembered:
 
 `CSI Ps i` — Media Copy (MC):
  - `Ps = 0` — print screen (default).
@@ -278,7 +278,7 @@ Also worth knowing: the Level 2 manual says "Level 2 devices support only the ch
 Point addressing is not supported", so the decipoint machinery below belongs to the level 3
 printers, not to the level 2 ones a VT340 talks to.
 
-**The reading is now held.** Fetched 2026-08-17 into `spec\DEC\` — both are DEC's own manuals, from
+**The reading is now held.** Fetched 2026-08-17 into `docs\spec\DEC\` — both are DEC's own manuals, from
 hackerb9's collection:
  - `EK-PPLV2-PM.B01_Level_2_Sixel_Programming_Reference.pdf` — "Digital ANSI-Compliant Printing
    Protocol", 234 pages. The printer-side sixel authority, and where the SSU table should be.
@@ -320,7 +320,7 @@ again squares the distortion. The page now uses **square pixels** and the decode
 which is also the only way the two halves cannot drift apart. `APictureKeepsItsShapeOnThePage`
 pins it.
 
-**The artefact to look at:** `tests\RetroTerm.Tests\Avalonia\images\rendered\print-job.pdf`, kept
+**The artefact to look at:** `src\tests\RetroTerm.Tests\Avalonia\images\rendered\print-job.pdf`, kept
 rather than deleted for the same reason the screenshots are kept. Two pages — a screen print, so
 the text path and its column alignment can be judged, and a graphics hard copy.
 
@@ -330,7 +330,7 @@ Starting and stopping a print job, and choosing where the PDF goes, are commands
 declared on the command metadata the way `CommandParameter.DecodeEscapes` is, so the script DSL and
 `RetroTermToolProvider` both inherit the behaviour. `SEND` swallowing a carriage return was fixed
 in the script parser and shipped broken over MCP for weeks; the equivalence test at
-`tests\RetroTerm.Tests\Commands\CommandSurfaceEquivalenceTests.cs` exists to stop it happening
+`src\tests\RetroTerm.Tests\Commands\CommandSurfaceEquivalenceTests.cs` exists to stop it happening
 again and will catch this one too.
 
 ### 6. What the DA reply must not say
@@ -360,7 +360,7 @@ Assertable here, and **the first four are now asserted**:
 right.** Everything above says the numbers are what the manuals give; none of it says the page is
 nice to hold. Two things to open:
 
- - `tests\RetroTerm.Tests\Avalonia\images\rendered\print-job.pdf` — two pages, one text and one
+ - `src\tests\RetroTerm.Tests\Avalonia\images\rendered\print-job.pdf` — two pages, one text and one
    graphics, produced by the real path and kept on purpose.
  - `vaxrgl-lntest.six` streamed through printer controller mode, which is the case that started
    all this: a real DEC engineering drawing sheet, 972 by 1548, that was never meant for a screen.

@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -46,17 +53,20 @@ public class CommandsAreDocumentedTests
     private static List<string> FindEveryCommandName()
     {
         var found = new List<string>();
-        string source = Path.Combine(RepositoryRoot, "src");
+        string source = RepositoryRoot;
 
         Assert.True(Directory.Exists(source), "could not find the source tree at " + source);
 
         string[] files = Directory.GetFiles(source, "*.cs", SearchOption.AllDirectories);
         for (int i = 0; i < files.Length; i++)
         {
-            // bin and obj hold generated copies of the same code.
+            // bin and obj hold generated copies of the same code. tests\ lives inside src\ and
+            // registers throwaway commands (DUMMY, BAD, PROBE) that no document should list.
             if (files[i].Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar,
                     StringComparison.Ordinal)
                 || files[i].Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal)
+                || files[i].Contains(Path.DirectorySeparatorChar + "tests" + Path.DirectorySeparatorChar,
                     StringComparison.Ordinal))
             {
                 continue;
@@ -99,7 +109,7 @@ public class CommandsAreDocumentedTests
     [Fact]
     public void EveryCommandHasARowInTheScriptingDocument()
     {
-        string doc = Path.Combine(RepositoryRoot, "docs", "MCP-AND-SCRIPTING.md");
+        string doc = Path.Combine(RepositoryRoot, "..", "docs", "MCP-AND-SCRIPTING.md");
         Assert.True(File.Exists(doc), "could not find " + doc);
 
         string text = File.ReadAllText(doc);

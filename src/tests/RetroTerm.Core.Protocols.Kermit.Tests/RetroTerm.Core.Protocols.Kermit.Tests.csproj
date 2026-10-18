@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.Kermit\RetroTerm.Core.Protocols.Kermit.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols.Kermit\RetroTerm.Core.Protocols.Kermit.csproj" />
   </ItemGroup>
 
 </Project>

@@ -2,8 +2,8 @@
 
 **Full path:** `docs\manual-tests\M3-DEC-TERMINALS.md`
 **Parent:** `docs\manual-tests\INDEX.md`
-**Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M3DecTerminalTests.cs`
-**Generated artefact:** `tests\RetroTerm.Tests\Avalonia\images\rendered\terminal-answers.md`
+**Machine cover:** `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\M3DecTerminalTests.cs`
+**Generated artefact:** `src\tests\RetroTerm.Tests\Avalonia\images\rendered\terminal-answers.md`
 
 P1 walked these terminals against the real manuals and closed every gap it found. So this pass is
 not about whether a sequence matches a page. It is about the two things a page cannot show: whether
@@ -21,7 +21,7 @@ because its device attributes claimed only ReGIS.
 Those answers are spread over fourteen terminals and several manuals, so the suite writes them all
 into one sheet:
 
-> `tests\RetroTerm.Tests\Avalonia\images\rendered\terminal-answers.md`
+> `src\tests\RetroTerm.Tests\Avalonia\images\rendered\terminal-answers.md`
 
 Every terminal, eight questions each — DA1, DA2, DA3, DSR status, DSR cursor, and three DECRQSS
 requests — with the reply as readable text and as hex. The questions are really asked of live
@@ -29,7 +29,7 @@ emulators and the replies really captured, so the sheet cannot drift from what a
 
 ### M3.1a — Read the sheet against the manuals
 
-**Needs:** the sheet, and the manuals in `spec\DEC\`.
+**Needs:** the sheet, and the manuals in `docs\spec\DEC\`.
 **Do:** for each terminal you care about, compare its DA1 line with the manual for that model.
 **Pass:** each reply names the right model and lists only capabilities the terminal really has.
 **Look hardest at the blanks.** A blank is a terminal that stayed silent, and silence is two things

@@ -157,7 +157,7 @@ no PC key reaches it** - the key is available on the virtual keyboard and throug
 | A48 | Down Arrow | 40 (VK_DOWN) | `0x0B` (VT) | `0x0B` | `AlwaysSameCode` |
 | B47 | Left Arrow | 37 (VK_LEFT) | `0x08` (BS) | `0x08` | `AlwaysSameCode`; note this is backspace |
 | B49 | Right Arrow | 39 (VK_RIGHT) | `0x18` (CAN) | `0x18` | `AlwaysSameCode` |
-| B48 | HOME | 36 (VK_HOME) | `0x1D` (GS) | `0x1D` | `AlwaysSameCode`. Corrected 31 August 2026 - this row previously gave DLE for 2115 mode with no citation; `spec\Keyboards\keyboard-spec.md` §6.8.3, which cites the TDV-2200/9 User's Guide (ND-30.003.04 EN) directly, shows that was an OCR error in an early pass superseded by a fresh OCR marking HOME "is always" GS |
+| B48 | HOME | 36 (VK_HOME) | `0x1D` (GS) | `0x1D` | `AlwaysSameCode`. Corrected 31 August 2026 - this row previously gave DLE for 2115 mode with no citation; `docs\spec\Keyboards\keyboard-spec.md` §6.8.3, which cites the TDV-2200/9 User's Guide (ND-30.003.04 EN) directly, shows that was an OCR error in an early pass superseded by a fresh OCR marking HOME "is always" GS |
 | D47 | ROLLUP | 33 (VK_PRIOR) | `ESC[28_` / shift `ESC[29_` | `0x06` (ACK) | Page Up |
 | D49 | ROLLDN | 34 (VK_NEXT) | `ESC[32_` / shift `ESC[33_` | `0x05` (ENQ) | Page Down |
 | C47 | FIELDLEFT | 0 | `ESC[34_` / shift `ESC[35_` | `0x0C` (FF) | |
@@ -206,7 +206,7 @@ sends the same C0 byte with or without Shift, Ctrl or Alt, and the registry igno
 
 The orange and brown keys around the main block that are not arrows. Every one sends `ESC [ nn _`
 in extended mode, shifted is nn plus one, and the 2115-mode column is the single C0 byte from
-`spec\Keyboards\keyboard-spec.md` section 6.8.3.
+`docs\spec\Keyboards\keyboard-spec.md` section 6.8.3.
 
 | Grid Pos | Key Name | VK Code | Extended | Shifted | 2115 Mode |
 |----------|----------|---------|----------|---------|-----------|
@@ -269,7 +269,7 @@ keys. No manual held here says that and the registry never did; the table is gon
 
 **Not in the registry, and not checked by anything.** The only place these appear in the source is
 `src\RetroTerm.Core\Terminal\Emulators\TDV\TDVKeyboardMapper.cs`, a name-keyed mapper that nothing
-calls, and no manual in `spec\` has been found to cite them. Treat the table as a claim.
+calls, and no manual in `docs\spec\` has been found to cite them. Treat the table as a claim.
 
 | Key Name | VK Code | Sequence | Hex |
 |----------|---------|----------|-----|
@@ -305,7 +305,7 @@ Shifted is the number plus one.
 | G53 | HJELP | HELP | 0 | `ESC [ 46 _` | `ESC[47_` | — |
 | G54 | SLUTT | EXIT | 35 (VK_END) | `ESC[48_` | `ESC[49_` | — |
 
-G11 was registered as "AVSH" until 27 September 2026; the keycap photo `spec\Keyboards\keys\G11.png`
+G11 was registered as "AVSH" until 27 September 2026; the keycap photo `docs\spec\Keyboards\keys\G11.png`
 reads AVSN (short for "avsnitt", paragraph).
 
 ---
@@ -583,17 +583,17 @@ The reasoning is in the registry beside E11.
 - VK Mapper: `src\RetroTerm.Core\Terminal\Input\KeyboardMapper.cs`
 - Name-keyed TDV Mapper (no caller): `src\RetroTerm.Core\Terminal\Emulators\TDV\TDVKeyboardMapper.cs`
 - Virtual Keyboard: `src\RetroTerm.Desktop\Controls\VirtualKeyboardPanel.axaml.cs`
-- Guards on this document: `tests\RetroTerm.Tests\Terminal\TdvDocumentFunctionKeyRowsTests.cs` and
-  `tests\RetroTerm.Tests\Terminal\TdvKeyboardDocumentMatchesTheRegistryTests.cs`
+- Guards on this document: `src\tests\RetroTerm.Tests\Terminal\TdvDocumentFunctionKeyRowsTests.cs` and
+  `src\tests\RetroTerm.Tests\Terminal\TdvKeyboardDocumentMatchesTheRegistryTests.cs`
 
 ---
 
 ## Specifications Reference
 
-- keyboard-spec.md: `spec\Keyboards\keyboard-spec.md` (sections 6.3, 6.8.3, 6.8.4 give the bytes above)
-- TDV-Keys.md: `spec\TDV2200\Term and keyboard info\TDV-Keys.md`
-- TDV2215.md: `spec\TDV2215\TDV2215.md` (Section 3.1 TDV 2115 Compatible Mode)
-- keyboard_documentation.md: `spec\TDV2200\DOC TDV2200\keyboard_documentation.md`
+- keyboard-spec.md: `docs\spec\Keyboards\keyboard-spec.md` (sections 6.3, 6.8.3, 6.8.4 give the bytes above)
+- TDV-Keys.md: `docs\spec\TDV2200\Term and keyboard info\TDV-Keys.md`
+- TDV2215.md: `docs\spec\TDV2215\TDV2215.md` (Section 3.1 TDV 2115 Compatible Mode)
+- keyboard_documentation.md: `docs\spec\TDV2200\DOC TDV2200\keyboard_documentation.md`
 
 ---
 

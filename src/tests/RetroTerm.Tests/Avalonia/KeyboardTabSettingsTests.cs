@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System.IO;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -269,9 +276,9 @@ public class KeyboardTabSettingsTests
         // constant is spelled \u007F for that reason, and this fails if one creeps back.
         string[] files =
         {
-            SourceFile("src", "RetroTerm.Desktop", "Controls", "TerminalCanvas.axaml.cs"),
-            SourceFile("src", "RetroTerm.Desktop", "Controls", "TerminalControl.axaml.cs"),
-            SourceFile("src", "RetroTerm.Desktop", "Models", "TabSession.cs"),
+            SourceFile("RetroTerm.Desktop", "Controls", "TerminalCanvas.axaml.cs"),
+            SourceFile("RetroTerm.Desktop", "Controls", "TerminalControl.axaml.cs"),
+            SourceFile("RetroTerm.Desktop", "Models", "TabSession.cs"),
         };
 
         int scanned = 0;

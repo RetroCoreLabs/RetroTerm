@@ -62,7 +62,7 @@ ND screen-handling library, so the ritual is the library's rather than either pr
 A CSI ending in `R` is CPR, the cursor position REPORT - something a terminal sends a host, and it
 carries two parameters, not four. So this is a TDV command sharing a final byte, and no manual held
 here says what it does. Counted, not implemented, which is the answer mode 62 already had. Pinned
-as `tests\RetroTerm.Tests\TDV\PedExitCaptureTests.cs`.
+as `src\tests\RetroTerm.Tests\TDV\PedExitCaptureTests.cs`.
 
 **And the exit ritual exposed a real defect in our own emulator, now fixed.**
 `TDVEmulatorBase.HandleNDSpecificSequence` tested `parameters[0]` alone and, on a match, handed the

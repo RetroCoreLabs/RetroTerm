@@ -102,7 +102,7 @@ is expensive.
 
 Counted, not guessed:
 
-- **309** `[AvaloniaFact]`/`[AvaloniaTheory]` in `tests\RetroTerm.Tests\Avalonia\`.
+- **309** `[AvaloniaFact]`/`[AvaloniaTheory]` in `src\tests\RetroTerm.Tests\Avalonia\`.
 - **91** of them are renderer-internal — dirty-row cache, glyph cache, render cost, scaling, search
   highlight, double size, blink, soft fonts, reverse screen, themes, cursor blink, rendered-output
   validation. **These are the ones that would need rewriting**, because they assert on how the

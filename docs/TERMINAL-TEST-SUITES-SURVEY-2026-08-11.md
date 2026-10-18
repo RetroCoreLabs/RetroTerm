@@ -236,7 +236,7 @@ red/blue byte-order defect). This repo turns that from "one image somebody made"
 corpus, with reference pictures taken from actual DEC hardware.
 
 The low-effort slice: vendor the `.six` files, feed each one, render, and write the PNG out to
-`tests\RetroTerm.Tests\Avalonia\images\rendered\`. Then *look at them* next to the reference PNGs.
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\`. Then *look at them* next to the reference PNGs.
 That alone would be worth doing, and it matches the "assert on the pixels — and then LOOK at them"
 rule already in CLAUDE.md.
 
@@ -910,7 +910,7 @@ or gone; I did not check git history.
 ## What the vendored libvterm corpus already covers
 
 For reference when judging overlap. Local path:
-`tests\RetroTerm.Tests\Conformance\libvterm\`
+`src\tests\RetroTerm.Tests\Conformance\libvterm\`
 
 **43 `.test` files** plus `LICENSE-libvterm.txt`:
 

@@ -1,3 +1,10 @@
+﻿//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,7 +31,7 @@ public class TDV2200BitmapComparisonTests
 
     private static readonly string SpecFolder = Path.Combine(
         Path.GetDirectoryName(typeof(TDV2200BitmapComparisonTests).Assembly.Location) ?? "",
-        "..", "..", "..", "..", "..", "spec", "TDV2115");
+        "..", "..", "..", "..", "..", "..", "docs", "spec", "TDV2115");
 
     private static readonly string ImagesFolder = Path.Combine(
         Path.GetDirectoryName(typeof(TDV2200BitmapComparisonTests).Assembly.Location) ?? "",

@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +36,7 @@ public class NoEnvironmentVariableConfigurationTests
     /// </summary>
     private static string SourceFolder => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(typeof(NoEnvironmentVariableConfigurationTests).Assembly.Location) ?? "",
-        "..", "..", "..", "..", "..", "src"));
+        "..", "..", "..", "..", ".."));
 
     /// <summary>
     /// The ways a program can read an environment variable.
@@ -53,10 +60,13 @@ public class NoEnvironmentVariableConfigurationTests
         for (int i = 0; i < files.Length; i++)
         {
             // bin and obj hold generated copies of the same code; counting them would report every
-            // finding twice and point at a path nobody edits.
+            // finding twice and point at a path nobody edits. tests\ lives inside src\ too, and this
+            // very file names the readers it is looking for, so the test tree is skipped as well.
             if (files[i].Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar,
                     StringComparison.Ordinal)
                 || files[i].Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal)
+                || files[i].Contains(Path.DirectorySeparatorChar + "tests" + Path.DirectorySeparatorChar,
                     StringComparison.Ordinal))
             {
                 continue;

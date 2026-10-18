@@ -1,20 +1,9 @@
-// TDV 2215 Terminal Font
-// Extracted from TDV2215 specification bitmaps (spec/TDV2115/character_set_*.bmp)
-// Character cell: 9x14 dots (7x9 character matrix per TDV2115/2215 spec)
 //
-// Character Sets:
-// - Set 1 (fontNum=0,1): ASCII (0x00-0x7F) with ISO 646 national variants
-// - Set 2 (fontNum=2): Line Drawing, histogram, plotting
-// - Set 3 (fontNum=3): Subscript/Superscript
-// - Set 4 (fontNum=4): Control code display
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
 //
-// ISO 646 National Variants (positions 0x5B-0x5E, 0x7B-0x7E):
-// - International (0): 0x5B -> [, 0x5C -> \, 0x5D -> ], 0x5E -> ^, 0x7B -> {, 0x7C -> |, 0x7D -> }, 0x7E -> ~
-// - Norwegian (1): 0x5B -> Æ, 0x5C -> Ø, 0x5D -> Å, 0x5E -> ^, 0x7B -> æ, 0x7C -> ø, 0x7D -> å, 0x7E -> ¦
-// - Swedish (2): 0x5B -> Ä, 0x5C -> Ö, 0x5D -> Å, 0x5E -> ^, 0x7B -> ä, 0x7C -> ö, 0x7D -> å, 0x7E -> ¦
-// - German (3): 0x5B -> Ä, 0x5C -> Ö, 0x5D -> Ü, 0x5E -> ¦, 0x7B -> ä, 0x7C -> ö, 0x7D -> ü, 0x7E -> ß
-//
-// ARCHITECTURE: Each variant stores a COMPLETE 128-character charset array.
 
 namespace RetroTerm.Core.Fonts
 {

@@ -3,7 +3,7 @@
 **Full path:** `docs\manual-tests\M5-TEKTRONIX.md`
 **Parent:** `docs\manual-tests\INDEX.md`
 **Backs:** the gap list at `docs\TEKTRONIX-4014-GAP-2026-08-17.md`
-**Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M5TektronixTests.cs`
+**Machine cover:** `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\M5TektronixTests.cs`
 
 Every item the 4010/4014 chapter of the VT330/VT340 Graphics Programming manual asks for is built.
 What is left is judgement, and it splits in two:
@@ -18,7 +18,7 @@ What is left is judgement, and it splits in two:
 
     dotnet test src\RetroTerm.slnx
 
-Artefacts land in `tests\RetroTerm.Tests\Avalonia\images\rendered\`.
+Artefacts land in `src\tests\RetroTerm.Tests\Avalonia\images\rendered\`.
 
 ---
 

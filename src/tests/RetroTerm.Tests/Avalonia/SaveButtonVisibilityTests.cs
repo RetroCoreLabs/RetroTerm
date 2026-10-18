@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.IO;
 using Avalonia;
@@ -109,7 +116,7 @@ public class SaveButtonVisibilityTests
         var axaml = Path.GetFullPath(Path.Combine(
             Path.GetDirectoryName(typeof(SaveButtonVisibilityTests).Assembly.Location) ?? "",
             "..", "..", "..", "..", "..",
-            "src", "RetroTerm.Desktop", "Views", "ManageConnectionsWindow.axaml"));
+            "RetroTerm.Desktop", "Views", "ManageConnectionsWindow.axaml"));
 
         if (!File.Exists(axaml)) return;   // not run from a checkout
 

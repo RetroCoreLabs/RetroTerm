@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.IO;
 using RetroTerm.Core.Terminal.Emulators.TDV;
@@ -39,7 +46,7 @@ public class TdvKeyboardDocumentMatchesTheRegistryTests
     /// </summary>
     private static string DocumentPath => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(typeof(TdvKeyboardDocumentMatchesTheRegistryTests).Assembly.Location) ?? "",
-        "..", "..", "..", "..", "..", "docs", "TDV-KEYBOARD-COMPLETE-REFERENCE.md"));
+        "..", "..", "..", "..", "..", "..", "docs", "TDV-KEYBOARD-COMPLETE-REFERENCE.md"));
 
     /// <summary>
     /// The keys whose code is the same in every mode, with the byte the registry gives them.

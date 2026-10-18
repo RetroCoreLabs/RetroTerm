@@ -1,7 +1,7 @@
 # TDV and ND terminal modes and reports - what the manuals actually say
 
 **Full path:** `docs\TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`
-**Written:** 11 September 2026, from the transcribed manuals in `spec\`.
+**Written:** 11 September 2026, from the transcribed manuals in `docs\spec\`.
 
 **Why this document exists.** Two documents in this folder described TDV mode setting and mode
 reporting, neither cited a source, and both are wrong on every mode number. They were the only
@@ -18,11 +18,11 @@ nothing here is mistaken for a rewrite of them.
 
 | Model | Manual | File |
 |---|---|---|
-| TDV 2215, and TDV 2115 by way of its compatibility mode | *TDV 2215 Functional Specifications*, part no. 385604, publ. no. 5176, firmware revision level 11, February 1983, Tandberg Data A/S | `spec\TDV2215\TDV2215.md` |
-| TDV 2200/9 S | *TDV 2200/9 S User's Guide (ND)*, Tandberg Data | `spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md` |
-| ND Display Terminal 1200 | *ND Display Terminal 1200 Functional Specifications*, ND-12054-1 EN | `spec\TDV1200\ND-12054-1-EN_combined.md` |
+| TDV 2215, and TDV 2115 by way of its compatibility mode | *TDV 2215 Functional Specifications*, part no. 385604, publ. no. 5176, firmware revision level 11, February 1983, Tandberg Data A/S | `docs\spec\TDV2215\TDV2215.md` |
+| TDV 2200/9 S | *TDV 2200/9 S User's Guide (ND)*, Tandberg Data | `docs\spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md` |
+| ND Display Terminal 1200 | *ND Display Terminal 1200 Functional Specifications*, ND-12054-1 EN | `docs\spec\TDV1200\ND-12054-1-EN_combined.md` |
 
-`spec\TDV2115\TDV2115.md` is a byte-identical duplicate of the 2215 file. It is named for the 2115
+`docs\spec\TDV2115\TDV2115.md` is a byte-identical duplicate of the 2215 file. It is named for the 2115
 but its contents are the 2215 specification; do not read it as a separate source.
 
 **The 2200 is not a separate programming manual.** Its User's Guide section 11.1 says so in as many
@@ -31,7 +31,7 @@ Specifications*. The differences between the TDV 2215 S and the TDV 2200/9 S are
 manual." Section 11.2 is that difference list, and it is short. So for programming purposes the
 2200 is the 2215 plus eleven sequences.
 
-**What has NOT been read.** The scanned PDFs beside the OCR files in `spec\TDV2200\` are images
+**What has NOT been read.** The scanned PDFs beside the OCR files in `docs\spec\TDV2200\` are images
 with no text layer. Absence of a statement in the transcribed material is not proof the hardware
 lacked the feature - only that nothing held here documents it.
 
@@ -40,7 +40,7 @@ lacked the feature - only that nothing held here documents it.
 ## 1. No TDV manual documents DECRQM
 
 `CSI ? Ps $ p` and its reply `CSI ? Ps ; Pv $ y` appear nowhere in any of the three manuals. They
-appear in this repository's `spec\` only in `spec\DEC\xterm-ctlseqs.txt`, which is DEC and xterm.
+appear in this repository's `docs\spec\` only in `docs\spec\DEC\xterm-ctlseqs.txt`, which is DEC and xterm.
 
 Three separate statements in the 2215 specification say the same thing from different directions:
 
@@ -133,8 +133,8 @@ Report type 5 carries framing error, parity error, line buffer overflow, cursor 
 and CSI parameter error. Report type 6 carries magnetic card reader, graphics, mouse and printer.
 
 **NDRQ is implemented in this program**, pinned by
-`tests\RetroTerm.Tests\TDV\NdrqTerminalParameterReportTests.cs`. The TDV2200 firmware analysis in
-`spec\TDV2200\Testing2200_9S\tdv2200_escape_sequence_table.md` lists it as `ESC [ 120 x`, "NDREQ -
+`src\tests\RetroTerm.Tests\TDV\NdrqTerminalParameterReportTests.cs`. The TDV2200 firmware analysis in
+`docs\spec\TDV2200\Testing2200_9S\tdv2200_escape_sequence_table.md` lists it as `ESC [ 120 x`, "NDREQ -
 Request terminal parameters", "Not found" - that "not found" is about the firmware disassembly, not
 about our code.
 
@@ -317,7 +317,7 @@ turned up the same class of fault in what the 2215 emulator OBEYED.
 So a host asking a TDV2215 for application cursor keys got "extended mode" instead, and the arrow
 keys did not change. That block is gone. All three fall through to the ordinary DEC private path.
 
-`tests\RetroTerm.Tests\Terminal\ActiveModeReportingTests.cs` had predicted this exactly: a test
+`src\tests\RetroTerm.Tests\Terminal\ActiveModeReportingTests.cs` had predicted this exactly: a test
 named `OnTheTdv2215PrivateModeOneIsExtendedMode_NotDeccKm` documented the collision, said it did not
 claim to be correct, and said that if a real 2215 has DECCKM on mode 1 "this test should fail and
 the emulator should change". It does, and it did.
@@ -352,7 +352,7 @@ a test fails if any method with "Transparent" in its name comes back.
 | NDDWA - Define work area | `~` | 7E |
 
 Two independent tables agree: ND Display Terminal 1200 section 2.8, and
-`spec\TDV2200\Testing2200_9S\nd_csi_sequences.md`. This program had NDRAR on `}` and NDFC on `|`
+`docs\spec\TDV2200\Testing2200_9S\nd_csi_sequences.md`. This program had NDRAR on `}` and NDFC on `|`
 in the emulators, in `TDVSequenceBuilder`, and in the trace decoder - so a host filling a rectangle
 removed attributes instead, and the trace named the wrong sequence while doing it. Corrected in all
 three places, and the three rectangle handlers moved up into `TDVEmulatorBase` so the 2215 has them
@@ -459,9 +459,9 @@ Added 11 September 2026. I reported that two numpad keys were named a position o
 of one table. Four photographs say otherwise and the report was wrong - this section is the
 correction and the evidence.
 
-**What the photographs show.** `spec\Keyboards\ND246-Keyboard.jpg`, `ND322-Keyboard.jpg`,
+**What the photographs show.** `docs\spec\Keyboards\ND246-Keyboard.jpg`, `ND322-Keyboard.jpg`,
 `nd-967003-1.jpg` (TDV 1200 keyboard) and `nd-965133-1.jpg` (TDV 2200/S) all carry the same numeric
-pad, and the cropped keycaps in `spec\Keyboards\keys\` show it close up:
+pad, and the cropped keycaps in `docs\spec\Keyboards\keys\` show it close up:
 
 | Row | Keys |
 |---|---|

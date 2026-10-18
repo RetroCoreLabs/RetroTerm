@@ -138,7 +138,7 @@ There is **no resize path in use**: `TerminalEmulatorBase.Resize` (:1028-1042) h
 
 ### A.10 Graphics
 
-Nothing exists but flags: `_isTektronixMode` / `_hasGraphicsExtension` bools on TDV2200 (:46-47), toggled by `ESC[n>` (:913-931), surfaced only as "+TEKTRONIX"/"+GRAPHICS" strings in DA replies (:1170-1193). Four empty TODO methods (:1139-1159). No plane, no pixel, no vector state anywhere in the buffer/renderer/cell model. Good primary-source documentation exists: `spec\Tektronix\nd-graphic-terminal-analysis.md` (762 lines, ND protocol reverse-engineered) and `spec\Tektronix\retroterm-nd-graphics-plan.md` (296 lines, phase-1 plan — including the confirmed `ESC "` mis-parse diagnosis at :62-64).
+Nothing exists but flags: `_isTektronixMode` / `_hasGraphicsExtension` bools on TDV2200 (:46-47), toggled by `ESC[n>` (:913-931), surfaced only as "+TEKTRONIX"/"+GRAPHICS" strings in DA replies (:1170-1193). Four empty TODO methods (:1139-1159). No plane, no pixel, no vector state anywhere in the buffer/renderer/cell model. Good primary-source documentation exists: `docs\spec\Tektronix\nd-graphic-terminal-analysis.md` (762 lines, ND protocol reverse-engineered) and `docs\spec\Tektronix\retroterm-nd-graphics-plan.md` (296 lines, phase-1 plan — including the confirmed `ESC "` mis-parse diagnosis at :62-64).
 
 ### A.11 Testing (the strongest part of the codebase)
 
@@ -159,7 +159,7 @@ Classification: **Critical** = blocks the roadmap or is a live correctness bug. 
 | 3 | DCS is a stub: parameters are discarded (digit branch :527-531 never touches `_params`), there is no case for `DcsParam` → the parser **wedges** on `DCS 0;1q`, payload bytes are dropped (:546 is a comment), `OnDcsPut` is never raised (:79-81), `OnDcsHook/Unhook` have zero subscribers in the repo. | Verified by hand | Sixel, ReGIS, VT220 DECUDK, TDV PUSH/PROGRAM download |
 | 4 | No sub-parameters: `:` (0x3A) kills the sequence (:479 default → Ground). | Agent report | xterm `SGR 38:2::R:G:B`, modern SGR forms |
 | 5 | No alternate ground / byte-mode concept: VT52 `ESC Y <r><c>` binary params, Tektronix vector bytes after GS, ND DLE coordinates — none can be tokenized. TDV solved this by filtering bytes **before** the parser (`TDVInputProcessor.cs:41-52`), which is why the parser can't see modes and modes can't reach the parser. | Agent report + spec doc | VT52, Tek 4010/4014, ND graphics |
-| 6 | `ESC "` mis-parse: `"` collected as intermediate, first digit becomes the final (:317-332). Already diagnosed in `spec\Tektronix\retroterm-nd-graphics-plan.md:62-64`. | Spec doc + parser code | ND/TDV graphics — the user's #1 target |
+| 6 | `ESC "` mis-parse: `"` collected as intermediate, first digit becomes the final (:317-332). Already diagnosed in `docs\spec\Tektronix\retroterm-nd-graphics-plan.md:62-64`. | Spec doc + parser code | ND/TDV graphics — the user's #1 target |
 
 Also: the TDV `< = >` final-byte hack (:461, :407) leaks one terminal's syntax into the shared parser — exactly the pattern the review was asked to prevent.
 
@@ -389,7 +389,7 @@ Only after Phase 3 does adding a terminal become "write a profile + its specific
 1. **ANSI/ECMA-48 improvements** — this *is* Phases 2-3 (SM/RM, ICH, SU/SD, tab stops, DECCOLM, alt screen, DA). Everything else reuses it. Ships the "ANSI" profile almost for free.
 2. **VT220** — forces the charset pipeline (G0-G3, NRCS, SS2/SS3), 8-bit C1, DECSCA protected attributes, real DA/DECID plumbing, DECUDK over fixed DCS. After it, every later DEC terminal is mostly a capability delta.
 3. **xterm** (then **xterm-256color**, which is nearly free — `TerminalColor` already carries 256/RGB) — forces OSC breadth, the private-mode table at scale, mouse reporting, modifier encodings. Highest day-to-day utility for modern hosts.
-4. **TDV 2200 graphics (ND)** — first consumer of Phase 6 + the `ESC "` ground mode + GIN. Put it before Tek because it is the user's primary target, the protocol analysis and phase plan already exist in `spec\Tektronix\`, and it exercises every graphics building block.
+4. **TDV 2200 graphics (ND)** — first consumer of Phase 6 + the `ESC "` ground mode + GIN. Put it before Tek because it is the user's primary target, the protocol analysis and phase plan already exist in `docs\spec\Tektronix\`, and it exercises every graphics building block.
 5. **Tektronix 4010/4014** — reuses surface/planes/transform/GIN wholesale; adds only the Tek coordinate decoder and storage-display semantics. Cheap right after ND graphics, and a good independence test that the shared blocks are genuinely protocol-neutral.
 6. **VT240/VT241** — first ReGIS consumer (DCS streaming from Phase 1 + surface from Phase 6).
 7. **VT320** — text-only capability delta over VT220; validates that a pure-profile addition is now small.
@@ -446,7 +446,7 @@ tests re-implement rendering in SkiaSharp — their own colour maths, bold and r
 handling — so a renderer regression left the pictures perfect and the suite green, despite
 `TDV2200ScreenshotTests.cs:14-15` claiming it "Uses the ACTUAL TerminalRenderer".
 
-`tests\RetroTerm.Tests\Avalonia\RenderedScreenshot.cs` now renders through the production
+`src\tests\RetroTerm.Tests\Avalonia\RenderedScreenshot.cs` now renders through the production
 chain and nothing else: `TerminalCanvas.Render(DrawingContext)` → `TerminalRenderer.Render`
 → `IFontRenderer.DrawCharacter`, captured with `RenderTargetBitmap` on the headless Skia
 platform (`UseHeadlessDrawing = false`, already configured). The canvas is arranged at its
@@ -454,7 +454,7 @@ exact natural size so the renderer's scale is 1.0 and one cell maps to a whole n
 pixels, which is what makes per-cell pixel assertions valid.
 
 Each test does two things at once: it writes a magnified PNG (nearest-neighbour, so no
-invented colours) into `tests\RetroTerm.Tests\Avalonia\images\rendered\` for a human to
+invented colours) into `src\tests\RetroTerm.Tests\Avalonia\images\rendered\` for a human to
 look at, and it asserts on the true-size pixels so a regression fails the build unattended.
 That folder is gitignored — the images are regenerated every run, not committed.
 `RenderedOutputValidationTests` covers glyph placement, the cursor (drawn and DECTCEM-
@@ -559,7 +559,7 @@ the whole block instead of a cell-by-cell double loop. The screen is a rectangul
 row-major and the block move is exact; `Array.Copy` handles the overlap as if it had gone via a
 temporary.
 
-Tests: `tests\RetroTerm.Tests\Terminal\Phase2ScreenModelTests.cs` (25 tests). Suite 3088 → 3113
+Tests: `src\tests\RetroTerm.Tests\Terminal\Phase2ScreenModelTests.cs` (25 tests). Suite 3088 → 3113
 passing, 41 skipped, no regressions.
 
 Two notes for whoever does part 2. First, the C# `\x` escape is variable length, so `"\x1b7"` is
@@ -614,7 +614,7 @@ rather than asserting behaviour the code does not have. Fixing it means adding p
 to the cursor, which touches every wrap path (`HandleCharacter`, the region-bottom scroll, the
 TDV2215 override, CUF/CUB clamping) and deserves its own change with its own tests.
 
-Tests: `tests\RetroTerm.Tests\Terminal\Phase2ScrollbackAndLineMetadataTests.cs` (23 tests).
+Tests: `src\tests\RetroTerm.Tests\Terminal\Phase2ScrollbackAndLineMetadataTests.cs` (23 tests).
 Suite 3113 → 3136 passing, 41 skipped, no regressions.
 
 ## Appendix 0e: Phase 2b part 2 (2026-08-09) — the frame handoff, B.9 CLOSED
@@ -654,7 +654,7 @@ The canvas now also takes its natural size and its scrollback count from the fra
 buffer. Sizing from the live buffer let the two disagree for one paint after a resize — content
 scaled as if it were the new size while still being the old one.
 
-Tests: `tests\RetroTerm.Tests\Terminal\ScreenFrameHandoffTests.cs` (16 tests), centred on the
+Tests: `src\tests\RetroTerm.Tests\Terminal\ScreenFrameHandoffTests.cs` (16 tests), centred on the
 property everything rests on: a frame handed out does not change when the screen does. Suite
 3136 → 3152 passing, 41 skipped, no regressions.
 
@@ -689,7 +689,7 @@ started **inside** the region. A cursor above the top margin must not be dragged
 region by a cursor-up, and one below the bottom margin keeps the whole screen to move in. Both
 halves are tested.
 
-Tests: `tests\RetroTerm.Tests\Terminal\MarginsAndOriginModeTests.cs` (18 tests). Several are
+Tests: `src\tests\RetroTerm.Tests\Terminal\MarginsAndOriginModeTests.cs` (18 tests). Several are
 written as agreement properties rather than fixed expectations — CUP and VPA must land on the same
 row in both modes, and a position must survive a round trip out through CPR — because that is the
 form the defects actually took. Suite 3152 → 3170 passing, 41 skipped, no regressions; the
@@ -758,7 +758,7 @@ instead of claiming a VT220 identity it could not live up to — a host that pro
 VT220 sequences would be worse off than one told the truth. `AskingForAVt220StillGetsAVt100_AndSaysSo`
 is the test that should fail, and be updated, when VT220 is really built.
 
-Tests: `tests\RetroTerm.Tests\Terminal\TerminalProfileTests.cs` (20 tests). Suite 3170 → 3190
+Tests: `src\tests\RetroTerm.Tests\Terminal\TerminalProfileTests.cs` (20 tests). Suite 3170 → 3190
 passing, 41 skipped, no regressions.
 
 ## Appendix 0h: Phase 3 part 2 (2026-08-09) — one reply channel, not two
@@ -793,7 +793,7 @@ still flowing perfectly. Its nine siblings in the same class, which assert that 
 at the connection, passed throughout, and they are the reason this change can be called verified
 rather than merely compiled. The helper now checks `DataToSend`, which is the wire.
 
-Tests: `tests\RetroTerm.Tests\TDV\TdvReplyChannelUnificationTests.cs` (8 tests), including a sweep
+Tests: `src\tests\RetroTerm.Tests\TDV\TdvReplyChannelUnificationTests.cs` (8 tests), including a sweep
 of every byte 0x80–0xFF through the reply path. Suite 3190 → 3198 passing, 41 skipped.
 
 One note for anyone editing that file: the high-byte test builds its string from explicit `char`
@@ -840,7 +840,7 @@ rather than depending on what ends up in the file. And the test asserted only a 
 would have passed just as well if RIS had cleared the screen while leaving the mode set; it now
 queries the mode through DECRQM as well.
 
-Tests: `tests\RetroTerm.Tests\Terminal\ModeHandlingTests.cs` (15 tests). Suite 3198 → 3213 passing,
+Tests: `src\tests\RetroTerm.Tests\Terminal\ModeHandlingTests.cs` (15 tests). Suite 3198 → 3213 passing,
 41 skipped, no regressions.
 
 ## Appendix 0j: Phase 3 part 4 (2026-08-09) — DECCKM actually reaches the keyboard
@@ -883,7 +883,7 @@ plainly that it does not endorse it; if a real 2215 uses mode 1 for DECCKM, that
 and the emulator should change. It exists so the collision is visible rather than a surprise to
 whoever next wonders why arrow keys behave differently on a 2215.
 
-Tests: `tests\RetroTerm.Tests\Terminal\ActiveModeReportingTests.cs` (17 tests), ending with an
+Tests: `src\tests\RetroTerm.Tests\Terminal\ActiveModeReportingTests.cs` (17 tests), ending with an
 end-to-end check that a host turning DECCKM on changes the bytes the terminal sends for each arrow
 key. Suite 3213 → 3230 passing, 41 skipped, no regressions.
 
@@ -916,7 +916,7 @@ ordinary character that must keep travelling the normal text path, and routing i
 well would deliver every keypad digit **twice**. `WithoutTheModeAKeypadKeyIsNotClaimedByTheMapper`
 pins the Core half of that.
 
-Tests: `tests\RetroTerm.Tests\Terminal\ApplicationKeypadTests.cs` (24 tests). One is worth
+Tests: `src\tests\RetroTerm.Tests\Terminal\ApplicationKeypadTests.cs` (24 tests). One is worth
 mentioning: `TheDigitsAreDistinct` checks the ten sequences are all different, because a
 transcription slip in a ten-entry table is easy to make and invisible to a per-digit test that
 happens to be wrong the same way.
@@ -972,7 +972,7 @@ in it. A test that re-implements the thing it tests can pass while production is
 while production is fine. It is updated to match, but it is the same class of problem as the
 screenshot tests that used to re-implement the renderer.
 
-Tests: `tests\RetroTerm.Tests\Terminal\ControlKeyEncodingTests.cs` (19 tests), including a sweep of
+Tests: `src\tests\RetroTerm.Tests\Terminal\ControlKeyEncodingTests.cs` (19 tests), including a sweep of
 all 26 letters and an assertion that the VT and TDV mappers agree on every one — the property the
 whole change exists for. Suite 3254 → 3273 passing, 41 skipped.
 
@@ -1008,7 +1008,7 @@ appendix 0g recorded for DA replies. It is **not dead code to delete**; it is co
 VT220 profile to exist. `TheVt220KeyboardExistsButNoShippedProfileAsksForIt` records it and says
 what should change when VT220 is really built.
 
-Tests: `tests\RetroTerm.Tests\Terminal\KeyboardLayoutSelectionTests.cs` (14 tests), including one
+Tests: `src\tests\RetroTerm.Tests\Terminal\KeyboardLayoutSelectionTests.cs` (14 tests), including one
 that walks every emulator type the factory can build and asserts each resolves to its own mapper —
 the guard that would catch a new profile with a typo in its layout name. Suite 3273 → 3287 passing,
 41 skipped.
@@ -1048,7 +1048,7 @@ implementations, which is a smaller and more honest change than the one I starte
 
 Result: the three leaves lose 173 lines and keep only what actually differs between the models.
 
-Tests: `tests\RetroTerm.Tests\TDV\TdvSharedBehaviourTests.cs` (14 tests). They assert the models
+Tests: `src\tests\RetroTerm.Tests\TDV\TdvSharedBehaviourTests.cs` (14 tests). They assert the models
 **agree** rather than re-asserting each model separately — per-model tests would have passed just as
 happily with three implementations, which is how the triplication survived this long. One test
 deliberately guards the other way, checking the models still differ on identity and scrollback
@@ -1122,7 +1122,7 @@ keyboard/connection language, so the two are kept in step. Verified rather than 
 alone** — collapsing them would be a behaviour change with no defect behind it, and the emulator is
 not obviously the right authority for a keyboard the user picked independently.
 
-Tests: `tests\RetroTerm.Tests\TDV\Iso646WireConversionTests.cs` (16 tests). Two are the point:
+Tests: `src\tests\RetroTerm.Tests\TDV\Iso646WireConversionTests.cs` (16 tests). Two are the point:
 `MultiCharacterTextConvertsEveryCharacter` covers the regression, and
 `ASingleCharacterAndTheSameCharacterInAStringConvertIdentically` states the property the three
 copies violated — length must not change the answer. There is also a stability check, since the
@@ -1178,7 +1178,7 @@ why. Making it conclusive would need G1 designated as a graphics set, which need
 sequence I have not verified — and guessing one to make a test look conclusive is worse than saying
 plainly that it is not.
 
-Tests: `tests\RetroTerm.Tests\TDV\SingleShiftAndLockingShiftTests.cs` (9 tests) pinning that a
+Tests: `src\tests\RetroTerm.Tests\TDV\SingleShiftAndLockingShiftTests.cs` (9 tests) pinning that a
 single shift lasts exactly one character on both models, that a locking shift persists, that a
 single shift overrides a lock for one character, and that reset clears a pending shift.
 
@@ -1241,7 +1241,7 @@ Core's Norwegian table and `FontTDV2215`'s header comment also disagree at three
 `^`, `~` (Core: Ä, Ü, ü; the 2215 comment: unchanged, unchanged, ¦). They agree on every character
 that matters here. **Not resolved** — it needs the TDV spec, which I have not verified.
 
-Tests: `tests\RetroTerm.Tests\TDV\NationalGlyphPositionTests.cs` (12 tests), including a round trip
+Tests: `src\tests\RetroTerm.Tests\TDV\NationalGlyphPositionTests.cs` (12 tests), including a round trip
 that asserts every entry of the forward ISO 646 table resolves back to its own position — which is
 what stops the two drifting apart again. Suite 3326 → 3341 passing, 41 skipped.
 
@@ -1290,7 +1290,7 @@ path would have left exactly the terminals this change is for on the wrong setti
 half would have looked fine on its own, so the bug would have shipped behind a green suite. The
 assignment now sits in a shared `ApplyTransportEncodingToParser()` called from both entry points.
 
-Tests: `tests\RetroTerm.Tests\Terminal\TransportEncodingTests.cs` (16 tests), including a sweep
+Tests: `src\tests\RetroTerm.Tests\Terminal\TransportEncodingTests.cs` (16 tests), including a sweep
 asserting the two encodings are byte-identical across all of 7-bit ASCII — switching a session's
 terminal type must not change what ordinary typing puts on the wire. Suite 3341 → 3357 passing,
 41 skipped.
@@ -1343,7 +1343,7 @@ outright. All 149 `.Should().Be(...)` and its relatives across those five files 
 `Assert.*`, and the package reference is gone from `RetroTerm.Tests.csproj`. Same test count either
 side of the change (3370), so nothing was silently dropped.
 
-Tests: `tests\RetroTerm.Tests\Rendering\CanonicalPaletteTests.cs` (13 tests). Suite 3357 → 3370
+Tests: `src\tests\RetroTerm.Tests\Rendering\CanonicalPaletteTests.cs` (13 tests). Suite 3357 → 3370
 passing, 41 skipped.
 
 ---
@@ -1389,7 +1389,7 @@ away. I did not add a detach hook because Avalonia detaches and reattaches contr
 tab switching, and killing the renderer there would break the app in a way this change is not
 allowed to risk. It needs someone who knows how the tabs are hosted to say where teardown belongs.
 
-Tests: `tests\RetroTerm.Tests\Avalonia\CursorBlinkLifetimeTests.cs` (8 tests). Suite 3370 → 3378
+Tests: `src\tests\RetroTerm.Tests\Avalonia\CursorBlinkLifetimeTests.cs` (8 tests). Suite 3370 → 3378
 passing, 41 skipped.
 
 ## Appendix 0u: Phase 5 part 3 (2026-08-09) — the render hot path

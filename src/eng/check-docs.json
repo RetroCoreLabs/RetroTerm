@@ -36,7 +36,7 @@
 
   "waivers": [
     {
-      "files": ["docs/", "CLAUDE.md", "LOGO-DESIGN-GUIDE.md"],
+      "files": ["docs/", "CLAUDE.md", "docs/LOGO-DESIGN-GUIDE.md"],
       "checks": ["EMOJI-HEADING", "HAND-TOC", "NEW-HEADING"],
       "reason": "Working notes, plans and guides written before the standard. Some emoji carry status meaning inside tables and cannot be stripped blind. Deferred to a pass of their own. Not approved as-is."
     },
@@ -46,7 +46,7 @@
       "reason": "Diagrams written before the shared palette. Re-colouring is mechanical but each diagram needs reading to keep its meaning. Deferred. Not approved as-is."
     },
     {
-      "files": ["spec/"],
+      "files": ["docs/spec/"],
       "checks": ["ALT-TEXT", "LINK", "EMOJI-HEADING", "HAND-TOC"],
       "reason": "spec/ holds transcriptions of the original terminal manuals - 93 images without alt text and 14 links into pages that were never transcribed. They are source material, kept as faithful to the paper as possible; adding alt text to 93 scanned figures is a documentation project in its own right. Deferred."
     }

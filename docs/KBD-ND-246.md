@@ -5,7 +5,7 @@
 This document provides a comprehensive reference for the ND 246 keyboard layout used with TDV2200 terminals. The keyboard supports 13 national layout variants based on ISO 646 character set standards.
 
 **Source**: TDV-2200/9 User's Guide (ND), Part no. 408356, Publication no. 5599, November 1984
-**Documentation Path**: `spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md`
+**Documentation Path**: `docs\spec\TDV2200\OCR\TDV-2200_9-User-s_Guide-ND_combined.md`
 
 ## Supported National Variants
 
@@ -248,9 +248,9 @@ Format: `<1B 5B XX XX 5F>` (CSI nn _) where:
    - CSI Sequences (Lines 835-943)
 
 2. **Physical Keyboard Images**:
-   - `spec/TDV2200/kbd-ND246-2.jpeg` - Norwegian ND 246 keyboard photo
-   - `spec/TDV2200/kbd-ND246-1.jpeg` - Alternative view
-   - `spec/TDV2200/kbd.png` - Schematic layout
+   - `docs/spec/TDV2200/kbd-ND246-2.jpeg` - Norwegian ND 246 keyboard photo
+   - `docs/spec/TDV2200/kbd-ND246-1.jpeg` - Alternative view
+   - `docs/spec/TDV2200/kbd.png` - Schematic layout
 
 3. **Implementation Files**:
    - `src/RetroTerm.Desktop/Models/TDV2200KeyLayout.cs` - Layout implementation

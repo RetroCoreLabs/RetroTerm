@@ -56,7 +56,7 @@ The application project carries its own copies under `src/RetroTerm.Desktop/Asse
 `RetroTerm-512.png` is the window icon named in `MainWindow.axaml` and
 `TerminalPopoutWindow.axaml`, and `RetroTerm.ico` is the `ApplicationIcon` in
 `RetroTerm.Desktop.csproj`. When the master changes, regenerate both copies.
-`tests/RetroTerm.Tests/Avalonia/WindowIconIsTheRingLogoTests.cs` checks that the 512 px PNG
+`src/tests/RetroTerm.Tests/Avalonia/WindowIconIsTheRingLogoTests.cs` checks that the 512 px PNG
 ships inside the executable at that size, that both windows have an icon, and that no file
 from a retired look is packed in.
 

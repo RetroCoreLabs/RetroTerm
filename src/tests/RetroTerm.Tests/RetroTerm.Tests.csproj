@@ -62,14 +62,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RetroTerm.Core\RetroTerm.Core.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.Net\RetroTerm.Core.Protocols.Net.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.WebSocket\RetroTerm.Core.Protocols.WebSocket.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Desktop\RetroTerm.Desktop.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.TelnetServer\RetroTerm.Core.Protocols.TelnetServer.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols.Net\RetroTerm.Core.Protocols.Net.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols.WebSocket\RetroTerm.Core.Protocols.WebSocket.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Desktop\RetroTerm.Desktop.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols.TelnetServer\RetroTerm.Core.Protocols.TelnetServer.csproj" />
     <ProjectReference Include="..\RetroTerm.TestServer\RetroTerm.TestServer.csproj" />
-    <ProjectReference Include="..\..\src\RetroTerm.Mcp\RetroTerm.Mcp.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Mcp\RetroTerm.Mcp.csproj" />
   </ItemGroup>
 
   <!-- The xUnit runner reads this from the output directory, so it has to be copied there.

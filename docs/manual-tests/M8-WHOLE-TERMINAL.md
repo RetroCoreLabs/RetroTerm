@@ -2,7 +2,7 @@
 
 **Full path:** `docs\manual-tests\M8-WHOLE-TERMINAL.md`
 **Parent:** `docs\manual-tests\INDEX.md`
-**Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M8WholeTerminalTests.cs`
+**Machine cover:** `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\M8WholeTerminalTests.cs`
 
 These cases belong to no single emulator. They are the things that go wrong in the program around
 the emulation — the window, the scrollback, the clipboard, the speaker, the terminal list.
@@ -17,8 +17,8 @@ because the TDV path uses a bitmap font renderer and the VT path does not.
 Nothing outside the app for M8.1 to M8.5. M8.6 wants a real host that goes quiet for a while — a
 SINTRAN login left sitting does the job.
 
-    Build:   .\scripts\publish.ps1        (works while the old build is still running)
-    Run:     publish\current\RetroTerm.Desktop.exe
+    Build:   src\tools\build-release.bat   (closes a running RetroTerm and TestServer first)
+    Run:     src\publish\RetroTerm.Desktop.exe
 
 ---
 
@@ -212,7 +212,7 @@ correcting turns once, and it is still true that no assertion can hear it.
 
 **Needs:** nothing.
 **Do:** run the suite once, then play
-`tests\RetroTerm.Tests\Avalonia\images\rendered\bell.wav`.
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\bell.wav`.
 **Pass:** the same tone you hear in the app. If the file sounds right and the app does not, the
 fault is in the playback path, not in the tone — which is the whole reason the file is written.
 **Machine cover:** `M8_4b_TheBellIsWrittenOutAsAWaveFileToListenTo` writes it and checks the header

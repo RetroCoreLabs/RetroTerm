@@ -28,8 +28,9 @@ work on one area, and the full run before you open a pull request:
 dotnet test --filter "FullyQualifiedName~TDV2200" -nodeReuse:false
 ```
 
-`build-release.bat` publishes the client and the test server as self-contained Windows x64
-executables into `publish\`. `start-retroterm-with-testserver.bat` then starts both.
+`src\tools\build-release.bat` publishes the client and the test server as self-contained Windows
+x64 executables into `src\publish\`. `src\tools\start-retroterm-with-testserver.bat` then starts
+both.
 
 > [!IMPORTANT]
 > Pass **`-nodeReuse:false`** on every `dotnet build` and `dotnet test` you run by hand. Node
@@ -43,8 +44,8 @@ Every terminal this emulates is built from its manual, and every capability it c
 Device Attributes reply has a test that proves it. That is the rule for a change too: **do not
 make a terminal claim something the code does not do**, and do not build from recollection. The
 IBM 3270 entry in the README is not started for exactly that reason - there is no data-stream
-reference in `spec/`, and inventing one would produce something that matches no real host. The
-manuals the existing emulators were built from are in `spec/`.
+reference in `docs/spec/`, and inventing one would produce something that matches no real host. The
+manuals the existing emulators were built from are in `docs/spec/`.
 
 ---
 
@@ -114,4 +115,4 @@ build-from-source, every application in a table linking its own README, licence 
 
 ## Licence
 
-By contributing you agree your work is licensed under the MIT licence in [LICENSE](LICENSE).
+By contributing you agree your work is licensed under the MIT licence in [LICENSE](../LICENSE).

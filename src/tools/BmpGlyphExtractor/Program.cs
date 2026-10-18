@@ -31,8 +31,12 @@ class Program
 
     static void Main(string[] args)
     {
-        string specPath = @"E:\Dev\Ronny\RetroTerm\spec\TDV2115";
-        string outputPath = @"E:\Dev\Ronny\RetroTerm\tools\BmpGlyphExtractor\output";
+        // Paths are resolved from where the exe runs (bin\<Config>\<tfm>\), three levels under this
+        // project's folder, so the tool works from any checkout. The BMPs are the scanned character
+        // set sheets kept with the manuals under docs\spec\TDV2115; the text files land in output\.
+        string toolDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+        string specPath = Path.GetFullPath(Path.Combine(toolDir, "..", "..", "..", "docs", "spec", "TDV2115"));
+        string outputPath = Path.Combine(toolDir, "output");
 
         Directory.CreateDirectory(outputPath);
 

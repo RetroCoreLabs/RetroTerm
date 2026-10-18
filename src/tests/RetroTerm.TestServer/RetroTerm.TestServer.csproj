@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RetroTerm.Core.Protocols.TelnetServer\RetroTerm.Core.Protocols.TelnetServer.csproj" />
+    <ProjectReference Include="..\..\RetroTerm.Core.Protocols.TelnetServer\RetroTerm.Core.Protocols.TelnetServer.csproj" />
   </ItemGroup>
 
 </Project>

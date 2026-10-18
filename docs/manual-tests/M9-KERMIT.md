@@ -2,7 +2,7 @@
 
 **Full path:** `docs\manual-tests\M9-KERMIT.md`
 **Parent:** `docs\manual-tests\INDEX.md`
-**Machine cover:** `tests\RetroTerm.Core.Protocols.Kermit.Tests` — 123 tests over encoding, the
+**Machine cover:** `src\tests\RetroTerm.Core.Protocols.Kermit.Tests` — 123 tests over encoding, the
 three block-check types, Send-Init negotiation, 7-bit channels, nd-kermit patterns and the engine
 state machine. The transfer settings live in **Preferences, Kermit tab**; there is no separate
 transfer settings window, and Send and Receive read the preferences as they are when clicked.
@@ -30,7 +30,7 @@ still to come.
 
 ## Prerequisites
 
-- RetroTerm built and running (`.\scripts\publish.ps1`, then `publish\current\RetroTerm.Desktop.exe`)
+- RetroTerm built and running (`src\tools\build-release.bat`, then `src\publish\RetroTerm.Desktop.exe`)
 - A Telnet/SSH host available for connection testing (or TestServer)
 - A host running Kermit (nd-kermit, C-Kermit, or G-Kermit) for end-to-end tests
 - A few test files of varying sizes (e.g., small.txt 100B, medium.bin 50KB, large.dat 5MB)

@@ -149,7 +149,7 @@ binaries: Windows x64, Linux x64, macOS Intel and macOS Apple silicon.
 |---|---|---|---|
 | P1 | The .NET SDK. The projects target .NET 10; the build here runs on SDK 10.0.401 | Everything | `dotnet --info` |
 | P2 | A Windows desktop session for the tests | The UI tests target `net10.0-windows`; the application itself also publishes for Linux and macOS, see Current limitations | Not usable over a plain SSH session |
-| P3 | Something to connect to | Anything useful | `tests/RetroTerm.TestServer` is included for exactly this |
+| P3 | Something to connect to | Anything useful | `src/tests/RetroTerm.TestServer` is included for exactly this |
 
 ## Quick start
 
@@ -163,15 +163,13 @@ Then Connection → Manage Connections, pick a terminal type, and connect. If yo
 to hand, start the included test server first and connect to it:
 
 ```powershell
-dotnet run --project tests\RetroTerm.TestServer\RetroTerm.TestServer.csproj
+dotnet run --project src\tests\RetroTerm.TestServer\RetroTerm.TestServer.csproj
 ```
 
-Once `build-release.bat` has produced `publish\`, `start-retroterm-with-testserver.bat` starts
-both published executables in one step - the test server on port 8080, then the client.
-`scripts\publish.ps1` publishes the client alone into a versioned folder under
-`publish\versions\` and repoints `publish\current` at it, which works while an older build is
-still running. What ships with the exe, and how to point an MCP client at it, is in
-[`docs/DISTRIBUTION-README.md`](docs/DISTRIBUTION-README.md).
+Once `src\tools\build-release.bat` has produced `src\publish\`,
+`src\tools\start-retroterm-with-testserver.bat` starts both published executables in one step -
+the test server on port 8080, then the client. What ships with the exe, and how to point an MCP
+client at it, is in [`docs/DISTRIBUTION-README.md`](docs/DISTRIBUTION-README.md).
 
 ## Building from source
 
@@ -183,8 +181,8 @@ dotnet test  src\RetroTerm.slnx -nodeReuse:false
 # one test category
 dotnet test --filter "FullyQualifiedName~TDV2200"
 
-# a self-contained Windows x64 build of the client and the test server, into publish\
-build-release.bat
+# a self-contained Windows x64 build of the client and the test server, into src\publish\
+src\tools\build-release.bat
 ```
 
 > [!IMPORTANT]
@@ -247,7 +245,7 @@ the graphics VT240 and VT340 followed, and **xterm** is the modern program that 
 their language. The **Tektronix 4014** was a storage-tube graphics terminal: it drew vectors
 onto a phosphor that held the image until erased.
 
-For the TDV, the manuals are in `spec/` and the modes, queries and reports are written up, with
+For the TDV, the manuals are in `docs/spec/` and the modes, queries and reports are written up, with
 the manual page for each, in
 [`docs/TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md`](docs/TDV-MODES-AND-REPORTS-FROM-THE-MANUALS.md).
 
@@ -268,9 +266,9 @@ emulation is not started, for the reason the terminal table gives.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get a build running, what the code is
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for how to get a build running, what the code is
 expected to look like, and what will get a change sent back. A security problem goes through
-[SECURITY.md](SECURITY.md), never a public issue.
+[SECURITY.md](.github/SECURITY.md), never a public issue.
 
 ## Acknowledgements
 

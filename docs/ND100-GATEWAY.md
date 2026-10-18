@@ -184,8 +184,8 @@ The status bar shows gateway state in the rightmost column:
 
 ## Tests
 
-40 unit tests in `tests\RetroTerm.Tests\Gateway\` (counted 29 September 2026), plus 4 in
-`tests\RetroTerm.Tests\Commands\GatewayCommandTests.cs` for the GATEWAY script and MCP command:
+40 unit tests in `src\tests\RetroTerm.Tests\Gateway\` (counted 29 September 2026), plus 4 in
+`src\tests\RetroTerm.Tests\Commands\GatewayCommandTests.cs` for the GATEWAY script and MCP command:
 - `GatewayListenerTests` — listener lifecycle, register parsing, message routing, exclusive emulator connection
 - `GatewayConnectionTests` — IConnection lifecycle, client-connected/disconnected messages, exclusive access, send/receive, emulator disconnect handling
 - `GatewayEthernetTests` — the RETH handshake and length prefix, the mapping spec and its backend factory, a hub and client carrying a frame between them
@@ -193,5 +193,5 @@ The status bar shows gateway state in the rightmost column:
 
 Run with:
 ```powershell
-dotnet test tests\RetroTerm.Tests\RetroTerm.Tests.csproj --filter "FullyQualifiedName~Gateway"
+dotnet test src\tests\RetroTerm.Tests\RetroTerm.Tests.csproj --filter "FullyQualifiedName~Gateway"
 ```

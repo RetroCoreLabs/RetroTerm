@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -56,7 +63,7 @@ public class TdvDocumentFunctionKeyRowsTests
 {
     private static string DocumentPath => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(typeof(TdvDocumentFunctionKeyRowsTests).Assembly.Location) ?? "",
-        "..", "..", "..", "..", "..", "docs", "TDV-KEYBOARD-COMPLETE-REFERENCE.md"));
+        "..", "..", "..", "..", "..", "..", "docs", "TDV-KEYBOARD-COMPLETE-REFERENCE.md"));
 
     /// <summary>
     /// A grid position as the registry writes it: one row letter A to G and one or two digits.

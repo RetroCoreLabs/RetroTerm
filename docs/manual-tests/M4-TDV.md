@@ -2,8 +2,8 @@
 
 **Full path:** `docs\manual-tests\M4-TDV.md`
 **Parent:** `docs\manual-tests\INDEX.md`
-**Machine cover:** `tests\RetroTerm.Tests\Avalonia\ManualPlan\M4TdvTests.cs`
-**Generated artefact:** `tests\RetroTerm.Tests\Avalonia\images\rendered\tdv2200-key-sheet.md`
+**Machine cover:** `src\tests\RetroTerm.Tests\Avalonia\ManualPlan\M4TdvTests.cs`
+**Generated artefact:** `src\tests\RetroTerm.Tests\Avalonia\images\rendered\tdv2200-key-sheet.md`
 
 The TDV emulators have the strongest evidence in the program — OCR'd Tandberg manuals, a TDV2215
 ROM dump, fonts traced from real bitmaps. So this section is not about whether the sequences are
@@ -42,7 +42,7 @@ covers is a **real** host driving the terminal, which is M4.4.
 appear. When one does, the pass must be quick or it will not happen — so the suite writes the whole
 key map out as a sheet to print:
 
-> `tests\RetroTerm.Tests\Avalonia\images\rendered\tdv2200-key-sheet.md`
+> `src\tests\RetroTerm.Tests\Avalonia\images\rendered\tdv2200-key-sheet.md`
 
 121 keys, 46 of which send a fixed sequence. Each row gives the grid position, the key's name, its
 Windows virtual key code, what it sends in **extended** mode and in **simple ASCII** mode, both as
@@ -149,7 +149,7 @@ hardware that may never appear.
 
 **How it was settled.** Ronny's instruction: find the documentation already in this repo and
 decide, rather than wait indefinitely on hardware. Three research agents read every keyboard
-document in the repo in parallel. `spec\Keyboards\keyboard-spec.md` section 6.8.3 settled it - it
+document in the repo in parallel. `docs\spec\Keyboards\keyboard-spec.md` section 6.8.3 settled it - it
 cites the TDV-2200/9 User's Guide (ND-30.003.04 EN) directly and documents its own OCR-correction
 history: an early, uncorrected OCR of User's Guide section 7.2 misread HOME's simple-mode byte as
 DLE (`0x10`); a later, cross-checked OCR of section 9.1 marks B47/B48/B49 as "is always" keys and
@@ -201,13 +201,13 @@ a real finding and a stale one.
 Measured on the live D100 with 2115 compatibility mode confirmed active by a DECRQM round trip
 (`ESC[?40$p` answered `ESC[?40;1$y` - mode 40, value 1, set), not merely commanded. HOME then sent
 `TX 1D`, the same byte as in extended mode. That is what the registry's `AlwaysSameCode` flag
-claims and what `spec\Keyboards\keyboard-spec.md` §6.8.3 reads out of the User's Guide, so the
+claims and what `docs\spec\Keyboards\keyboard-spec.md` §6.8.3 reads out of the User's Guide, so the
 documentation, the code and the live machine now all agree.
 
 **Result:** CLOSED. Settled from documentation, then confirmed live in BOTH modes. The only thing
 still beyond reach is whether a real TDV KEYBOARD agrees with the User's Guide, which needs
 hardware that may never appear.  **Date:** 2026-08-31, extended mode confirmed 2026-09-01  **By:** documentation (three
-parallel research agents + `spec\Keyboards\keyboard-spec.md` §6.8.3), then measured on the D100
+parallel research agents + `docs\spec\Keyboards\keyboard-spec.md` §6.8.3), then measured on the D100
 
 ### M4.2f — the glued escape, CAUGHT and explained, 2 September 2026
 

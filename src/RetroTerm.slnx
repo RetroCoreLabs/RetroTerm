@@ -10,8 +10,8 @@
     <Project Path="RetroTerm.Mcp/RetroTerm.Mcp.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="../tests/RetroTerm.Core.Protocols.Kermit.Tests/RetroTerm.Core.Protocols.Kermit.Tests.csproj" />
-    <Project Path="../tests/RetroTerm.Tests/RetroTerm.Tests.csproj" />
-    <Project Path="../tests/RetroTerm.TestServer/RetroTerm.TestServer.csproj" />
+    <Project Path="tests/RetroTerm.Core.Protocols.Kermit.Tests/RetroTerm.Core.Protocols.Kermit.Tests.csproj" />
+    <Project Path="tests/RetroTerm.Tests/RetroTerm.Tests.csproj" />
+    <Project Path="tests/RetroTerm.TestServer/RetroTerm.TestServer.csproj" />
   </Folder>
 </Solution>

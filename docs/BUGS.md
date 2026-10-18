@@ -9,7 +9,7 @@ B1 and B2 were fixed on 8 October 2026 and are gone from this file:
   two corners first, counted from 1, then the attributes or characters, as ND-12054-1 sections 5.50,
   5.36, 5.46 and 5.43 give them. NDDWA counts from 1 too (section 5.41). NDSAR resets what the cells
   had, and the attribute numbers are the SGR table of section 5.67.
-  `tests\RetroTerm.Tests\TDV\TdvRectangleSequencesFollowTheManualTests.cs` is written from the manual.
+  `src\tests\RetroTerm.Tests\TDV\TdvRectangleSequencesFollowTheManualTests.cs` is written from the manual.
 - B2, two dead `$y` reply helpers and a `?` where `>` is expected. The helpers are deleted and the
   secondary DA default answers `>`.
 
@@ -87,7 +87,7 @@ The libvterm script `69screen_reflow.test`, "Shell wrapped prompt behaviour", la
 expects the opposite for that one case: the screen keeps its five rows in place, a blank row appears at
 the bottom and the first prompt stays in history. We disagree on five assertions there (screen rows 0
 to 3 and the cursor). They are recorded in `ExpectedFailures` in
-`tests\RetroTerm.Tests\Conformance\LibVtermConformanceTests.cs` with the reason.
+`src\tests\RetroTerm.Tests\Conformance\LibVtermConformanceTests.cs` with the reason.
 
 This is a choice, not a mistake: libvterm's scrollback lives in the host, outside the terminal, so it
 cannot reflow history or pull anything back. Ours is in the buffer. Not decided: whether xterm,

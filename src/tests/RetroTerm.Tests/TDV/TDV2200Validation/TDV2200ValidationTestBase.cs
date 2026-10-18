@@ -1,3 +1,10 @@
+﻿//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +36,7 @@ public abstract class TDV2200ValidationTestBase : IDisposable
         // Initialize spec database
         var specDir = Path.Combine(
             Directory.GetCurrentDirectory(),
-            "..", "..", "..", "..", "..", "spec", "TDV2200");
+            "..", "..", "..", "..", "..", "..", "docs", "spec", "TDV2200");
         SpecDatabase = new TDV2200SpecDatabase(specDir);
 
         Connection = new InMemoryConnection();
