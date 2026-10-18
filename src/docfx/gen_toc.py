@@ -205,6 +205,8 @@ def compose() -> tuple[list[str], str, list[tuple[str, str]]]:
     # The top level of this file is the header menu on every page, so the repository link
     # lives here: a reader on any page gets to the source, the issues and the releases in one
     # click (owner's requirement, 18 October 2026).
+    w("- name: RetroCore Labs")
+    w("  href: https://retrocorelabs.github.io/")
     w("- name: GitHub")
     w("  href: https://github.com/RetroCoreLabs/RetroTerm")
     return pages, "\n".join(out) + "\n", off
