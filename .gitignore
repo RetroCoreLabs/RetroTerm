@@ -188,3 +188,6 @@ CLAUDE.md
 
 # Output of src/docs-site/gen_nav.py - the site's nav and exclusion list, remade on every build.
 src/docs-site/generated/
+
+# Python bytecode from running src/docs-site/gen_nav.py and the MkDocs hooks.
+__pycache__/
