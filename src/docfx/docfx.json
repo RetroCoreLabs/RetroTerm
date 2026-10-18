@@ -129,13 +129,24 @@
         ],
         "src": "../..",
         "dest": ""
+      },
+      {
+        "_comment": "The repository's own icon for the page header and the browser tab; without these the template ships its own letter D.",
+        "files": [
+          "assets/RetroTerm.svg",
+          "assets/RetroTerm.ico"
+        ],
+        "src": "..",
+        "dest": ""
       }
     ],
     "output": "_site",
     "globalMetadata": {
       "_appName": "RetroTerm",
       "_appTitle": "RetroTerm",
-      "_appFooter": "Copyright (c) 1985-2026 Ronny Hansen - MIT License - RetroCore Labs",
+      "_appLogoPath": "assets/RetroTerm.svg",
+      "_appFaviconPath": "assets/RetroTerm.ico",
+      "_appFooter": "Copyright (c) 1985-2026 Ronny Hansen - MIT License - RetroCore Labs - <a href=\"https://github.com/RetroCoreLabs/RetroTerm\">Source on GitHub</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
