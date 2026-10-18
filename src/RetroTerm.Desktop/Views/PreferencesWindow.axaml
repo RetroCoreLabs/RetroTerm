@@ -404,6 +404,31 @@
                                          LostFocus="OnEthernetSettingChanged"/>
                             </Grid>
 
+                            <!-- Capture: every frame the gateway carries, both directions, to a pcapng
+                                 file. Pause/continue and stop/start are in the status bar while on. -->
+                            <CheckBox Name="EthernetCaptureCheck"
+                                      Content="Capture Ethernet frames to a file (pcapng, opens in Wireshark)"
+                                      Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                      Margin="4,8,0,0"
+                                      IsCheckedChanged="OnEthernetCaptureChanged"/>
+                            <Grid ColumnDefinitions="150,*,Auto" Margin="4,0">
+                                <TextBlock Grid.Column="0" Text="File:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Name="EthernetCaptureFileBox"
+                                         FontSize="12" Height="30"
+                                         Background="{DynamicResource SecondaryButtonBrush}"
+                                         Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
+                                         LostFocus="OnEthernetCaptureChanged"/>
+                                <Button Grid.Column="2" Classes="Secondary" Content="Browse..."
+                                        Margin="6,0,0,0" Padding="10,4"
+                                        Click="OnEthernetCaptureBrowseClick"/>
+                            </Grid>
+                            <TextBlock Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="4,0,0,0"
+                                       Text="Each start adds the date and time to the name, so no capture is overwritten."/>
+
                             <TextBlock Name="EthernetHintText"
                                        Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
                                        TextWrapping="Wrap" Margin="4,4,0,0"

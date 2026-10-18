@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using Avalonia.Controls;
@@ -457,6 +464,15 @@ public partial class PreferencesWindow : Window
 
         PopulateAdapters(tm.EthernetTarget);
 
+        var captureCheck = this.FindControl<CheckBox>("EthernetCaptureCheck");
+        if (captureCheck != null) captureCheck.IsChecked = tm.EthernetCaptureEnabled;
+        var captureFile = this.FindControl<TextBox>("EthernetCaptureFileBox");
+        if (captureFile != null)
+        {
+            captureFile.Text = tm.EthernetCaptureFile;
+            captureFile.PlaceholderText = Helpers.EthernetCaptureSetting.BaseFile(tm);
+        }
+
         var combo = this.FindControl<ComboBox>("EthernetModeCombo");
         if (combo != null)
         {
@@ -592,6 +608,37 @@ public partial class PreferencesWindow : Window
     {
         if (_initializing) return;
         ApplyEthernetSettings();
+    }
+
+    private void OnEthernetCaptureChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+
+        var tm = ThemeManager.Instance;
+        tm.EthernetCaptureEnabled = this.FindControl<CheckBox>("EthernetCaptureCheck")?.IsChecked == true;
+        tm.EthernetCaptureFile = this.FindControl<TextBox>("EthernetCaptureFileBox")?.Text?.Trim() ?? string.Empty;
+        tm.SavePreferences();
+        Helpers.EthernetCaptureSetting.Apply(GatewayListenerProvider?.Invoke(), tm);
+    }
+
+    private async void OnEthernetCaptureBrowseClick(object? sender, RoutedEventArgs e)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "Ethernet capture file",
+            SuggestedFileName = "ethernet.pcapng",
+            DefaultExtension = "pcapng",
+            FileTypeChoices = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("pcapng capture") { Patterns = new[] { "*.pcapng" } }
+            }
+        });
+        string? path = file?.Path.LocalPath;
+        if (path == null) return;
+
+        var box = this.FindControl<TextBox>("EthernetCaptureFileBox");
+        if (box != null) box.Text = path;
+        OnEthernetCaptureChanged(sender, e);
     }
 
     private void OnEthernetModeChanged(object? sender, SelectionChangedEventArgs e)

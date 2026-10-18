@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -88,7 +95,6 @@ public partial class MainWindow : Window
     private Avalonia.Controls.Shapes.Ellipse? _gatewayLed;
     private Avalonia.Controls.Shapes.Ellipse? _gatewayRxLed;
     private Avalonia.Controls.Shapes.Ellipse? _gatewayTxLed;
-    private TextBlock? _gatewayPort;
     private DispatcherTimer? _gatewayActivityTimer;
     private long _gatewayLastRx;
     private long _gatewayLastTx;
@@ -311,7 +317,6 @@ public partial class MainWindow : Window
         _gatewayLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayLed");
         _gatewayRxLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayRxLed");
         _gatewayTxLed = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GatewayTxLed");
-        _gatewayPort = this.FindControl<TextBlock>("GatewayPort");
 
         // RX/TX lights: lit for one 100 ms tick after any WebSocket message moved. The counters
         // are Interlocked in GatewayStatistics, so reading them here races with nothing.
@@ -346,6 +351,10 @@ public partial class MainWindow : Window
             Themes.ThemeManager.Instance.BuildEthernetSpec(),
             Themes.ThemeManager.Instance.EthernetSegment);
 
+        // Capture starts with the gateway when Preferences says so.
+        Helpers.EthernetCaptureSetting.Apply(_gatewayListener, Themes.ThemeManager.Instance);
+        _gatewayListener.EthernetCaptureChanged += () => Dispatcher.UIThread.Post(UpdateCaptureStatus);
+
         if (_gatewaySettings.Enabled)
         {
             try
@@ -377,13 +386,12 @@ public partial class MainWindow : Window
 
         bool connected = _gatewayListener.IsEmulatorConnected;
         if (_gatewayLed != null) _gatewayLed.Fill = connected ? s_ledGreen : s_ledRed;
-        if (_gatewayPort != null) _gatewayPort.Text = $":{(_gatewayListener.IsListening ? _gatewayListener.Port : _gatewaySettings!.Port)}";
 
         var stats = _gatewayListener.Statistics;
         string state = connected ? "emulator connected"
             : _gatewayListener.IsListening ? "listening, no emulator" : "not listening (port in use?)";
         ToolTip.SetTip(_gatewayStatus,
-            $"Gateway {state}\n" +
+            $"Gateway {state} (port {_gatewayListener.Port})\n" +
             $"Received: {stats.WsReceivedMessages:N0} packets, {stats.WsReceivedBytes:N0} bytes\n" +
             $"Sent: {stats.WsSentMessages:N0} packets, {stats.WsSentBytes:N0} bytes");
     }
@@ -397,6 +405,8 @@ public partial class MainWindow : Window
         if (++_gatewayStatusTicks % 10 == 0) UpdateGatewayStatus();
         if (!_gatewayStatus.IsVisible) return;
 
+        if (_gatewayStatusTicks % 5 == 0) UpdateCaptureStatus();   // frame count twice a second
+
         var stats = _gatewayListener.Statistics;
         long rx = stats.WsReceivedMessages;
         long tx = stats.WsSentMessages;
@@ -407,6 +417,70 @@ public partial class MainWindow : Window
     }
 
     private int _gatewayStatusTicks;
+
+    private static readonly SolidColorBrush s_ledRecording = new(Color.Parse("#E05050"));
+    private static readonly SolidColorBrush s_ledPaused = new(Color.Parse("#F2C94C"));
+
+    /// <summary>The capture part of the status bar: hidden unless capture is enabled in
+    /// Preferences; red = writing, yellow = paused, grey = stopped.</summary>
+    private void UpdateCaptureStatus()
+    {
+        var panel = this.FindControl<StackPanel>("CaptureStatus");
+        if (panel == null || _gatewayListener == null) return;
+
+        bool enabled = Themes.ThemeManager.Instance.EthernetCaptureEnabled;
+        panel.IsVisible = enabled;
+        if (!enabled) return;
+
+        var led = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("CaptureLed");
+        var text = this.FindControl<TextBlock>("CaptureText");
+        var pause = this.FindControl<Button>("CapturePauseButton");
+        var stop = this.FindControl<Button>("CaptureStopButton");
+
+        string? path = _gatewayListener.EthernetCapturePath;
+        bool running = path != null;
+        bool paused = running && _gatewayListener.EthernetCapturePaused;
+
+        if (led != null) led.Fill = !running ? s_ledOff : paused ? s_ledPaused : s_ledRecording;
+        if (text != null)
+        {
+            text.Text = !running ? "pcap stopped"
+                : $"pcap {(paused ? "paused" : "rec")} {_gatewayListener.EthernetCaptureFrames:N0}";
+        }
+        if (pause != null)
+        {
+            pause.IsEnabled = running;
+            pause.Content = paused ? "Continue" : "Pause";
+        }
+        if (stop != null) stop.Content = running ? "Stop" : "Start";
+        ToolTip.SetTip(panel, running
+            ? $"Ethernet capture: {path}"
+            : "Ethernet capture stopped. Start writes a new file.");
+    }
+
+    private void OnCapturePauseClick(object? sender, RoutedEventArgs e)
+    {
+        if (_gatewayListener?.EthernetCapturePath == null) return;
+        _gatewayListener.EthernetCapturePaused = !_gatewayListener.EthernetCapturePaused;
+        UpdateCaptureStatus();
+    }
+
+    /// <summary>Stop closes the file; Start opens a new one with a fresh date and time.</summary>
+    private void OnCaptureStopClick(object? sender, RoutedEventArgs e)
+    {
+        if (_gatewayListener == null) return;
+
+        if (_gatewayListener.EthernetCapturePath != null)
+        {
+            _gatewayListener.StopEthernetCapture();
+        }
+        else
+        {
+            string? error = Helpers.EthernetCaptureSetting.StartNew(_gatewayListener, Themes.ThemeManager.Instance);
+            if (error != null && _statusText != null) _statusText.Text = $"Capture not started: {error}";
+        }
+        UpdateCaptureStatus();
+    }
 
     // ───────────────────────────────────────────────────────────────────
     // Tab System (custom tab bar — no TabControl)

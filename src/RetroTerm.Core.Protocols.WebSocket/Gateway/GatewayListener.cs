@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -69,6 +76,79 @@ public class GatewayListener : IDisposable
     /// </summary>
     public Ethernet.GatewayEthernetBridge? Ethernet => _ethernet;
 
+    // Ethernet capture file, or null when not capturing. Swapped under _captureLock; the
+    // writer itself is thread-safe, so the frame paths only read the reference.
+    private volatile Ethernet.PcapngWriter? _capture;
+    private readonly object _captureLock = new();
+
+    /// <summary>Raised when an Ethernet capture starts or stops.</summary>
+    public event Action? EthernetCaptureChanged;
+
+    /// <summary>The capture file being written, or null.</summary>
+    public string? EthernetCapturePath => _capture?.Path;
+
+    /// <summary>Frames written to the current capture.</summary>
+    public long EthernetCaptureFrames => _capture?.FrameCount ?? 0;
+
+    /// <summary>True while a capture is open but not writing: frames pass, the file waits.
+    /// Set back to false to continue in the same file.</summary>
+    public bool EthernetCapturePaused
+    {
+        get => _capturePaused;
+        set
+        {
+            if (_capturePaused == value) return;
+            _capturePaused = value;
+            LogDebug("EVT", $"Ethernet capture {(value ? "paused" : "continued")}");
+            EthernetCaptureChanged?.Invoke();
+        }
+    }
+
+    private volatile bool _capturePaused;
+
+    /// <summary>Start writing every Ethernet frame the gateway carries, both directions, to a
+    /// pcapng file at <paramref name="path"/> (replaced if it exists). A capture already running
+    /// is closed first. Returns null on success, else why the file could not be created.</summary>
+    public string? StartEthernetCapture(string path)
+    {
+        Ethernet.PcapngWriter writer;
+        try
+        {
+            writer = new Ethernet.PcapngWriter(path);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException ||
+                                   ex is ArgumentException || ex is NotSupportedException)
+        {
+            LogDebug("EVT", $"Ethernet capture NOT started, {path}: {ex.Message}");
+            return ex.Message;
+        }
+
+        lock (_captureLock)
+        {
+            _capture?.Dispose();
+            _capture = writer;
+            _capturePaused = false;
+        }
+        LogDebug("EVT", $"Ethernet capture started: {path}");
+        EthernetCaptureChanged?.Invoke();
+        return null;
+    }
+
+    /// <summary>Close the capture file, if one is open.</summary>
+    public void StopEthernetCapture()
+    {
+        Ethernet.PcapngWriter? old;
+        lock (_captureLock)
+        {
+            old = _capture;
+            _capture = null;
+        }
+        if (old == null) return;
+        old.Dispose();
+        LogDebug("EVT", $"Ethernet capture stopped: {old.Path}, {old.FrameCount} frames");
+        EthernetCaptureChanged?.Invoke();
+    }
+
     /// <summary>
     /// Point the emulated machine's Ethernet at a host mapping - a real adapter, a RETH
     /// segment, a multicast group, or nothing. Safe to call while running: the previous
@@ -83,6 +163,7 @@ public class GatewayListener : IDisposable
             if (frame.Length > 4 && frame[0] == 0x30)
             {
                 Statistics.RecordEthToGuest(frame.Length - 4);
+                if (!_capturePaused) _capture?.WriteFrame(frame, 4, frame.Length - 4, true);
                 if (DebugMessage != null)
                     LogDebug("TX", $"{label} {FrameSummary.Describe(frame, 4, frame.Length - 4)}");
             }
@@ -1264,6 +1345,7 @@ public class GatewayListener : IDisposable
             }
 
             Statistics.RecordEthFromGuest(frameLength);
+            if (!_capturePaused) _capture?.WriteFrame(buffer, 4, frameLength, false);
             if (DebugMessage != null)
             {
                 string where = _ethernet == null ? " (no Ethernet mapping - dropped)" : string.Empty;

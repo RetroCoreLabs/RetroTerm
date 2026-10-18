@@ -203,11 +203,24 @@
                             IsVisible="False">
                     <TextBlock Text="GW" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <Ellipse Name="GatewayLed" Width="9" Height="9" VerticalAlignment="Center" Fill="#E05050"/>
-                    <TextBlock Name="GatewayPort" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBlock Text="RX" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/>
                     <Ellipse Name="GatewayRxLed" Width="7" Height="7" VerticalAlignment="Center" Fill="#404040"/>
                     <TextBlock Text="TX" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"/>
                     <Ellipse Name="GatewayTxLed" Width="7" Height="7" VerticalAlignment="Center" Fill="#404040"/>
+                    <!-- Ethernet capture: shown only while capture is enabled in Preferences. -->
+                    <StackPanel Name="CaptureStatus" Orientation="Horizontal" Spacing="4"
+                                Margin="10,0,0,0" VerticalAlignment="Center" IsVisible="False">
+                        <TextBlock Text="|" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                        <Ellipse Name="CaptureLed" Width="8" Height="8" VerticalAlignment="Center" Fill="#404040"/>
+                        <TextBlock Name="CaptureText" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   FontSize="11" VerticalAlignment="Center"/>
+                        <Button Name="CapturePauseButton" Classes="Secondary" Content="Pause" FontSize="10" Padding="6,0"
+                                MinHeight="0" Height="18" VerticalAlignment="Center"
+                                Click="OnCapturePauseClick"/>
+                        <Button Name="CaptureStopButton" Classes="Secondary" Content="Stop" FontSize="10" Padding="6,0"
+                                MinHeight="0" Height="18" VerticalAlignment="Center"
+                                Click="OnCaptureStopClick"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Display size, as a percentage of the normal view. 100% is the picture the

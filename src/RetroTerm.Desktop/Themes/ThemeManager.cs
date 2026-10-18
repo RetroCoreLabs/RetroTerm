@@ -1,3 +1,10 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
 using System;
 using System.IO;
 using Avalonia;
@@ -75,6 +82,14 @@ public sealed class ThemeManager
     /// <summary>Which emulated segment number these frames belong to. A machine with two
     /// cards would use two segments.</summary>
     public int EthernetSegment { get; set; }
+
+    /// <summary>Write every Ethernet frame the gateway carries to a pcapng file, from the
+    /// moment the gateway starts. The status bar then shows pause/continue and stop/start.</summary>
+    public bool EthernetCaptureEnabled { get; set; }
+
+    /// <summary>The capture file name. Each start adds a date and time before the extension,
+    /// so a restart never overwrites an earlier capture. Empty = Documents\RetroTerm\ethernet.pcapng.</summary>
+    public string EthernetCaptureFile { get; set; } = string.Empty;
 
     /// <summary>
     /// The backend spec built from the mapping and its target, in the same grammar RetroCore
@@ -356,6 +371,8 @@ public sealed class ThemeManager
             writer.WriteLine($"eth-mapping={(int)EthernetMapping}");
             writer.WriteLine($"eth-target={EthernetTarget}");
             writer.WriteLine($"eth-segment={EthernetSegment}");
+            writer.WriteLine($"eth-capture={EthernetCaptureEnabled}");
+            writer.WriteLine($"eth-capture-file={EthernetCaptureFile}");
             if (DefaultTerminalForeground != null && DefaultTerminalBackground != null)
             {
                 writer.WriteLine($"terminal-fg={DefaultTerminalForeground}");
@@ -422,6 +439,10 @@ public sealed class ThemeManager
                     EthernetTarget = value;
                 else if (key == "eth-segment" && int.TryParse(value, out var es) && es >= 0 && es <= 255)
                     EthernetSegment = es;
+                else if (key == "eth-capture")
+                    EthernetCaptureEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase);
+                else if (key == "eth-capture-file")
+                    EthernetCaptureFile = value;
                 else if (key == "terminal-fg" && RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(value, out _))
                     storedTerminalForeground = RetroTerm.Core.Configuration.TerminalColourMath.Normalise(value);
                 else if (key == "terminal-bg" && RetroTerm.Core.Configuration.TerminalColourMath.TryParseHex(value, out _))
