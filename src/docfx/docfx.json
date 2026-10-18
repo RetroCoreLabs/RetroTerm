@@ -111,7 +111,7 @@
           "docs/spec/Tektronix/retroterm-nd-graphics-plan.md"
         ],
         "src": "../..",
-        "dest": "docs"
+        "dest": ""
       }
     ],
     "resource": [
@@ -128,7 +128,7 @@
           "docs/manual-tests/**"
         ],
         "src": "../..",
-        "dest": "docs"
+        "dest": ""
       }
     ],
     "output": "_site",

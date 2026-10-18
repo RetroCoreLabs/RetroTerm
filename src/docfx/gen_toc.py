@@ -208,9 +208,12 @@ def compose() -> tuple[list[str], str, list[tuple[str, str]]]:
 def docfx_with_articles(pages: list[str]) -> str:
     with open(DOCFX_JSON, encoding="utf-8") as f:
         cfg = json.load(f)
-    hit = [c for c in cfg["build"]["content"] if c.get("dest") == "docs"]
+    # The article group is the one mapped from the repository root. Its dest is "" on purpose:
+    # the source paths already start with docs/, and a dest of "docs" doubled it to docs/docs/
+    # on the first published site (measured 18 October 2026).
+    hit = [c for c in cfg["build"]["content"] if c.get("src") == "../.."]
     if len(hit) != 1:
-        raise SystemExit("docfx.json: expected exactly one build.content entry with dest 'docs'")
+        raise SystemExit("docfx.json: expected exactly one build.content entry with src '../..'")
     hit[0]["files"] = pages
     return json.dumps(cfg, indent=2, ensure_ascii=False) + "\n"
 
