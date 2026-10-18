@@ -163,7 +163,7 @@ Use the contrast control to adjust the contrast between characters and backgroun
 
 **Swivel:** The force required to swivel the terminal can be adjusted with knob C. Turn knob C until the terminal can be swivelled easily. Once a comfortable angle has been found, it can be secured by tightening the knob.
 
-![Illustration](image1)
+*[Figure not captured by the OCR: illustration]*
 
 # 3. INSTALLATION HINTS
 
@@ -176,7 +176,7 @@ Try to avoid large light contrasts in the operator's viewing area. Do not place 
 |        |        |        |
 |--------|--------|--------|
 | WRONG  | WRONG  | CORRECT |
-| ![Illustration](image2) | ![Illustration](image3) | ![Illustration](image4) |
+| *[Figure not captured by the OCR: illustration]* | *[Figure not captured by the OCR: illustration]* | *[Figure not captured by the OCR: illustration]* |
 | Window | Window | Window |
 
 Try to avoid glare and reflections from other light sources on the screen.
@@ -184,7 +184,7 @@ Try to avoid glare and reflections from other light sources on the screen.
 |        |        |
 |--------|--------|
 | WRONG  | CORRECT |
-| ![Illustration](image5) | ![Illustration](image6) |
+| *[Figure not captured by the OCR: illustration]* | *[Figure not captured by the OCR: illustration]* |
 
 ---
 

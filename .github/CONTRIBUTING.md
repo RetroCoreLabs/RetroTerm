@@ -76,7 +76,7 @@ must not appear in anything new.
 ## Documentation changes
 
 ```powershell
-python eng\check-docs.py
+python src\eng\check-docs.py
 ```
 
 It must exit 0. It fails on a relative link that does not resolve, a relative link that escapes
@@ -85,6 +85,18 @@ wrong: a node style missing its `fill`, `stroke` or `color`, an unbalanced block
 theme. It checks structure only; the colours themselves follow the RetroCore Labs repo-standards
 document `MERMAID_COLOR_STANDARDS`, which lives in the RetroCore Labs standards repository, not
 here.
+
+The documents are also published as a site, <https://retrocorelabs.github.io/RetroTerm/>, built
+by `.github/workflows/docs.yml` on every push to `main`. Its page tree is generated from the
+tracked files; a new document under `docs\` is on the site after the next push, and keeping one
+off takes a line in `src\docs-site\gen_nav.py` with the reason. Build it the way CI does before
+you push a documentation change - `--strict` fails on any warning, a broken link included:
+
+```powershell
+python -m pip install -r src\docs-site\requirements.txt
+python src\docs-site\gen_nav.py
+python -m mkdocs build --strict -f src\docs-site\generated\mkdocs.yml -d "$env:TEMP\retroterm-site"
+```
 
 > [!WARNING]
 > **Never put an absolute path in anything committed here.** A drive letter or a home directory is

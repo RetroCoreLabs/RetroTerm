@@ -1,0 +1,63 @@
+name: Docs
+
+# Builds the documentation site with MkDocs and publishes it to GitHub Pages on every push to
+# main. Repository Settings -> Pages -> Source must be "GitHub Actions".
+#
+# This workflow builds the site only - no compiling, no tests, no release; build.yml does those.
+# The nav comes from gen_nav.py, which reads `git ls-files`, so a page is on the site when its
+# file is tracked and not named in the script's exclusion policy. --strict fails the build on
+# any warning, a broken link included; the same command runs locally (src/docs-site/README.md).
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'README.md'
+      - 'docs/**'
+      - 'src/assets/**'
+      - 'src/docs-site/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r src/docs-site/requirements.txt
+
+      - run: python src/docs-site/gen_nav.py
+
+      - run: python -m mkdocs build --strict -f src/docs-site/generated/mkdocs.yml -d "${{ runner.temp }}/site"
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

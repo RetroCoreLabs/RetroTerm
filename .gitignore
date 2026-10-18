@@ -185,3 +185,6 @@ README.template.md
 
 # Instructions to the AI assistant working on this machine. Kept locally, not published.
 CLAUDE.md
+
+# Output of src/docs-site/gen_nav.py - the site's nav and exclusion list, remade on every build.
+src/docs-site/generated/

@@ -1,0 +1,7 @@
+# Pinned so next month's build is today's build. These are the versions the site was built
+# and checked with on 18 October 2026; bump them on purpose, with a local strict build.
+mkdocs==1.6.1
+mkdocs-material==9.6.21
+pymdown-extensions==10.16.1
+Markdown==3.7
+mdx-truly-sane-lists==1.3

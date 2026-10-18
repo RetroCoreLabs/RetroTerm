@@ -1256,7 +1256,7 @@ The interface select can be either **External** or **Internal**. **Internal** is
 
 # Chapter 3 The set up functions
 
-![Diagram showing the location of the interface slots, keyboard, power, and data line.](image.png)
+*[Figure not captured by the OCR: diagram showing the location of the interface slots, keyboard, power, and data line]*
 
 *Figure 2. Location of the interface slots*
 

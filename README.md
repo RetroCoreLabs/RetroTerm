@@ -9,6 +9,8 @@
 [![licence](https://img.shields.io/github/license/RetroCoreLabs/RetroTerm)](LICENSE)
 [![downloads](https://img.shields.io/github/downloads/RetroCoreLabs/RetroTerm/total)](https://github.com/RetroCoreLabs/RetroTerm/releases)
 
+**[Documentation site](https://retrocorelabs.github.io/RetroTerm/)** - the guides, the terminal references and the transcribed manuals, with a page tree and search; built from this repository by `.github/workflows/docs.yml`.
+
 **RetroTerm is a terminal emulator that puts a 1980s Tandberg TDV or DEC VT screen on a modern
 desktop, so you can talk to a real Norsk Data machine - or an emulated one - the way its users
 did, and let a script or an LLM do the typing when you would rather not.**
