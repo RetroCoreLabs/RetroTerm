@@ -1,0 +1,52 @@
+/* Header brand: the modern template does not size #logo. A PNG, ICO or an SVG that has only a
+   viewBox is drawn at its own size (90 to 157 px measured) and spills out of the 3.5 rem
+   header, pushing the site name over the menu. Sizing it here works for any icon file.
+   Found by measuring the live pages in a browser, 18 October 2026. */
+.navbar .navbar-brand #logo {
+  height: 2rem;
+  width: auto;
+  margin-right: 0.5rem;
+}
+
+/* Keep the site name from being squeezed, and a menu entry from breaking over two lines. */
+.navbar .navbar-brand {
+  flex-shrink: 0;
+}
+
+.navbar .nav-link {
+  white-space: nowrap;
+}
+
+/* Between 768 and 992 px the menu and the search box compete for the bar. Keep the menu at its
+   natural width and let the search box give way. */
+.navbar .navbar-nav {
+  flex-shrink: 0;
+}
+
+.navbar form#search {
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+/* This site has long menu entries ("Manuals and source material"), so below 1100 px the menu and
+   the search box together are wider than the window. Tighten the entries and shrink the search. */
+@media (max-width: 1100px) {
+  .navbar .nav-link {
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+    font-size: 0.85rem;
+  }
+
+  .navbar form#search {
+    flex: 0 1 2rem;
+  }
+}
+
+/* Between 768 and 900 px even the tightened menu leaves no room for the search box and the page
+   scrolls sideways. The box is hidden there; it is back at 900 px and wider, and the search
+   shortcut still works. */
+@media (min-width: 768px) and (max-width: 900px) {
+  .navbar form#search {
+    display: none;
+  }
+}

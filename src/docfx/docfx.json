@@ -156,7 +156,8 @@
     },
     "template": [
       "default",
-      "modern"
+      "modern",
+      "template"
     ],
     "postProcessors": [
       "ExtractSearchIndex"
