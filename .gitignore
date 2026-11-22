@@ -188,3 +188,6 @@ CLAUDE.md
 
 # Python bytecode from running src/docfx/gen_toc.py.
 __pycache__/
+
+# 63 MB IBM 3274 manual: kept out of git, the README in its folder says where to download it
+docs/spec/IBM3270/IBM-manuals/GA23-0061-2_3274_Control_Unit_Description_and_Programmers_Guide_Mar85.pdf

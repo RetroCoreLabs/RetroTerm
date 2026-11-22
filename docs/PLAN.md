@@ -54,6 +54,82 @@ can settle yet is in Phase 4, not at the top pretending to be work.
 
 ---
 
+## IBM 3270 — new emulation, started 22 November 2026
+
+Sources are in `docs\spec\IBM3270\` (README there lists each manual and what it is for). The IBM
+manuals are the authority; x3270 is an oracle to run and read, never code to copy - any port is a
+clean-room rewrite in C#.
+
+**A. Read and document — no machine, no Ronny**
+- [ ] Read the parts of GA23-0059-4 the data stream spec lists as not read yet: Character Sets reply layout, Create Partition, Field Validation / Outlining / Transparency replies, Usable Area extra parameters (p. 6-90 to 6-94), Appendix C reset table
+- [ ] Settle the open questions at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE) — most need one of the traces below
+- [ ] Find an ISPF manual: which characters ISPF sends for boxes, and what its "3278T" terminal setting means
+
+- [ ] Write `docs\IBM3270-INTRODUCTION.md` for users who have never seen a 3270 (Ronny, 22 November 2026: "i do not know anything about LU"): what a block-mode terminal is, fields, attention keys (Enter/PF/PA/Clear), keyboard lock, EBCDIC and code pages, TN3270 vs TN3270E, what an LU name is and when you need one, model sizes, IND$FILE, and a first walk-through logging in to TK5. Written AFTER the spec files, from them, in plain words
+- [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
+
+**B. Build — no machine, no Ronny**
+- [ ] Show the introduction inside RetroTerm. Today the Help menu has only About; the only in-app reference is Keyboard > Key Reference (`KeyboardReferenceWindow`, one per emulator type). Needs a decision: a help window that shows the Markdown in the app, or a Help menu item that opens the docs site page — to be asked when the intro document exists
+- [ ] A 3270 page in Keyboard > Key Reference, like the TDV one
+- [ ] EBCDIC code page tables (byte to Unicode and back), unit-tested against GA27-2837-9 tables
+- [ ] 3270 screen model: buffer, fields, field and extended attributes, MDT; not a stream emulator, so decide how it sits beside `TerminalEmulatorBase`
+- [ ] Data stream parser: W, EW, EWA, EAU, RB, RM, RMA, WSF; orders SF, SFE, SBA, SA, MF, IC, PT, RA, EUA, GE
+- [ ] Inbound side: AID keys, Read Modified reply, Query Reply structured fields
+- [ ] Local field editing: protected/numeric fields, insert mode, Tab/Backtab, ErEOF, ErInp, Dup, FieldMark, keyboard lock and Reset
+- [ ] TN3270 and TN3270E telnet negotiation in the connection layer
+- [ ] Models 2-5 (24x80, 32x80, 43x80, 27x132) and the 3279 colours
+- [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
+- [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
+- [ ] Operator information area (status line under the screen)
+- [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
+- [ ] From tnz's feature list (its README, lines 103-108):
+  - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
+  - [ ] Mouse click moves the 3270 cursor there
+  - [ ] Mouse double-click moves the cursor and sends Enter
+  - [ ] Any EBCDIC code page, chosen per connection (tnz uses whatever Python has; we ship our own tables — the list comes from A2)
+  - [ ] Paste a multi-line block: each line goes into the next unprotected field / next line, never through a protected field
+- [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3
+- [ ] Ronny's list, 22 November 2026:
+  - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)
+  - [ ] Colour: the 3279 base colours (from the protect and intensify bits) and the seven extended colours
+  - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons
+  - [ ] Block copy and cut: select a rectangle; copy takes the text, cut also erases it but only in unprotected fields; paste puts it back field by field
+  - [ ] Macros: record and replay keys and text, built on RetroTerm's existing script language so MCP and scripts get them too
+  - [ ] IND$FILE file transfer, send and receive (spec: SS-HCS12-1372-00, linked from the x3270 documentation page; download it into `docs\spec\IBM3270\`)
+  - [ ] Several sessions to one host: each tab its own TN3270 connection, with an optional LU name per connection (RFC 1646 / RFC 2355) so each tab can get a set terminal
+- [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
+  - [ ] Send every attention key: Enter, PF1-PF24, PA1-PA3, Clear, Attn, SysReq (extend `terminal_sendkey`)
+  - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys
+  - [ ] Read the screen WITH its fields: position, length, protected/numeric/hidden/intensified, modified flag, colour; hidden fields reported as hidden, never their text
+  - [ ] Put text into a field by number or by row/column; move the cursor
+  - [ ] Wait for the keyboard to unlock (the 3270 way of knowing the host has answered) as well as for text
+  - [ ] Read the status line (keyboard locked, insert mode, connection state)
+  - [ ] Choose the code page, the model and the screen size per connection
+- [ ] Oracle tests: run `s3270` on the same recorded host stream and compare screens
+- [ ] Second oracle: drive IBM's Python tnz library the same way, and mine its `test\` folder for known-good byte streams
+
+**C. Needs a machine**
+- [ ] Log in to the Hercules host from RetroTerm once TN3270 works. The host is MVS 3.8J Turnkey 5 (TK5), on port 3270, which answers IAC DO TERMINAL-TYPE (`FF FD 18`), checked 22 November 2026. Logins are in the Hercules folder's README (ordinary user HERC03); never copy the passwords into this repo. The login steps make a good first end-to-end test: type the user id at `Logon ===>` and press Enter, then type the password at `ENTER CURRENT PASSWORD` and press Enter. The typed password does not show; the field is presumably marked non-display (attribute bits 4-5 = `11`) — not yet checked in a recorded session. If so, it is a ready-made test for that attribute
+- [ ] Record real host sessions (x3270 trace) to use as test input: a TSO login, an ISPF panel with boxes, the full-screen editor, and one IND$FILE upload and download (settles IND$FILE questions 1-3)
+- [ ] On TK5: do models 3-5 get the bigger screen; what Attn does; why the `@device` connections showed only the Hercules screen within 3 s
+
+**Done 22 November 2026:** the five spec files in `docs\spec\IBM3270\` (data stream, EBCDIC, TN3270, keyboard, IND$FILE) and the IBM manuals behind them. Facts found that steer the build: TK5 offers plain TN3270 only, never TN3270E; TK5 sends colour even to a no-colour terminal type; TK5's IND$FILE runs in DFT mode; Lucida Console has the box characters of code page 310 but 64 of its APL symbols are missing.
+
+**Decided by Ronny, 22 November 2026:**
+- Alt+letter gives the 3270 key printed on the front of the key, as on IBM's 3278 keyboard — NOT tnz's ISPF menu shortcut
+- Page Up / Page Down send PF7 / PF8
+- Double-click moves the 3270 cursor there and sends Enter (word select is by dragging in a 3270 tab)
+- A new 3270 connection uses code page 037 (US) until the user picks another
+- Our OWN font holding every character the 3270 needs (code pages, code page 310 APL, box pieces), not Lucida Console plus fallbacks — "maybe even from an original IBM ROM file"
+
+**Settled without asking, because the rule is to do what the hardware did** (KEYBOARD.md section 9): a typing error locks the keyboard (IBM), keys pressed while locked are refused (IBM), Backspace moves left without erasing (IBM), insert room is "one less than the blanks left in the field" (IBM), numeric-only checking follows the 3274 manual figure 6-2.
+
+- [ ] Font: search for a dump of a real IBM 3278/3279/3179/3191 character generator ROM (MAME, bitsavers, vintage keyboard/terminal sites) and IBM's published glyph drawings (GA27-2837-9 draws every character); build the RetroTerm 3270 font from the ROM if one exists, else from the manual's drawings. Check the licence of anything used. Also look at rbanffy/3270font (a remake, licence to check) only as a cross-check
+
+**Next:** the EBCDIC tables (B, first item), and the ROM search for the font.
+
+---
+
 ## Gateway Ethernet — code lands, the UI needs a real look
 
 The gateway now carries the emulated machine's Ethernet (frame types `0x30`/`0x31`/`0x32`),
