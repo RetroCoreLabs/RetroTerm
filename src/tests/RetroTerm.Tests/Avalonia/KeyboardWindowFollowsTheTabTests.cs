@@ -96,7 +96,7 @@ namespace RetroTerm.Tests.Avalonia
         public void APressForAnotherFamilyOrAnUnbuiltKeyIsRefusedWithAReason()
         {
             string? wrongFamily = OnScreenKeyPress.Deliver(new TDV2200Emulator(80, 24), "IBM", "ENTER", null);
-            string? notBuilt = OnScreenKeyPress.Deliver(new Ibm3270Emulator(), "IBM", "DUP", null);
+            string? notBuilt = OnScreenKeyPress.Deliver(new Ibm3270Emulator(), "IBM", "CURSORSELECT", null);
 
             Assert.Contains("not a key of this tab", wrongFamily);
             Assert.Contains("not built yet", notBuilt);

@@ -243,11 +243,11 @@ namespace RetroTerm.Tests.Avalonia
             Dispatcher.UIThread.RunJobs();
             var view = keyboard.FindControl<DescribedKeyboardView>("DescribedKeyboard")!;
 
-            Click(keyboard, view, "DUP");
+            Click(keyboard, view, "CURSR SEL");
             await ibm.Session.FlushAsync();
 
             Assert.Empty(connection.GetSentData());
-            Assert.Contains("IBM.DUP is not built yet", main.StatusTextForTesting);
+            Assert.Contains("IBM.CURSORSELECT is not built yet", main.StatusTextForTesting);
 
             keyboard.AllowClose = true;
             keyboard.Close();

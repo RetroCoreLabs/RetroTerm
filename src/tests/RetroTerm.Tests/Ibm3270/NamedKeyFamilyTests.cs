@@ -132,7 +132,7 @@ namespace RetroTerm.Tests.Ibm3270
             var (session, connection) = await Open(new Ibm3270Emulator());
             connection.ClearSentData();
 
-            var result = await SendKey(session, "IBM.ERASEEOF");
+            var result = await SendKey(session, "IBM.CURSORSELECT");
 
             Assert.False(result.Success);
             Assert.Contains("does not do yet", result.Error);

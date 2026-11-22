@@ -338,20 +338,20 @@ namespace RetroTerm.Ibm3270
                 case "RESET": Local(() => _display.Reset()); return NamedKeyResult.Pressed;
                 case "TAB": Local(() => _display.Tab()); return NamedKeyResult.Pressed;
                 case "HOME": Local(() => _display.Home()); return NamedKeyResult.Pressed;
-                case "LEFT": Local(() => MoveBy(-1)); return NamedKeyResult.Pressed;
-                case "RIGHT": Local(() => MoveBy(1)); return NamedKeyResult.Pressed;
-                case "UP": Local(() => MoveBy(-_display.Columns)); return NamedKeyResult.Pressed;
-                case "DOWN": Local(() => MoveBy(_display.Columns)); return NamedKeyResult.Pressed;
-                case "BACKTAB": notBuiltReason = "Back Tab"; return NamedKeyResult.NotBuilt;
-                case "NEWLINE": notBuiltReason = "New Line"; return NamedKeyResult.NotBuilt;
+                case "LEFT": Local(() => _display.MoveCursorBy(-1, 0)); return NamedKeyResult.Pressed;
+                case "RIGHT": Local(() => _display.MoveCursorBy(1, 0)); return NamedKeyResult.Pressed;
+                case "UP": Local(() => _display.MoveCursorBy(0, -1)); return NamedKeyResult.Pressed;
+                case "DOWN": Local(() => _display.MoveCursorBy(0, 1)); return NamedKeyResult.Pressed;
+                case "BACKTAB": Local(() => _display.BackTab()); return NamedKeyResult.Pressed;
+                case "NEWLINE": Local(() => _display.NewLine()); return NamedKeyResult.Pressed;
                 case "BACKSPACE": notBuiltReason = "Backspace"; return NamedKeyResult.NotBuilt;
-                case "DELETE": notBuiltReason = "Delete"; return NamedKeyResult.NotBuilt;
-                case "INSERT": notBuiltReason = "Insert"; return NamedKeyResult.NotBuilt;
+                case "DELETE": Local(() => _display.Delete()); return NamedKeyResult.Pressed;
+                case "INSERT": Local(() => _display.ToggleInsert()); return NamedKeyResult.Pressed;
                 case "END": notBuiltReason = "End (go to end of field)"; return NamedKeyResult.NotBuilt;
-                case "ERASEEOF": notBuiltReason = "Erase EOF"; return NamedKeyResult.NotBuilt;
-                case "ERASEINPUT": notBuiltReason = "Erase Input"; return NamedKeyResult.NotBuilt;
-                case "DUP": notBuiltReason = "Dup"; return NamedKeyResult.NotBuilt;
-                case "FIELDMARK": notBuiltReason = "Field Mark"; return NamedKeyResult.NotBuilt;
+                case "ERASEEOF": Local(() => _display.EraseEndOfField()); return NamedKeyResult.Pressed;
+                case "ERASEINPUT": Local(() => _display.EraseInput()); return NamedKeyResult.Pressed;
+                case "DUP": Local(() => _display.Dup()); return NamedKeyResult.Pressed;
+                case "FIELDMARK": Local(() => _display.FieldMark()); return NamedKeyResult.Pressed;
                 case "ATTN": notBuiltReason = "Attn (needs the TN3270 connection to send IAC BRK)"; return NamedKeyResult.NotBuilt;
                 case "SYSREQ": notBuiltReason = "Sys Req"; return NamedKeyResult.NotBuilt;
                 case "CURSORSELECT": notBuiltReason = "Cursor Select"; return NamedKeyResult.NotBuilt;
@@ -417,18 +417,6 @@ namespace RetroTerm.Ibm3270
             }
 
             return true;
-        }
-
-        private void MoveBy(int delta)
-        {
-            int size = _display.Size;
-            int a = (_display.CursorAddress + delta) % size;
-            if (a < 0)
-            {
-                a += size;
-            }
-
-            _display.MoveCursor(a);
         }
 
         private void Paint()

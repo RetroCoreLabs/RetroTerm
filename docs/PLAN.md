@@ -74,7 +74,7 @@ clean-room rewrite in C#.
 - [ ] Write Structured Field and Query Reply (IND$FILE needs them)
 - [ ] TN3270E
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] Insert mode, Erase EOF, Erase Input, Dup, Field Mark
+- [ ] 3270 keys still not built: Backspace, End, Attn (IAC BRK through Tn3270Connection.SendAttention), Sys Req, Cursor Select
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages
