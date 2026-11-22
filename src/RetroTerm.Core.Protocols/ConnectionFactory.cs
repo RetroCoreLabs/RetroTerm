@@ -583,7 +583,7 @@ public static class ConnectionFactory
     }
 
     /// <summary>
-    /// TN3270: plain TN3270 (RFC 1576) answering as an IBM-3278-2. By type name for the same reason
+    /// TN3270: plain TN3270 (RFC 1576) answering as an IBM-3278-2-E. By type name for the same reason
     /// as Telnet: the class lives in RetroTerm.Ibm3270 (net10.0, on the RetroIO 3270 packages) and
     /// this layer must not depend on it. Pair it with the IBM-3278-2 emulator, which expects one
     /// whole 3270 record per DataReceived.
@@ -596,7 +596,11 @@ public static class ConnectionFactory
             throw new InvalidOperationException("Tn3270Connection type not found. Ensure RetroTerm.Ibm3270 is loaded.");
         }
 
-        return Activator.CreateInstance(type, host, port, "IBM-3278-2") as IConnection
+        // Type.Missing takes the constructor's own default terminal type, so the name sent to the
+        // host lives in ONE place (Tn3270Protocol.DefaultTerminalType). Typing it here as well is
+        // how the -E fix of 22 November 2026 first failed to reach the wire.
+        return Activator.CreateInstance(type, System.Reflection.BindingFlags.CreateInstance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.OptionalParamBinding,
+            null, new object[] { host, port, Type.Missing }, System.Globalization.CultureInfo.InvariantCulture) as IConnection
             ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
     }
 

@@ -21,7 +21,7 @@ namespace RetroTerm.Ibm3270
     /// <para>
     /// What it agrees to, and why (RetroTerm docs\spec\IBM3270\TN3270-NEGOTIATION.md section 3, the
     /// bytes measured against Hercules TK5 on 22 November 2026): TERMINAL-TYPE on our side, answered
-    /// with "IBM-3278-2"; BINARY and END-OF-RECORD in both directions. Everything else is refused,
+    /// with <see cref="DefaultTerminalType"/>; BINARY and END-OF-RECORD in both directions. Everything else is refused,
     /// TN3270E included (RFC 2355 is not built; TK5 never asks for it).
     /// </para>
     /// <para>
@@ -41,15 +41,27 @@ namespace RetroTerm.Ibm3270
         private readonly ArrayBufferWriter<byte> _out = new ArrayBufferWriter<byte>(256);
 
         /// <summary>
+        /// The TERMINAL-TYPE this terminal announces: a 3278 model 2 that understands structured
+        /// fields (the "-E").
+        /// </summary>
+        /// <remarks>
+        /// Measured on TK5, 22 November 2026: with plain "IBM-3278-2", TSO answers the first Enter
+        /// at the logon panel with IKT00405I SCREEN ERASURE CAUSED BY ERROR RECOVERY PROCEDURE, and
+        /// s3270 does the same when made to send that name (-tn IBM-3278-2). With the -E, TSO sends
+        /// a Read Partition Query, which RetroIO answers, and the logon goes on.
+        /// </remarks>
+        public const string DefaultTerminalType = "IBM-3278-2-E";
+
+        /// <summary>
         /// Creates the protocol.
         /// </summary>
         /// <param name="write">
         /// Called with bytes to put on the wire. The memory is only valid during the call.
         /// </param>
         /// <param name="terminalType">
-        /// The TERMINAL-TYPE name, e.g. "IBM-3278-2". TK5 also takes "IBM-3278-2@00C2" to pick a device.
+        /// The TERMINAL-TYPE name, e.g. "IBM-3278-2-E". TK5 also takes a device suffix such as "@00C2" to pick a terminal.
         /// </param>
-        public Tn3270Protocol(Action<ReadOnlyMemory<byte>> write, string terminalType = "IBM-3278-2")
+        public Tn3270Protocol(Action<ReadOnlyMemory<byte>> write, string terminalType = DefaultTerminalType)
         {
             ArgumentNullException.ThrowIfNull(write);
             ArgumentException.ThrowIfNullOrEmpty(terminalType);

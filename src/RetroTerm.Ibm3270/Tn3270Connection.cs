@@ -44,7 +44,7 @@ namespace RetroTerm.Ibm3270
         /// <param name="terminalType">
         /// The TERMINAL-TYPE name sent to the host.
         /// </param>
-        public Tn3270Connection(string host, int port = 23, string terminalType = "IBM-3278-2")
+        public Tn3270Connection(string host, int port = 23, string terminalType = Tn3270Protocol.DefaultTerminalType)
         {
             if (string.IsNullOrWhiteSpace(host))
             {
