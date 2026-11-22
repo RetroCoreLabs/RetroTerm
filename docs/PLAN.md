@@ -160,6 +160,14 @@ clean-room rewrite in C#.
 
 ---
 
+## Screenshots and screen recording — asked for by Ronny, 22 November 2026
+
+No machine needed. Each command is declared once on the command metadata so the script DSL and
+MCP get the same behaviour (the two-surface rule in CLAUDE.md).
+
+- [ ] SCREENSHOT command: save a PNG of either the whole application window or only the terminal render area(s), chosen by an option; script and MCP
+- [ ] RECORD START command: start recording the screen as a film, with the same whole-window or terminal-only option; MP4 preferred, but another format is fine if it is much easier (decide after checking what can be written without a big dependency); script and MCP
+- [ ] RECORD STOP command: stop the recording and close the file, reporting its path; script and MCP
 ## Gateway Ethernet — code lands, the UI needs a real look
 
 The gateway now carries the emulated machine's Ethernet (frame types `0x30`/`0x31`/`0x32`),
