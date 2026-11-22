@@ -101,8 +101,27 @@ public class Ibm3270EmulatorTests
         var errors = new List<string>();
         e.ProtocolError += errors.Add;
 
-        e.ProcessData(new byte[] { Command3270.WriteStructuredField, 0x00, 0x05, 0x01, 0xFF, 0x02 });
+        // 0x99 is not a 3270 command (GA23-0059-4 p. 3-1 lists them all).
+        e.ProcessData(new byte[] { 0x99, 0xC3 });
 
         Assert.Single(errors);
+    }
+
+    [Fact]
+    public void AQueryIsAnsweredWithAQueryReply()
+    {
+        // Write Structured Field, Read Partition, Query (GA23-0059-4 p. 5-41). The reply starts
+        // with the structured-field AID 0x88 (p. 3-6).
+        var e = new Ibm3270Emulator();
+        var sent = new List<byte[]>();
+        var errors = new List<string>();
+        e.DataToSend += sent.Add;
+        e.ProtocolError += errors.Add;
+
+        e.ProcessData(new byte[] { Command3270.WriteStructuredField, 0x00, 0x05, 0x01, 0xFF, 0x02 });
+
+        Assert.Empty(errors);
+        Assert.Single(sent);
+        Assert.Equal(0x88, sent[0][0]);
     }
 }
