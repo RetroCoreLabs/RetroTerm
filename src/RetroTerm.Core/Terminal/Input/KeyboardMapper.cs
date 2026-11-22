@@ -588,6 +588,20 @@ public class TDV2200KeyboardMapper : BaseKeyboardMapper
     }
 }
 
+/// <summary>
+/// The mapper for a block-mode terminal (the IBM 3270): it maps NOTHING.
+/// </summary>
+/// <remarks>
+/// A block-mode emulator handles its keys itself through <see cref="ILocalKeyboard"/>, which the
+/// key handler asks first. A key it does not take must not become bytes on the line: the 3270
+/// data stream is records, and a stray escape sequence in it would be a malformed record.
+/// </remarks>
+public sealed class BlockModeKeyboardMapper : IKeyboardMapper
+{
+    /// <inheritdoc/>
+    public string? MapKey(int keyCode, KeyModifiers modifiers, TerminalModes terminalModes) => null;
+}
+
 // Type aliases for backward compatibility — old names resolve to the unified mapper
 public class TDV1200KeyboardMapper : TDV2200KeyboardMapper { }
 public class TDV2215KeyboardMapper : TDV2200KeyboardMapper { }
@@ -630,6 +644,7 @@ public static class KeyboardMapperFactory
             "TDV1200" => new TDV1200KeyboardMapper(),
             "TDV2215" => new TDV2215KeyboardMapper(),
             "TDV2200" => new TDV2200KeyboardMapper(),
+            "IBM3270" => new BlockModeKeyboardMapper(),
             _ => null
         };
     }

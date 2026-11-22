@@ -1483,6 +1483,24 @@ public partial class TerminalCanvas : Control
             return;
         }
 
+        // 0b. A block-mode terminal (the IBM 3270) edits its own screen: typing, cursor keys and
+        //     Tab stay local, and only Enter / PF / PA / Clear send anything. It gets every key
+        //     first and the mapper never sees one it takes. It never takes Ctrl+Shift, so the
+        //     clipboard shortcuts below still work.
+        if (_emulator is RetroTerm.Core.Terminal.Input.ILocalKeyboard localKeyboard)
+        {
+            var mods = e.KeyModifiers;
+            if (localKeyboard.HandleKey(
+                    e.Key.ToString(),
+                    mods.HasFlag(Avalonia.Input.KeyModifiers.Shift),
+                    mods.HasFlag(Avalonia.Input.KeyModifiers.Control),
+                    mods.HasFlag(Avalonia.Input.KeyModifiers.Alt)))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
         // 1. Handle Ctrl+Shift shortcuts (clipboard, select-all, find)
         //    These must be intercepted before the mapper/C0 fallback to avoid
         //    being consumed as terminal control codes.
@@ -2014,6 +2032,14 @@ public partial class TerminalCanvas : Control
             && _emulator.RegisInputMode == RetroTerm.Core.Terminal.Graphics.RegisGraphicsInputMode.OneShot)
         {
             _emulator.SendRegisInputReport(e.Text);
+            e.Handled = true;
+            return;
+        }
+
+        // A block-mode terminal types into its own fields; nothing goes to the host from here.
+        if (!string.IsNullOrEmpty(e.Text) && _emulator is RetroTerm.Core.Terminal.Input.ILocalKeyboard localKeyboard
+            && localKeyboard.HandleText(e.Text))
+        {
             e.Handled = true;
             return;
         }

@@ -11,6 +11,7 @@ using RetroIO.Protocols.Tn3270;
 
 using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators;
+using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Core.Terminal.Profiles;
 
 namespace RetroTerm.Ibm3270;
@@ -33,7 +34,7 @@ namespace RetroTerm.Ibm3270;
 /// adds IAC EOR.
 /// </para>
 /// </remarks>
-public sealed class Ibm3270Emulator : TerminalEmulatorBase
+public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
 {
     private static readonly TerminalProfile Model2Profile = new(
         name: "IBM-3278-2",
@@ -117,6 +118,166 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase
         {
             EndBatch();
         }
+    }
+
+    /// <summary>
+    /// Raised when the operator pressed a 3270 key whose function is not built yet (the text
+    /// names it). The key is still taken, so it never reaches the host as stray bytes.
+    /// </summary>
+    public event Action<string>? KeyNotBuilt;
+
+    /// <summary>
+    /// The PC key to 3270 key table. Source: docs\spec\IBM3270\KEYBOARD.md section 7 (what x3270
+    /// and tnz map), with Ronny's choices of 22 November 2026: Alt+letter gives 3270 keys as in
+    /// x3270, and PgUp/PgDn are PF7/PF8 as in tnz.
+    /// </summary>
+    /// <param name="keyName">
+    /// The Avalonia key name.
+    /// </param>
+    /// <param name="shift">
+    /// Shift held.
+    /// </param>
+    /// <param name="control">
+    /// Ctrl held.
+    /// </param>
+    /// <param name="alt">
+    /// Alt held.
+    /// </param>
+    /// <returns>
+    /// True when taken.
+    /// </returns>
+    public bool HandleKey(string keyName, bool shift, bool control, bool alt)
+    {
+        // Ctrl+Shift belongs to RetroTerm itself (copy, paste, find).
+        if (control && shift)
+        {
+            return false;
+        }
+
+        if (alt && !control)
+        {
+            switch (keyName)
+            {
+                case "D1": return Attention(Aid.PA1);
+                case "D2": return Attention(Aid.PA2);
+                case "D3": return Attention(Aid.PA3);
+                case "C": return Attention(Aid.Clear);
+                case "R": return Local(() => _display.Reset());
+                case "A": return NotBuilt("Attn (needs the TN3270 connection: IAC BRK)");
+                case "D": return NotBuilt("Dup");
+                case "F": return NotBuilt("Field Mark");
+                case "E": return NotBuilt("Erase EOF");
+                case "I": return NotBuilt("Insert");
+                default: return true; // taken: an unused Alt key must not reach the line
+            }
+        }
+
+        if (control || alt)
+        {
+            // Taken and ignored. Left untaken, the canvas would turn Ctrl+letter into a C0 byte
+            // and send it into the 3270 data stream.
+            return true;
+        }
+
+        if (keyName.Length >= 2 && keyName[0] == 'F' && int.TryParse(keyName.AsSpan(1), out int f) && f >= 1 && f <= 12)
+        {
+            return Attention(Aid.Pf(shift ? f + 12 : f));
+        }
+
+        switch (keyName)
+        {
+            case "Enter":
+            case "Return":
+                return Attention(Aid.Enter);
+            case "PageUp":
+                return Attention(Aid.Pf(7));
+            case "PageDown":
+                return Attention(Aid.Pf(8));
+            case "Tab":
+                return shift ? NotBuilt("Back Tab") : Local(() => _display.Tab());
+            case "Home":
+                return Local(() => _display.Home());
+            case "Left":
+                return Local(() => MoveBy(-1));
+            case "Right":
+                return Local(() => MoveBy(1));
+            case "Up":
+                return Local(() => MoveBy(-_display.Columns));
+            case "Down":
+                return Local(() => MoveBy(_display.Columns));
+            case "Back":
+                return NotBuilt("Backspace");
+            case "Delete":
+                return NotBuilt("Delete");
+            case "Insert":
+                return NotBuilt("Insert");
+            case "End":
+                return NotBuilt("End (go to end of field)");
+            case "Escape":
+                return NotBuilt("Escape has no 3270 meaning yet");
+            default:
+                // Letters, digits and symbols come through HandleText.
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Types text into the field at the cursor. A refused character (protected field, keyboard
+    /// locked, not in code page 037) is dropped, as on the real terminal.
+    /// </summary>
+    /// <param name="text">
+    /// The typed text.
+    /// </param>
+    /// <returns>
+    /// Always true: no typed text may reach the host directly.
+    /// </returns>
+    public bool HandleText(string text)
+    {
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '\r' || c == '\n')
+            {
+                continue;
+            }
+
+            _display.Type(c);
+        }
+
+        Refresh();
+        return true;
+    }
+
+    private bool Attention(byte aid)
+    {
+        _display.Attention(aid);
+        Refresh();
+        return true;
+    }
+
+    private bool Local(Action action)
+    {
+        action();
+        Refresh();
+        return true;
+    }
+
+    private bool NotBuilt(string what)
+    {
+        KeyNotBuilt?.Invoke(what);
+        return true;
+    }
+
+    private void MoveBy(int delta)
+    {
+        int size = _display.Size;
+        int a = (_display.CursorAddress + delta) % size;
+        if (a < 0)
+        {
+            a += size;
+        }
+
+        _display.MoveCursor(a);
     }
 
     private void Paint()
