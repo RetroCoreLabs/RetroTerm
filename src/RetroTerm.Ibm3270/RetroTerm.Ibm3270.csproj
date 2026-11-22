@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    RetroTerm.Ibm3270: the IBM 3270 terminal inside RetroTerm.
+
+    The 3270 itself (data stream, screen model, field editing, TN3270) lives in RetroIO
+    (RetroIO.Protocols.Tn3270 and RetroIO.Protocols.Telnet), so a future System/360/370 emulator
+    can use it too. This project only fits that model into RetroTerm: it shows the 3270 screen
+    through the normal TerminalEmulatorBase cell buffer so the existing renderer draws it.
+
+    net10.0 because the RetroIO packages are net10.0; RetroTerm.Core stays netstandard2.1.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetroTerm.Core\RetroTerm.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Local feed for now (src\nuget.config); 0.1.0-local.* picks the newest pack at restore. -->
+    <PackageReference Include="RetroIO.Protocols.Tn3270" Version="0.1.0-local.*" />
+  </ItemGroup>
+
+</Project>
