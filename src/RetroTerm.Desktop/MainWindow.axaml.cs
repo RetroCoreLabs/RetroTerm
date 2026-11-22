@@ -2226,6 +2226,9 @@ public partial class MainWindow : Window
         // Gateway: no pre-selection needed — ConnectGatewayAsync shows in-terminal menu
         // (or auto-connects if GatewaySelectFirstFree is set)
 
+        // The protocol may fix the terminal (TN3270 -> IBM 3278) - same rule as the MCP path.
+        parameters.EmulatorType = ConnectionFactory.EmulatorTypeFor(parameters.Protocol, parameters.EmulatorType);
+
         // Determine which tab to use — same rule for UI and MCP connects.
         var (tab, _) = GetOrCreateTabForNewConnection(parameters.EmulatorType, parameters.Width, parameters.Height);
 

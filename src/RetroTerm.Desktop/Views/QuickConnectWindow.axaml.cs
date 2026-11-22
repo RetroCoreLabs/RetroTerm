@@ -268,6 +268,10 @@ public partial class QuickConnectWindow : Window
         if (portPanel != null) portPanel.IsVisible = !serial;
         if (credentials != null) credentials.IsVisible = protocol == ConnectionFactory.ProtocolType.SSH;
 
+        // TN3270 always uses the IBM 3278 model 2 (see where the parameters are built).
+        var emulatorChoice = this.FindControl<ComboBox>("EmulatorBox");
+        if (emulatorChoice != null) emulatorChoice.IsEnabled = protocol != ConnectionFactory.ProtocolType.TN3270;
+
         if (hostBox != null)
         {
             hostBox.PlaceholderText = serial ? "COM3" : "host or host:port";
@@ -360,7 +364,9 @@ public partial class QuickConnectWindow : Window
         var passwordBox = this.FindControl<TextBox>("PasswordBox");
 
         string typed = hostBox?.Text ?? string.Empty;
-        string emulator = emulatorBox?.SelectedItem as string ?? "VT100";
+        // TN3270 always gets the IBM 3278 model 2 - the shared rule, also used by MCP. The dropdown
+        // (stream terminals) does not apply to it and is greyed out.
+        string emulator = ConnectionFactory.EmulatorTypeFor(protocol, emulatorBox?.SelectedItem as string);
 
         // The terminal's own screen: this dialog used to leave the 80 by 24 default in place, so
         // a TDV opened here was one row short.

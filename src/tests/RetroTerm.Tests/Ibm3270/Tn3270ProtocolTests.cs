@@ -114,6 +114,17 @@ public class Tn3270ProtocolTests
         Assert.Single(errors);
     }
 
+    [Theory]
+    [InlineData(ConnectionFactory.ProtocolType.TN3270, "VT220", "IBM-3278-2")]
+    [InlineData(ConnectionFactory.ProtocolType.TN3270, null, "IBM-3278-2")]
+    [InlineData(ConnectionFactory.ProtocolType.Telnet, "VT220", "VT220")]
+    [InlineData(ConnectionFactory.ProtocolType.Telnet, null, "VT100")]
+    public void Tn3270AlwaysGetsThe3278AndOtherProtocolsKeepTheirChoice(
+        ConnectionFactory.ProtocolType protocol, string? chosen, string expected)
+    {
+        Assert.Equal(expected, ConnectionFactory.EmulatorTypeFor(protocol, chosen));
+    }
+
     [Fact]
     public void TheFactoriesBuildTheTn3270PairByName()
     {

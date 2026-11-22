@@ -617,6 +617,9 @@ public partial class MainWindow
                 + "already has the port (terminal_list shows the open sessions).");
         }
 
+        // The protocol may fix the terminal (TN3270 -> IBM 3278) - same rule as the dialog path.
+        parameters.EmulatorType = ConnectionFactory.EmulatorTypeFor(parameters.Protocol, parameters.EmulatorType);
+
         var connectedTab = await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             // callerCanSeeTheTab: FALSE. A remote caller cannot see which tab is active, so it may

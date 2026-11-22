@@ -529,6 +529,31 @@ public static class ConnectionFactory
     }
 
     /// <summary>
+    /// The terminal a connection must use, whatever was picked. TN3270 carries 3270 records,
+    /// not a character stream, so only the IBM 3278 model 2 can sit on it; every other protocol
+    /// keeps the choice. ONE rule for the connect dialog and for MCP (the two-surface trap in
+    /// CLAUDE.md): both entry points call this before they pick a tab.
+    /// </summary>
+    /// <param name="protocol">
+    /// The protocol.
+    /// </param>
+    /// <param name="chosen">
+    /// The terminal type that was picked, or null.
+    /// </param>
+    /// <returns>
+    /// The terminal type to use.
+    /// </returns>
+    public static string EmulatorTypeFor(ProtocolType protocol, string? chosen)
+    {
+        if (protocol == ProtocolType.TN3270)
+        {
+            return "IBM-3278-2";
+        }
+
+        return string.IsNullOrEmpty(chosen) ? "VT100" : chosen!;
+    }
+
+    /// <summary>
     /// TN3270: plain TN3270 (RFC 1576) answering as an IBM-3278-2. By type name for the same reason
     /// as Telnet: the class lives in RetroTerm.Ibm3270 (net10.0, on the RetroIO 3270 packages) and
     /// this layer must not depend on it. Pair it with the IBM-3278-2 emulator, which expects one
