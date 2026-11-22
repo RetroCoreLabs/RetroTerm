@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -14,6 +15,7 @@ using Avalonia.Threading;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using RetroTerm.Core.Terminal.Input;
+using RetroTerm.Core.Terminal.Input.Keyboards;
 using RetroTerm.Desktop.Controls;
 using RetroTerm.Desktop.Helpers;
 
@@ -23,6 +25,108 @@ namespace RetroTerm.Desktop.Views
     {
         private VirtualKeyboardPanel? _virtualKeyboard;
 
+        // The shared keyboard control and its keyboard choice (a 3270 tab).
+        private StackPanel? _describedPanel;
+        private ComboBox? _describedChoice;
+        private DescribedKeyboardView? _describedKeyboard;
+        private IReadOnlyList<KeyboardDescription>? _describedKeyboards;
+        private bool _settingChoice;
+
+        // The keyboard last chosen, per key family, so switching tabs back and forth keeps it.
+        private static readonly Dictionary<string, string> ChosenKeyboardByFamily = new();
+
+        /// <summary>
+        /// Raised when a key on the shared keyboard control is pressed: the key name (without the
+        /// family) or the text to type. MainWindow hands it to the active tab's terminal.
+        /// </summary>
+        public event EventHandler<DescribedKeyPressedEventArgs>? DescribedKeyPressed;
+
+        /// <summary>
+        /// True while the window shows a described keyboard (a 3270 tab) instead of the TDV panel.
+        /// </summary>
+        public bool ShowsDescribedKeyboard => _describedPanel?.IsVisible == true;
+
+        /// <summary>
+        /// The keyboard shown by the shared control, or null while the TDV panel shows.
+        /// </summary>
+        public KeyboardDescription? CurrentDescribedKeyboard => ShowsDescribedKeyboard ? _describedKeyboard?.Description : null;
+
+        /// <summary>
+        /// Shows the keyboard that belongs to the active tab's terminal: its own descriptions when
+        /// it has them (the 3270), otherwise the TDV panel. The window stays open and resizes to
+        /// fit, so every key is visible (Ronny, 22 November 2026).
+        /// </summary>
+        /// <param name="keyboards">
+        /// The terminal's keyboards, or null for a terminal without descriptions.
+        /// </param>
+        public void ShowKeyboardsFor(IReadOnlyList<KeyboardDescription>? keyboards)
+        {
+            if (_describedPanel == null || _describedChoice == null || _describedKeyboard == null || _virtualKeyboard == null)
+            {
+                return;
+            }
+
+            if (keyboards == null || keyboards.Count == 0)
+            {
+                _describedKeyboards = null;
+                _describedPanel.IsVisible = false;
+                _virtualKeyboard.IsVisible = true;
+                Title = "TDV2200 Virtual Keyboard";
+                SizeToContent = SizeToContent.Manual;
+                Width = 900;
+                Height = 350;
+                return;
+            }
+
+            if (!ReferenceEquals(keyboards, _describedKeyboards))
+            {
+                _describedKeyboards = keyboards;
+                int chosen = 0;
+                ChosenKeyboardByFamily.TryGetValue(keyboards[0].Family, out string? chosenId);
+
+                _settingChoice = true;
+                _describedChoice.Items.Clear();
+                for (int i = 0; i < keyboards.Count; i++)
+                {
+                    _describedChoice.Items.Add(keyboards[i].Name);
+                    if (keyboards[i].Id == chosenId)
+                    {
+                        chosen = i;
+                    }
+                }
+
+                _describedChoice.SelectedIndex = chosen;
+                _settingChoice = false;
+                _describedKeyboard.Description = keyboards[chosen];
+            }
+
+            _virtualKeyboard.IsVisible = false;
+            _describedPanel.IsVisible = true;
+            Title = "Virtual Keyboard - " + _describedKeyboard.Description?.Name;
+
+            // Fit the window to the keyboard so no key is cut off.
+            SizeToContent = SizeToContent.WidthAndHeight;
+        }
+
+        private void OnDescribedChoiceChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_settingChoice || _describedKeyboards == null || _describedChoice == null || _describedKeyboard == null)
+            {
+                return;
+            }
+
+            int i = _describedChoice.SelectedIndex;
+            if (i < 0 || i >= _describedKeyboards.Count)
+            {
+                return;
+            }
+
+            var keyboard = _describedKeyboards[i];
+            ChosenKeyboardByFamily[keyboard.Family] = keyboard.Id;
+            _describedKeyboard.Description = keyboard;
+            Title = "Virtual Keyboard - " + keyboard.Name;
+            SizeToContent = SizeToContent.WidthAndHeight;
+        }
         /// <summary>
         /// The keyboard panel inside this window. Test seam.
         /// </summary>
@@ -81,6 +185,19 @@ namespace RetroTerm.Desktop.Views
                 _virtualKeyboard.LayoutChanged += (s, lang) => LayoutChanged?.Invoke(this, lang);
             }
 
+            _describedPanel = this.FindControl<StackPanel>("DescribedPanel");
+            _describedChoice = this.FindControl<ComboBox>("DescribedChoice");
+            _describedKeyboard = this.FindControl<DescribedKeyboardView>("DescribedKeyboard");
+            if (_describedChoice != null)
+            {
+                _describedChoice.SelectionChanged += OnDescribedChoiceChanged;
+            }
+
+            if (_describedKeyboard != null)
+            {
+                _describedKeyboard.KeyPressed += (s, e) => DescribedKeyPressed?.Invoke(this, e);
+            }
+
             // Handle window closing to unsubscribe
             this.Closing += OnWindowClosing;
         }
@@ -91,6 +208,13 @@ namespace RetroTerm.Desktop.Views
         /// </summary>
         private void OnKeyDown(object? sender, KeyEventArgs e)
         {
+            // A described keyboard (3270) is mouse only; the physical keyboard belongs to the
+            // terminal window, and the TDV mapper below must not turn keys into TDV bytes.
+            if (ShowsDescribedKeyboard)
+            {
+                return;
+            }
+
             // 1. If in key capture mode (binding popup), intercept for binding assignment
             if (_virtualKeyboard != null && _virtualKeyboard.IsCapturingKey)
             {
@@ -191,6 +315,11 @@ namespace RetroTerm.Desktop.Views
         /// </summary>
         private void OnTextInput(object? sender, TextInputEventArgs e)
         {
+            if (ShowsDescribedKeyboard)
+            {
+                return;
+            }
+
             // Don't send text when in key capture mode
             if (_virtualKeyboard != null && _virtualKeyboard.IsCapturingKey)
                 return;
@@ -234,6 +363,11 @@ namespace RetroTerm.Desktop.Views
         /// </summary>
         private void OnKeyUp(object? sender, KeyEventArgs e)
         {
+            if (ShowsDescribedKeyboard)
+            {
+                return;
+            }
+
             // During capture mode, notify panel of key release for modifier tracking
             if (_virtualKeyboard != null && _virtualKeyboard.IsCapturingKey)
             {

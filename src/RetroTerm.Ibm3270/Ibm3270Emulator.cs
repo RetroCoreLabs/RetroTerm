@@ -13,6 +13,7 @@ using RetroIO.Protocols.Tn3270;
 using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Input;
+using RetroTerm.Core.Terminal.Input.Keyboards;
 using RetroTerm.Core.Terminal.Profiles;
 
 namespace RetroTerm.Ibm3270;
@@ -35,7 +36,7 @@ namespace RetroTerm.Ibm3270;
 /// adds IAC EOR.
 /// </para>
 /// </remarks>
-public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal
+public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards
 {
     private static readonly TerminalProfile Model2Profile = new(
         name: "IBM-3278-2",
@@ -254,6 +255,9 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INam
                 return null;
         }
     }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<KeyboardDescription> OnScreenKeyboards => Ibm3270Keyboards.All;
 
     /// <inheritdoc/>
     public string KeyFamily => "IBM";

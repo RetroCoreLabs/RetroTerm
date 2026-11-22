@@ -3675,6 +3675,7 @@ public partial class MainWindow : Window
             _virtualKeyboardWindow = new VirtualKeyboardWindow();
             _virtualKeyboardWindow.InputReceived += OnVirtualKeyboardInput;
             _virtualKeyboardWindow.LayoutChanged += OnVirtualKeyboardLayoutChanged;
+            _virtualKeyboardWindow.DescribedKeyPressed += OnDescribedKeyPressed;
         }
 
         _virtualKeyboardWindow.SetKeyboardMapper(_activeTab?.Control.GetKeyboardMapper());
@@ -3721,6 +3722,12 @@ public partial class MainWindow : Window
 
         // Non-TDV emulators (VT100 etc.) have no indicator lamps; passing null blanks them.
         _virtualKeyboardWindow.AttachLedSource(_activeTab?.Session?.Emulator as TDVEmulatorBase);
+
+        // The keyboard of the tab's own terminal: a 3270 brings its descriptions, every other
+        // terminal shows the TDV panel (until the TDV moves onto the shared model, docs\PLAN.md).
+        // Called on tab change, on open and after a connect, so the window always follows the tab.
+        _virtualKeyboardWindow.ShowKeyboardsFor(
+            (_activeTab?.Session?.Emulator as RetroTerm.Core.Terminal.Input.Keyboards.IHasOnScreenKeyboards)?.OnScreenKeyboards);
         _virtualKeyboardWindow.UpdateConnectionLamps(
             _activeTab?.Session?.Status ?? ConnectionStatus.Disconnected);
     }
@@ -3736,6 +3743,21 @@ public partial class MainWindow : Window
     {
         return _activeTab?.Session?.Emulator?.GetActiveModes()
             ?? RetroTerm.Core.Terminal.Input.TerminalModes.None;
+    }
+
+    /// <summary>
+    /// A press on the shared keyboard control (a 3270 keyboard) goes to the active tab's terminal
+    /// through its key table; anything that could not be sent is said in the status bar.
+    /// </summary>
+    private void OnDescribedKeyPressed(object? sender, DescribedKeyPressedEventArgs e)
+    {
+        string family = _virtualKeyboardWindow?.CurrentDescribedKeyboard?.Family ?? string.Empty;
+        string? problem = RetroTerm.Core.Terminal.Input.Keyboards.OnScreenKeyPress.Deliver(
+            _activeTab?.Session?.Emulator, family, e.KeyName, e.Text);
+        if (problem != null)
+        {
+            UpdateStatus(problem);
+        }
     }
 
     private async void OnVirtualKeyboardInput(object? sender, string input)
@@ -3862,6 +3884,7 @@ public partial class MainWindow : Window
         if (_virtualKeyboardWindow != null)
         {
             _virtualKeyboardWindow.InputReceived -= OnVirtualKeyboardInput;
+            _virtualKeyboardWindow.DescribedKeyPressed -= OnDescribedKeyPressed;
             _virtualKeyboardWindow.AllowClose = true;
             _virtualKeyboardWindow.Close();
             _virtualKeyboardWindow = null;

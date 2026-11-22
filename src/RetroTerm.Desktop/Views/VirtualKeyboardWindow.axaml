@@ -14,6 +14,19 @@
         WindowStartupLocation="CenterOwner"
         CanResize="True">
 
-    <controls:VirtualKeyboardPanel Name="VirtualKeyboard" />
+    <!-- ONE window for every terminal (Ronny, 22 November 2026). The TDV panel shows for a TDV
+         tab; a terminal that brings its own keyboard descriptions (the IBM 3270) shows the shared
+         drawing control instead, with a choice between its keyboards. The TDV panel moves onto the
+         shared control in a later stage of docs\PLAN.md. -->
+    <Panel>
+        <controls:VirtualKeyboardPanel Name="VirtualKeyboard" />
+        <StackPanel Name="DescribedPanel" IsVisible="False" Margin="8" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Keyboard:" VerticalAlignment="Center" />
+                <ComboBox Name="DescribedChoice" MinWidth="260" />
+            </StackPanel>
+            <controls:DescribedKeyboardView Name="DescribedKeyboard" HorizontalAlignment="Left" />
+        </StackPanel>
+    </Panel>
 
 </Window>
