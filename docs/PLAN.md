@@ -69,15 +69,23 @@ clean-room rewrite in C#.
 - [ ] Write `docs\IBM3270-INTRODUCTION.md` for users who have never seen a 3270 (Ronny, 22 November 2026: "i do not know anything about LU"): what a block-mode terminal is, fields, attention keys (Enter/PF/PA/Clear), keyboard lock, EBCDIC and code pages, TN3270 vs TN3270E, what an LU name is and when you need one, model sizes, IND$FILE, and a first walk-through logging in to TK5. Written AFTER the spec files, from them, in plain words
 - [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
 
-**B. Build — no machine, no Ronny**
+**R. RetroIO — the reusable part (built in the RetroIO repository, names per `NAMING.md`)**
+- [ ] `RetroIO.Protocols.Telnet`: option negotiation, IAC escaping, end-of-record, records split across reads, client and server roles, TLS designed in (built later, low priority)
+- [ ] `RetroIO.Protocols.Tn3270`: TN3270 and TN3270E sessions on top of it, client role first, server role when a mainframe emulator needs it
+- [ ] 3270 data stream and screen model, headless. First milestone: a 3278 model 2 that takes an Erase/Write with one protected and one input field, accepts typed characters and Enter, and returns the right AID, cursor address and changed field — then the same against TK5 through the TN3270 client, then drawn in RetroTerm
+- [ ] EBCDIC code page tables (may belong in a shared character-set package; decide when built)
+- [ ] Move RetroTerm's telnet client and server and RetroIO's X.25 telnet PAD and switch command line onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
+- [ ] Publish the packages; RetroTerm takes them as NuGet packages
+
+**B. Build in RetroTerm — no machine, no Ronny** (several items below now sit on the RetroIO model: the parser, the inbound side and local field editing are built in RetroIO; RetroTerm wires them to the screen and keys)
 - [ ] Show the introduction inside RetroTerm. Today the Help menu has only About; the only in-app reference is Keyboard > Key Reference (`KeyboardReferenceWindow`, one per emulator type). Needs a decision: a help window that shows the Markdown in the app, or a Help menu item that opens the docs site page — to be asked when the intro document exists
 - [ ] A 3270 page in Keyboard > Key Reference, like the TDV one
-- [ ] EBCDIC code page tables (byte to Unicode and back), unit-tested against GA27-2837-9 tables
-- [ ] 3270 screen model: buffer, fields, field and extended attributes, MDT; not a stream emulator, so decide how it sits beside `TerminalEmulatorBase`
-- [ ] Data stream parser: W, EW, EWA, EAU, RB, RM, RMA, WSF; orders SF, SFE, SBA, SA, MF, IC, PT, RA, EUA, GE
-- [ ] Inbound side: AID keys, Read Modified reply, Query Reply structured fields
+- [ ] RetroIO side (section R): EBCDIC tables, unit-tested against GA27-2837-9
+- [ ] Fit the RetroIO 3270 screen model into RetroTerm: it is not a stream emulator, so decide how it sits beside `TerminalEmulatorBase` and the renderer
+- [ ] RetroIO side (section R): data stream parser — W, EW, EWA, EAU, RB, RM, RMA, WSF; orders SF, SFE, SBA, SA, MF, IC, PT, RA, EUA, GE
+- [ ] RetroIO side (section R): inbound — AID keys, Read Modified reply, Query Reply structured fields
 - [ ] Local field editing: protected/numeric fields, insert mode, Tab/Backtab, ErEOF, ErInp, Dup, FieldMark, keyboard lock and Reset
-- [ ] TN3270 and TN3270E telnet negotiation in the connection layer
+- [ ] A RetroTerm connection type for TN3270 that uses the RetroIO TN3270 session
 - [ ] Models 2-5 (24x80, 32x80, 43x80, 27x132) and the 3279 colours
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
@@ -98,6 +106,12 @@ clean-room rewrite in C#.
   - [ ] Macros: record and replay keys and text, built on RetroTerm's existing script language so MCP and scripts get them too
   - [ ] IND$FILE file transfer, send and receive (spec: SS-HCS12-1372-00, linked from the x3270 documentation page; download it into `docs\spec\IBM3270\`)
   - [ ] Several sessions to one host: each tab its own TN3270 connection, with an optional LU name per connection (RFC 1646 / RFC 2355) so each tab can get a set terminal
+- [ ] From ZOC (commercial terminal, emtec.com/zoc/features.html; chosen by Ronny 22 November 2026):
+  - [ ] Automatic replies: when set text appears on screen, type an answer or run a script; built on the script language so MCP gets it too
+  - [ ] 3287 printer session: a tab that acts as a 3270 printer (needs the SCS printer data stream researched like the screen one; TK5 sent no printer data in the first test)
+  - [ ] Send one typed line to all tabs
+  - [ ] Overview of all open tabs as small live pictures
+  - [ ] LOW PRIORITY: Telnet over TLS (no TLS code exists in RetroTerm or RetroIO today); for client and server, so the emulators can offer TLS too
 - [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
   - [ ] Send every attention key: Enter, PF1-PF24, PA1-PA3, Clear, Attn, SysReq (extend `terminal_sendkey`)
   - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys
@@ -125,11 +139,14 @@ clean-room rewrite in C#.
 - Help menu: "Help for this terminal" opens the docs site page for the current tab's terminal type, plus a "Terminal guides" submenu listing every terminal type (pages that do not exist yet shown greyed)
 - Our OWN font holding every character the 3270 needs (code pages, code page 310 APL, box pieces), not Lucida Console plus fallbacks — "maybe even from an original IBM ROM file"
 
+- **Where the code lives** (22 November 2026, from a proposal Ronny got from ChatGPT, checked against both repos): the 3270 data stream, the 3270 screen model (buffer, fields, cursor, keyboard lock, building the reply on Enter/PF/PA — usable with no network and no window) and later the 3287 printer model go in **RetroIO**, so a future System/360/370 emulator can drive the same model as its console. RetroTerm keeps drawing, tabs, PC-key-to-3270-key mapping and where printouts go. RetroTerm takes RetroIO as NuGet packages, the way RetroCommander, RetroServer and RetroX25 already do (RetroTerm uses none today)
+- **One Telnet in RetroIO** used by everything: today telnet is written four times (RetroTerm `TelnetConnection`, RetroTerm `TelnetServer`/`TelnetCodec`/`TelnetNegotiator`/`TelnetSession`, RetroIO X.25 `TelnetPadServer`, RetroIO X.25 switch `TelnetCliServer`). Build it with TN3270's needs and TLS (client and server) designed in; move the four users onto it one at a time, each with its own tests
+
 **Settled without asking, because the rule is to do what the hardware did** (KEYBOARD.md section 9): a typing error locks the keyboard (IBM), keys pressed while locked are refused (IBM), Backspace moves left without erasing (IBM), insert room is "one less than the blanks left in the field" (IBM), numeric-only checking follows the 3274 manual figure 6-2.
 
 - [ ] Font: search for a dump of a real IBM 3278/3279/3179/3191 character generator ROM (MAME, bitsavers, vintage keyboard/terminal sites) and IBM's published glyph drawings (GA27-2837-9 draws every character); build the RetroTerm 3270 font from the ROM if one exists, else from the manual's drawings. Check the licence of anything used. Also look at rbanffy/3270font (a remake, licence to check) only as a cross-check
 
-**Next:** the 3270 PC user guides (what the local keys did), then the EBCDIC tables and the ROM search for the font.
+**Next:** the RetroIO Telnet library and the headless 3278 model 2 milestone (section R); in parallel, the 3270 PC user guides and the ROM search for the font.
 
 ---
 
