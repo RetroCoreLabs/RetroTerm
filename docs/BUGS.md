@@ -94,3 +94,28 @@ cannot reflow history or pull anything back. Ours is in the buffer. Not decided:
 Windows Terminal or a real DEC terminal fill a screen from history like this. DEC terminals could not
 resize at all, and no capture of the others is held here. If a capture of xterm shows it keeps the
 rows in place, this entry becomes a real defect and the old rule comes back.
+
+## B7 - TK5 ignores the first user id typed after Clear from the Hercules information panel
+
+Found 22 November 2026 by the live TK5 tests in `src\tests\RetroTerm.Tests\Hercules\`. Cause NOT
+known. Not shown to be a RetroTerm defect: s3270 (wc3270's window-less twin) fails the same way on
+the same path, and RetroTerm's records are byte for byte the ones s3270 sends when logon works.
+
+What happens, from the records `RetroTermTk5Terminal` prints on a failed wait:
+
+ - host: Erase/Write `F5 42`, 1535 bytes - the Hercules information panel (version, host name,
+   device number). TK5 shows it on a terminal address that a session has just logged off and
+   disconnected from.
+ - sent: `6D` - Clear, as guide 01 section 3 and the TK5 manual page 37 say (Reset sends nothing).
+ - host: Erase/Write `F5 C3`, 1324 bytes - the logon panel, `Logon ===>`, cursor in the field.
+ - sent: `7D 5B F1 11 5B 6B` then `HERC03` and 124 spaces - Enter with the user id.
+ - host: the same 1324-byte logon panel again. No password prompt; the user id is gone.
+
+On the direct path (the logon panel is the first screen) the same Enter record gets
+`ENTER CURRENT PASSWORD FOR HERC03-`.
+
+What is needed: a Hercules or VTAM explanation of the information panel and what it does with
+the first input after it (the Hercules terminal handler in the Hercules source, and the TK5 VTAM
+USS table), or a wc3270 session by hand on that path to see what a person gets. Until then the
+TK5 tests go red when they meet this path, with the records in the failure message. Not checked
+whether typing the user id a second time works.

@@ -1,0 +1,157 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 1985-2026 Ronny Hansen
+// RetroCore Labs — https://github.com/RetroCoreLabs/RetroTerm
+// RetroTerm — Connecting today's machines to yesterday's systems
+//
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
+
+using RetroIO.Protocols.Tn3270;
+
+using RetroTerm.Core.Protocols;
+using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Input;
+using RetroTerm.Ibm3270;
+
+namespace RetroTerm.Tests.Hercules
+{
+    /// <summary>
+    /// RetroTerm's own 3270 on a real TN3270 connection: the same session, connection and
+    /// emulator the app uses, with keys pressed by name as scripts and MCP press them.
+    /// </summary>
+    internal sealed class RetroTermTk5Terminal : ITk5Terminal
+    {
+        private readonly TerminalSession _session;
+        private readonly Ibm3270Emulator _emulator;
+
+        // Every record in both directions, in order, printed when a wait fails so a failure says
+        // what crossed the wire instead of only what the screen ended up as. Written from the
+        // network and session threads, so it is locked.
+        private readonly List<string> _wire = new List<string>();
+
+        private RetroTermTk5Terminal(TerminalSession session, Ibm3270Emulator emulator)
+        {
+            _session = session;
+            _emulator = emulator;
+        }
+
+        public string Name => "RetroTerm";
+
+        public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings)
+        {
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "TK5");
+            IConnection connection = ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
+            {
+                Protocol = ConnectionFactory.ProtocolType.TN3270,
+                Host = settings.Host,
+                Port = settings.Port,
+                EmulatorType = "IBM-3278-2",
+            });
+            var terminal = new RetroTermTk5Terminal(session, emulator);
+            connection.DataReceived += data => terminal.Note("host", data.Span);
+            emulator.DataToSend += data => terminal.Note("sent", data);
+            await session.ConnectAsync(connection, Xunit.TestContext.Current.CancellationToken);
+            return terminal;
+        }
+
+        public async Task TypeAsync(string text)
+        {
+            await _session.SendInputAsync(text);
+            await _session.FlushAsync();
+        }
+
+        public async Task PressAsync(string key)
+        {
+            NamedKeyResult result = _emulator.PressNamedKey(key, out string? notBuilt);
+            if (result != NamedKeyResult.Pressed)
+            {
+                throw new Xunit.Sdk.XunitException("RetroTerm did not press " + key + ": " + result + " " + notBuilt);
+            }
+
+            await _session.FlushAsync();
+        }
+
+        public async Task<Tk5Screen> WaitUntilAsync(Tk5ScreenTest done, string what, int timeoutMs)
+        {
+            // A poll with a deadline on the thing asserted, never a sleep-then-assert: the host
+            // answers when it answers.
+            var clock = Stopwatch.StartNew();
+            Tk5Screen screen = await ReadAsync();
+            while (!(done(screen) && _emulator.Display.Lock == KeyboardLock.None))
+            {
+                if (clock.ElapsedMilliseconds > timeoutMs)
+                {
+                    throw new Xunit.Sdk.XunitException("RetroTerm: no " + what + " with the keyboard unlocked after " + timeoutMs +
+                        " ms (lock " + _emulator.Display.Lock + "). Screen:\n" + screen.Text() + "\nRecords, oldest first:\n" + WireText());
+                }
+
+                await Task.Delay(50);
+                screen = await ReadAsync();
+            }
+
+            return screen;
+        }
+
+        public async Task<Tk5Screen> ReadAsync()
+        {
+            ScreenSnapshot snapshot = await _session.ReadScreenAsync(stripTrailingBlanks: false);
+            Tk5Screen screen = await _session.RunOnSessionThreadAsync(() =>
+            {
+                Display3270 display = _emulator.Display;
+                var addresses = new List<int>();
+                var attributes = new List<byte>();
+                for (int a = 0; a < display.Size; a++)
+                {
+                    if (display.IsFieldAttribute(a))
+                    {
+                        addresses.Add(a);
+                        attributes.Add(display.GetByte(a));
+                    }
+                }
+
+                return new Tk5Screen(snapshot.Text.Split('\n'), snapshot.CursorRow, snapshot.CursorColumn, addresses, attributes);
+            });
+            return screen;
+        }
+
+        private void Note(string direction, ReadOnlySpan<byte> data)
+        {
+            var line = new System.Text.StringBuilder(direction.Length + 2 + (data.Length * 3));
+            line.Append(direction).Append(':');
+            int shown = data.Length > 64 ? 64 : data.Length;
+            for (int i = 0; i < shown; i++)
+            {
+                line.Append(' ').Append(data[i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            if (shown < data.Length)
+            {
+                line.Append(" ... (").Append(data.Length).Append(" bytes)");
+            }
+
+            lock (_wire)
+            {
+                _wire.Add(line.ToString());
+            }
+        }
+
+        private string WireText()
+        {
+            lock (_wire)
+            {
+                return string.Join("\n", _wire);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _session.DisconnectAsync();
+            _session.Dispose();
+        }
+    }
+}
