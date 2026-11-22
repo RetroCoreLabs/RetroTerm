@@ -782,3 +782,5 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
   ALWAYS before asking Ronny to look at the app. It takes under a minute, it is the only check that
   exercises the shipping path, and it repoints `publish\current` while the old build is still
   running so nothing has to be closed.
+
+- [ ] **3270 status line (operator information area), decided by Ronny 22 Nov 2026: a 25th line INSIDE the terminal picture under a thin rule**, same font and colour as the screen, as on the real 3278 and in wc3270. The host still writes 24 rows. Show connected/3270 mode, keyboard locked (X SYSTEM), insert mode and cursor row/column. Take the exact symbols and positions from GA27-2890-4 (the 3278 operator's guide), not from wc3270.
