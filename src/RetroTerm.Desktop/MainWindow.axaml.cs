@@ -1590,11 +1590,26 @@ public partial class MainWindow : Window
     /// state without reaching into private fields, and nothing in the app needs to add a tab
     /// with a host and no connection.
     /// </remarks>
-    internal TabSession AddTabForTesting(string host)
+    internal TabSession AddTabForTesting(string host) => AddTabForTesting(host, "VT100");
+
+    /// <summary>
+    /// Adds a tab with the given terminal and no connection, as AddTabForTesting(host) does for a
+    /// VT100. Used by the 3270 UI tests to put an IBM-3278-2 tab in the window.
+    /// </summary>
+    /// <param name="host">
+    /// The host name shown on the tab.
+    /// </param>
+    /// <param name="emulatorType">
+    /// The terminal type, as EmulatorFactory names it.
+    /// </param>
+    /// <returns>
+    /// The new tab.
+    /// </returns>
+    internal TabSession AddTabForTesting(string host, string emulatorType)
     {
         // Sized by the terminal, not by a literal: the profile knows its own screen.
-        var (startWidth, startHeight) = EmulatorFactory.GetRecommendedSize("VT100");
-        var tab = CreateTab("VT100", startWidth, startHeight);
+        var (startWidth, startHeight) = EmulatorFactory.GetRecommendedSize(emulatorType);
+        var tab = CreateTab(emulatorType, startWidth, startHeight);
         tab.Host = host;
 
         // The header's text is only ever refreshed by this event - CreateTab built it while Host
@@ -3664,6 +3679,19 @@ public partial class MainWindow : Window
 
         // Reload settings after dialog closes (Apply may have saved new settings)
         _gatewayDiskSettings = GatewayDiskSettings.Load();
+    }
+
+    /// <summary>
+    /// Opens (or, when open, closes) the keyboard window exactly as the menu item does, and hands
+    /// it back so a test can drive it.
+    /// </summary>
+    /// <returns>
+    /// The keyboard window.
+    /// </returns>
+    internal VirtualKeyboardWindow ToggleVirtualKeyboardForTesting()
+    {
+        OnVirtualKeyboardClick(null, new RoutedEventArgs());
+        return _virtualKeyboardWindow!;
     }
 
     private void OnVirtualKeyboardClick(object? sender, RoutedEventArgs e)

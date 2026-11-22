@@ -246,6 +246,12 @@ public partial class QuickConnectWindow : Window
         return Protocols[index];
     }
 
+    // True while the terminal box shows the 3278 because TN3270 is chosen.
+    private bool _showingTn3270Terminal;
+
+    // The stream terminal picked before TN3270 was chosen, put back when it is unchosen.
+    private string? _streamTerminalBeforeTn3270;
+
     /// <summary>
     /// Reshapes the form for the protocol that was picked.
     /// </summary>
@@ -268,10 +274,29 @@ public partial class QuickConnectWindow : Window
         if (portPanel != null) portPanel.IsVisible = !serial;
         if (credentials != null) credentials.IsVisible = protocol == ConnectionFactory.ProtocolType.SSH;
 
-        // TN3270 always uses the IBM 3278 model 2 (see where the parameters are built).
+        // TN3270 always uses the IBM 3278 model 2 (see where the parameters are built). The box
+        // SHOWS that terminal, greyed, rather than greying out whatever stream terminal was picked
+        // (Ronny, 22 November 2026: "maybe it should be set to 3270"). Leaving TN3270 puts the
+        // stream terminals and the earlier choice back.
         var emulatorChoice = this.FindControl<ComboBox>("EmulatorBox");
-        if (emulatorChoice != null) emulatorChoice.IsEnabled = protocol != ConnectionFactory.ProtocolType.TN3270;
+        if (emulatorChoice != null)
+        {
+            bool tn3270 = protocol == ConnectionFactory.ProtocolType.TN3270;
+            if (tn3270 && !_showingTn3270Terminal)
+            {
+                _streamTerminalBeforeTn3270 = emulatorChoice.SelectedItem as string;
+                emulatorChoice.ItemsSource = new[] { ConnectionFactory.EmulatorTypeFor(protocol, null) };
+                emulatorChoice.SelectedIndex = 0;
+            }
+            else if (!tn3270 && _showingTn3270Terminal)
+            {
+                emulatorChoice.ItemsSource = EmulatorFactory.AvailableEmulators;
+                emulatorChoice.SelectedItem = _streamTerminalBeforeTn3270;
+            }
 
+            _showingTn3270Terminal = tn3270;
+            emulatorChoice.IsEnabled = !tn3270;
+        }
         if (hostBox != null)
         {
             hostBox.PlaceholderText = serial ? "COM3" : "host or host:port";

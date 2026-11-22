@@ -61,6 +61,10 @@ public partial class ManageConnectionsWindow : Window
     private RadioButton? _serialRadio;
     private RadioButton? _gatewayRadio;
     private RadioButton? _opcomSimRadio;
+    private RadioButton? _tn3270Radio;
+
+    // The stream terminal chosen before TN3270 was, put back when TN3270 is unchosen.
+    private string? _streamTerminalBeforeTn3270;
     private TextBox? _hostBox;
     private TextBox? _portBox;
     private TextBox? _usernameBox;
@@ -223,8 +227,13 @@ public partial class ManageConnectionsWindow : Window
         _serialRadio = new RadioButton { Content = "Serial", GroupName = "Protocol", Foreground = TextPrimary, FontSize = 13 };
         _gatewayRadio = new RadioButton { Content = "Gateway", GroupName = "Protocol", Foreground = TextPrimary, FontSize = 13 };
         _opcomSimRadio = new RadioButton { Content = "OPCOM Sim", GroupName = "Protocol", Foreground = TextPrimary, FontSize = 13 };
+
+        // TN3270 (Ronny, 22 November 2026: "in the Manage connections there is no 3270 support").
+        // Host and port like telnet; the terminal is always the IBM 3278 model 2.
+        _tn3270Radio = new RadioButton { Content = "TN3270", GroupName = "Protocol", Foreground = TextPrimary, FontSize = 13 };
         radioPanel.Children.Add(_telnetRadio);
         radioPanel.Children.Add(_sshRadio);
+        radioPanel.Children.Add(_tn3270Radio);
         radioPanel.Children.Add(_serialRadio);
         radioPanel.Children.Add(_gatewayRadio);
         radioPanel.Children.Add(_opcomSimRadio);
@@ -241,6 +250,7 @@ public partial class ManageConnectionsWindow : Window
         _serialRadio.IsCheckedChanged += (_, _) => { if (_serialRadio.IsChecked == true) OnProtocolRadioChanged("Serial"); };
         _gatewayRadio.IsCheckedChanged += (_, _) => { if (_gatewayRadio.IsChecked == true) OnProtocolRadioChanged("Gateway"); };
         _opcomSimRadio.IsCheckedChanged += (_, _) => { if (_opcomSimRadio.IsChecked == true) OnProtocolRadioChanged("OpcomSimulator"); };
+        _tn3270Radio.IsCheckedChanged += (_, _) => { if (_tn3270Radio.IsChecked == true) OnProtocolRadioChanged("TN3270"); };
 
         // Protocol tab
         _protocolPanel = new StackPanel { Spacing = 16 };
@@ -1199,6 +1209,8 @@ public partial class ManageConnectionsWindow : Window
         // Set the correct protocol radio button
         SetProtocolRadio(profile.Protocol);
 
+        // The terminal box follows the protocol through SetProtocolRadio above (its change event
+        // applies ApplyTerminalRuleForProtocol), so a saved TN3270 connection shows the 3278.
         if (_emulatorCombo != null) _emulatorCombo.SelectedItem = profile.EmulatorType;
         if (_sizeCombo != null) _sizeCombo.SelectedItem = profile.Size;
         if (_screenSizeModeCombo != null) _screenSizeModeCombo.SelectedItem = profile.ScreenSizeMode;
@@ -1271,6 +1283,47 @@ public partial class ManageConnectionsWindow : Window
         _viewModel.CurrentProfile.Protocol = protocol;
         UpdateProtocolPanel();
         AutoUpdatePort(protocol);
+        ApplyTerminalRuleForProtocol(protocol);
+    }
+
+    /// <summary>
+    /// The terminal box follows the protocol, by the same rule as Quick Connect and MCP
+    /// (ConnectionFactory.EmulatorTypeFor): TN3270 shows the IBM 3278 model 2, greyed, and saves
+    /// it with the connection; leaving TN3270 puts the stream terminals and the earlier choice back.
+    /// </summary>
+    /// <param name="protocol">
+    /// The protocol name as the profile stores it.
+    /// </param>
+    private void ApplyTerminalRuleForProtocol(string protocol)
+    {
+        if (_emulatorCombo == null)
+        {
+            return;
+        }
+
+        var type = ConnectionFactory.ParseProtocolType(protocol);
+        bool tn3270 = type == ConnectionFactory.ProtocolType.TN3270;
+        bool showing3270 = _emulatorCombo.ItemsSource is string[] items && items.Length == 1
+            && items[0] == ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, null);
+
+        if (tn3270)
+        {
+            if (!showing3270)
+            {
+                _streamTerminalBeforeTn3270 = _emulatorCombo.SelectedItem as string;
+                _emulatorCombo.ItemsSource = new[] { ConnectionFactory.EmulatorTypeFor(type, null) };
+            }
+
+            _emulatorCombo.SelectedIndex = 0;
+            _viewModel.CurrentProfile.EmulatorType = ConnectionFactory.EmulatorTypeFor(type, null);
+        }
+        else if (showing3270)
+        {
+            _emulatorCombo.ItemsSource = RetroTerm.Core.Configuration.EmulatorFactory.AvailableEmulators;
+            _emulatorCombo.SelectedItem = _streamTerminalBeforeTn3270 ?? "VT100";
+        }
+
+        _emulatorCombo.IsEnabled = !tn3270;
     }
 
     private void SetProtocolRadio(string protocol)
@@ -1286,6 +1339,8 @@ public partial class ManageConnectionsWindow : Window
             _gatewayRadio!.IsChecked = true;
         else if (string.Equals(protocol, "OpcomSimulator", StringComparison.OrdinalIgnoreCase))
             _opcomSimRadio!.IsChecked = true;
+        else if (string.Equals(protocol, "TN3270", StringComparison.OrdinalIgnoreCase))
+            _tn3270Radio!.IsChecked = true;
         else
             _telnetRadio.IsChecked = true;
     }
