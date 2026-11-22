@@ -1263,18 +1263,21 @@ public partial class ManageConnectionsWindow : Window
         }
     }
 
+    // The port follows the protocol while it still shows a default; the rule is in Core.
+    // The profile is written here too: setting .Text from code does not raise TextChanged, so
+    // the box's own handler never sees this change (a saved SSH profile kept port 23 that way).
     private void AutoUpdatePort(string protocol)
     {
-        if (_portBox == null) return;
-        var currentPort = _portBox.Text?.Trim();
-
-        if (string.Equals(protocol, "SSH", StringComparison.OrdinalIgnoreCase))
+        if (_portBox == null)
         {
-            if (currentPort == "23" || currentPort == "2323") _portBox.Text = "22";
+            return;
         }
-        else if (string.Equals(protocol, "Telnet", StringComparison.OrdinalIgnoreCase))
+
+        string port = ConnectionFactory.PortAfterProtocolChange(ConnectionFactory.ParseProtocolType(protocol), _portBox.Text);
+        _portBox.Text = port;
+        if (int.TryParse(port, out int number))
         {
-            if (currentPort == "22") _portBox.Text = "23";
+            _viewModel.CurrentProfile.Port = number;
         }
     }
 

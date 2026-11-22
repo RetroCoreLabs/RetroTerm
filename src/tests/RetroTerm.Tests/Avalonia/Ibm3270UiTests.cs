@@ -84,11 +84,11 @@ namespace RetroTerm.Tests.Avalonia
             window.FindControl<TextBox>("HostBox")!.Text = "localhost";
 
             // The greyed box SHOWS the 3278, not the stream terminal picked before (Ronny, 22 November
-            // 2026). The port is the telnet port: TN3270 is telnet (RFC 1576); TK5's 3270 is a
-            // Hercules setting the person types.
+            // 2026). The port is 3270, the port 3270 hosts such as Hercules and TK5 listen on
+            // (Ronny, 22 November 2026), not the RFC 1576 telnet port 23.
             Assert.False(emulatorBox.IsEnabled);
             Assert.Equal("IBM-3278-2", emulatorBox.SelectedItem);
-            Assert.Equal("23", portBox.Text);
+            Assert.Equal("3270", portBox.Text);
             var parameters = window.BuildParameters(out string? error);
             Assert.Null(error);
             Assert.Equal("IBM-3278-2", parameters!.EmulatorType);
@@ -383,9 +383,12 @@ namespace RetroTerm.Tests.Avalonia
             Assert.Equal("TN3270", window.ProfileForTesting.Protocol);
             Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
             Assert.Equal(ConnectionFactory.ProtocolType.TN3270, window.ProfileForTesting.ToConnectionParameters().Protocol);
+            Assert.Equal("3270", Field<TextBox>(window, "_portBox").Text);
+            Assert.Equal(3270, window.ProfileForTesting.Port);
 
-            // Back to telnet: the stream terminals and the earlier choice come back.
+            // Back to telnet: the stream terminals, the earlier choice and port 23 come back.
             Field<RadioButton>(window, "_telnetRadio").IsChecked = true;
+            Assert.Equal("23", Field<TextBox>(window, "_portBox").Text);
             Assert.True(terminal.IsEnabled);
             Assert.Equal("VT220", terminal.SelectedItem);
             Assert.Equal("VT220", window.ProfileForTesting.EmulatorType);

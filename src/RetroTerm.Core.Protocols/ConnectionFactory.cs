@@ -473,9 +473,38 @@ public static class ConnectionFactory
         switch (protocol)
         {
             case ProtocolType.SSH: return 22;
-            case ProtocolType.TN3270: return 23;
+            // 3270, not the RFC 1576 port 23 (Ronny, 22 November 2026): the 3270 hosts this is
+            // used with (Hercules, TK5) listen on 3270.
+            case ProtocolType.TN3270: return 3270;
             default: return 23;
         }
+    }
+
+    /// <summary>
+    /// The port a connection form shows after the protocol changed.
+    /// </summary>
+    /// <param name="protocol">
+    /// The protocol now chosen.
+    /// </param>
+    /// <param name="currentPort">
+    /// The text in the port box now.
+    /// </param>
+    /// <returns>
+    /// The new protocol's default when the box is empty or still shows a protocol's default,
+    /// otherwise <paramref name="currentPort"/> unchanged.
+    /// </returns>
+    /// <remarks>
+    /// A port somebody typed is never overwritten because they then changed a dropdown. One rule
+    /// for every connection form.
+    /// </remarks>
+    public static string PortAfterProtocolChange(ProtocolType protocol, string? currentPort)
+    {
+        string current = currentPort == null ? string.Empty : currentPort.Trim();
+        bool isADefault = current.Length == 0
+            || current == DefaultPortFor(ProtocolType.Telnet).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            || current == DefaultPortFor(ProtocolType.SSH).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            || current == DefaultPortFor(ProtocolType.TN3270).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return isADefault ? DefaultPortFor(protocol).ToString(System.Globalization.CultureInfo.InvariantCulture) : current;
     }
 
     /// <summary>
