@@ -63,6 +63,7 @@ clean-room rewrite in C#.
 **A. Read and document — no machine, no Ronny**
 - [ ] Read the parts of GA23-0059-4 the data stream spec lists as not read yet: Character Sets reply layout, Create Partition, Field Validation / Outlining / Transparency replies, Usable Area extra parameters (p. 6-90 to 6-94), Appendix C reset table
 - [ ] Settle the open questions at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE) — most need one of the traces below
+- [ ] Find the IBM 3270 PC user guides (Control Program / 3270 Workstation Program Users' Guide and Reference; bitsavers folder `pdf/ibm/pc/3270_PC/`) and write down what Help, WS Ctrl, Jump, Change Screen, Copy, Print, Zoom, Finish, Auto, ExSel and Pause did. The keycaps pair them (seasip 5271 page): Help/SysRq, WS Ctrl/ExSel, ChgSc/Jump/CrSel, Finish/Attn, Copy/Auto/Pause, Print/*/Ident, Clear/Test, Reset/Quit. Neither Wikipedia nor seasip says what they do
 - [ ] Find an ISPF manual: which characters ISPF sends for boxes, and what its "3278T" terminal setting means
 
 - [ ] Write `docs\IBM3270-INTRODUCTION.md` for users who have never seen a 3270 (Ronny, 22 November 2026: "i do not know anything about LU"): what a block-mode terminal is, fields, attention keys (Enter/PF/PA/Clear), keyboard lock, EBCDIC and code pages, TN3270 vs TN3270E, what an LU name is and when you need one, model sizes, IND$FILE, and a first walk-through logging in to TK5. Written AFTER the spec files, from them, in plain words
@@ -120,13 +121,15 @@ clean-room rewrite in C#.
 - Page Up / Page Down send PF7 / PF8
 - Double-click moves the 3270 cursor there and sends Enter (word select is by dragging in a 3270 tab)
 - A new 3270 connection uses code page 037 (US) until the user picks another
+- Keys that never reach the host (Help, WS Ctrl, Jump / Change Screen, Copy, Print, Zoom, Finish, Auto, ExSel, Pause) get a starting RetroTerm job, can be reassigned in a settings window like the PUSH keys, and show what they do in a tooltip. Align the starting jobs with what IBM's 3270 PC did, "a better experience than the old" (the 3270 PC ran 4 host sessions, 1 DOS session and 2 notepads in windows — Wikipedia, IBM 3270 PC). Keys whose 3270 meaning reaches the host (Attn, SysRq, CrSel, ErInp) send the right code
+- Help menu: "Help for this terminal" opens the docs site page for the current tab's terminal type, plus a "Terminal guides" submenu listing every terminal type (pages that do not exist yet shown greyed)
 - Our OWN font holding every character the 3270 needs (code pages, code page 310 APL, box pieces), not Lucida Console plus fallbacks — "maybe even from an original IBM ROM file"
 
 **Settled without asking, because the rule is to do what the hardware did** (KEYBOARD.md section 9): a typing error locks the keyboard (IBM), keys pressed while locked are refused (IBM), Backspace moves left without erasing (IBM), insert room is "one less than the blanks left in the field" (IBM), numeric-only checking follows the 3274 manual figure 6-2.
 
 - [ ] Font: search for a dump of a real IBM 3278/3279/3179/3191 character generator ROM (MAME, bitsavers, vintage keyboard/terminal sites) and IBM's published glyph drawings (GA27-2837-9 draws every character); build the RetroTerm 3270 font from the ROM if one exists, else from the manual's drawings. Check the licence of anything used. Also look at rbanffy/3270font (a remake, licence to check) only as a cross-check
 
-**Next:** the EBCDIC tables (B, first item), and the ROM search for the font.
+**Next:** the 3270 PC user guides (what the local keys did), then the EBCDIC tables and the ROM search for the font.
 
 ---
 
