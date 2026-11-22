@@ -520,12 +520,30 @@ public static class ConnectionFactory
         {
             ProtocolType.Telnet => CreateTelnetConnection(parameters.Host, parameters.Port, parameters.EmulatorType),
             ProtocolType.SSH => CreateSSHConnection(parameters.Host, parameters.Port, parameters.Username, parameters.Password, parameters.EmulatorType),
-            ProtocolType.TN3270 => throw new NotImplementedException("TN3270 not yet implemented"),
+            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port),
             ProtocolType.Serial => CreateSerialConnection(parameters),
             ProtocolType.Gateway => throw new InvalidOperationException("Gateway connections are created directly via GatewayConnection, not through the factory."),
             ProtocolType.OpcomSimulator => CreateOpcomSimulatorConnection(),
             _ => throw new ArgumentException($"Unknown protocol type: {parameters.Protocol}", nameof(parameters))
         };
+    }
+
+    /// <summary>
+    /// TN3270: plain TN3270 (RFC 1576) answering as an IBM-3278-2. By type name for the same reason
+    /// as Telnet: the class lives in RetroTerm.Ibm3270 (net10.0, on the RetroIO 3270 packages) and
+    /// this layer must not depend on it. Pair it with the IBM-3278-2 emulator, which expects one
+    /// whole 3270 record per DataReceived.
+    /// </summary>
+    private static IConnection CreateTn3270Connection(string host, int port)
+    {
+        var type = Type.GetType("RetroTerm.Ibm3270.Tn3270Connection, RetroTerm.Ibm3270");
+        if (type == null)
+        {
+            throw new InvalidOperationException("Tn3270Connection type not found. Ensure RetroTerm.Ibm3270 is loaded.");
+        }
+
+        return Activator.CreateInstance(type, host, port, "IBM-3278-2") as IConnection
+            ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
     }
 
     private static IConnection CreateTelnetConnection(string host, int port, string emulatorType = "VT100")

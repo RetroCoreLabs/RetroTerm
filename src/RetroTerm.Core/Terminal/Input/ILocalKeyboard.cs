@@ -26,6 +26,14 @@ namespace RetroTerm.Core.Terminal.Input;
 public interface ILocalKeyboard
 {
     /// <summary>
+    /// Gets or sets where a key's effect on the screen runs. Set by <c>TerminalSession</c> to its
+    /// pump thread, the only thread allowed to change an emulator (SessionPump.cs, the thread
+    /// rule). The key handler runs on the UI thread, so <see cref="HandleKey"/> only DECIDES on
+    /// that thread and hands the change here. Null (no session, e.g. a test) runs it at once.
+    /// </summary>
+    System.Action<System.Action>? SessionThread { get; set; }
+
+    /// <summary>
     /// Offers a key press.
     /// </summary>
     /// <param name="keyName">

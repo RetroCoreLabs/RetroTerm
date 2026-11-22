@@ -101,6 +101,12 @@ public static class EmulatorFactory
             // The Tektronix 4014 as itself, rather than as the half of a TDV2200 nobody could reach
             // without picking a Norwegian terminal first.
             "TEK4014" => new Tek4014Emulator(configuration.Width, configuration.Height, configuration.MaxScrollback),
+
+            // The IBM 3278 model 2 (24 x 80). Its class lives in RetroTerm.Ibm3270, which is net10.0
+            // because the RetroIO 3270 packages are, so Core (netstandard2.1) cannot name it and
+            // loads it by type name. It ignores the size settings: a model 2 is 24 x 80 by
+            // definition, and it needs a TN3270 connection, which hands over whole records.
+            "IBM-3278-2" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270"),
             _ => throw new NotSupportedException($"Emulator type '{configuration.EmulatorType}' is not supported")
         };
     }
@@ -298,5 +304,23 @@ public static class EmulatorFactory
     {
         return Array.Exists(AvailableEmulators, e =>
             e.Equals(emulatorType, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Creates an emulator whose class lives in an assembly Core cannot reference (a net10.0
+    /// project), by its assembly-qualified type name. Fails loudly when the assembly is missing.
+    /// </summary>
+    /// <param name="assemblyQualifiedName">
+    /// "Namespace.Type, Assembly".
+    /// </param>
+    /// <returns>
+    /// The emulator, made with its parameterless constructor.
+    /// </returns>
+    private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName)
+    {
+        var type = Type.GetType(assemblyQualifiedName)
+            ?? throw new InvalidOperationException($"Emulator type '{assemblyQualifiedName}' not found. Is its assembly shipped with the app?");
+        return Activator.CreateInstance(type) as TerminalEmulatorBase
+            ?? throw new InvalidOperationException($"'{assemblyQualifiedName}' is not a TerminalEmulatorBase.");
     }
 }

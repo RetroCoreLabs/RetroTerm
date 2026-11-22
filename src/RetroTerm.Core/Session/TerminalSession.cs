@@ -240,6 +240,13 @@ public partial class TerminalSession : IDisposable
     {
         Emulator.DataToSend -= OnEmulatorDataToSend;
         Emulator.DataToSend += OnEmulatorDataToSend;
+
+        // A block-mode emulator (the IBM 3270) changes its own screen on key presses, which arrive
+        // on the UI thread. Hand it the pump, the only thread allowed to change an emulator.
+        if (Emulator is Terminal.Input.ILocalKeyboard localKeyboard)
+        {
+            localKeyboard.SessionThread = job => _ = _pump.RunAsync(job);
+        }
     }
 
     /// <summary>

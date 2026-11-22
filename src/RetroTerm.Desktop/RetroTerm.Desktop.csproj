@@ -137,6 +137,7 @@
     <ProjectReference Include="..\RetroTerm.Core.Protocols.Kermit\RetroTerm.Core.Protocols.Kermit.csproj" />
     <!-- MCP server hosted inside the app (localhost only) — an LLM drives the same tabs. -->
     <ProjectReference Include="..\RetroTerm.Mcp\RetroTerm.Mcp.csproj" />
+    <ProjectReference Include="..\RetroTerm.Ibm3270\RetroTerm.Ibm3270.csproj" />
   </ItemGroup>
 </Project>
 

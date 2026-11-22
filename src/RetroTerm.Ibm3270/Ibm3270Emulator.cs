@@ -233,32 +233,48 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
     /// </returns>
     public bool HandleText(string text)
     {
-        for (int i = 0; i < text.Length; i++)
+        return Local(() =>
         {
-            char c = text[i];
-            if (c == '\r' || c == '\n')
+            for (int i = 0; i < text.Length; i++)
             {
-                continue;
+                char c = text[i];
+                if (c == '\r' || c == '\n')
+                {
+                    continue;
+                }
+
+                _display.Type(c);
             }
-
-            _display.Type(c);
-        }
-
-        Refresh();
-        return true;
+        });
     }
+
+    /// <inheritdoc/>
+    public Action<Action>? SessionThread { get; set; }
 
     private bool Attention(byte aid)
     {
-        _display.Attention(aid);
-        Refresh();
-        return true;
+        return Local(() => _display.Attention(aid));
     }
 
     private bool Local(Action action)
     {
-        action();
-        Refresh();
+        // The decision (this key is ours) was made on the UI thread; the change runs on the
+        // session thread (ILocalKeyboard.SessionThread).
+        Action<Action>? sessionThread = SessionThread;
+        if (sessionThread == null)
+        {
+            action();
+            Refresh();
+        }
+        else
+        {
+            sessionThread(() =>
+            {
+                action();
+                Refresh();
+            });
+        }
+
         return true;
     }
 

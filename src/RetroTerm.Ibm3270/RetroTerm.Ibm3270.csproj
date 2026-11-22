@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RetroTerm.Core\RetroTerm.Core.csproj" />
+    <ProjectReference Include="..\RetroTerm.Core.Protocols\RetroTerm.Core.Protocols.csproj" />
   </ItemGroup>
 
   <ItemGroup>
