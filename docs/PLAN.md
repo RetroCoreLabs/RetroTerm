@@ -69,22 +69,22 @@ clean-room rewrite in C#.
 - [ ] Write `docs\IBM3270-INTRODUCTION.md` for users who have never seen a 3270 (Ronny, 22 November 2026: "i do not know anything about LU"): what a block-mode terminal is, fields, attention keys (Enter/PF/PA/Clear), keyboard lock, EBCDIC and code pages, TN3270 vs TN3270E, what an LU name is and when you need one, model sizes, IND$FILE, and a first walk-through logging in to TK5. Written AFTER the spec files, from them, in plain words
 - [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
 
-**R. RetroIO — the reusable part (built in the RetroIO repository, names per `NAMING.md`)**
-- [ ] `RetroIO.Protocols.Telnet`: option negotiation, IAC escaping, end-of-record, records split across reads, client and server roles, TLS designed in (built later, low priority)
-- [ ] `RetroIO.Protocols.Tn3270`: TN3270 and TN3270E sessions on top of it, client role first, server role when a mainframe emulator needs it
-- [ ] 3270 data stream and screen model, headless. First milestone: a 3278 model 2 that takes an Erase/Write with one protected and one input field, accepts typed characters and Enter, and returns the right AID, cursor address and changed field — then the same against TK5 through the TN3270 client, then drawn in RetroTerm
-- [ ] EBCDIC code page tables (may belong in a shared character-set package; decide when built)
-- [ ] Move RetroTerm's telnet client and server and RetroIO's X.25 telnet PAD and switch command line onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
+**R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
+- [ ] Tn3270Client (plain TN3270 against TK5), with a replay test of the TK5 handshake
+- [ ] Write Structured Field and Query Reply (IND$FILE needs them)
+- [ ] TN3270E
+- [ ] Code page 310 (APL) and other EBCDIC code pages
+- [ ] Insert mode, Erase EOF, Erase Input, Dup, Field Mark
+- [ ] Implicit TLS on port 992 (low priority)
+- [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages
 
 **B. Build in RetroTerm — no machine, no Ronny** (several items below now sit on the RetroIO model: the parser, the inbound side and local field editing are built in RetroIO; RetroTerm wires them to the screen and keys)
 - [ ] Show the introduction inside RetroTerm. Today the Help menu has only About; the only in-app reference is Keyboard > Key Reference (`KeyboardReferenceWindow`, one per emulator type). Needs a decision: a help window that shows the Markdown in the app, or a Help menu item that opens the docs site page — to be asked when the intro document exists
 - [ ] A 3270 page in Keyboard > Key Reference, like the TDV one
-- [ ] RetroIO side (section R): EBCDIC tables, unit-tested against GA27-2837-9
+- [ ] On-screen keyboard in TWO layouts (Ronny, 22 November 2026): the original IBM 3278 keyboard and the 3270 PC / KB 3270 Plus 122-key keyboard. Key positions and sizes from "Physical layout -- IBM 3278.svg" (Wikimedia Commons, public domain, by Engicoder: <https://commons.wikimedia.org/wiki/File:Physical_layout_--_IBM_3278.svg>) for the 3278, and the seasip Native drawing (`Keyboard\kb3270_keytops.svg`) for the 3270 PC. The SVG could not be downloaded here (Wikimedia answered HTTP 429 twice); fetch it into `docs\spec\IBM3270\Keyboard\` before this item starts. Key legends from GA27-2890-4 and KEYBOARD.md. For the 3270 PC layout, also use Ronny's top-down photo of a Key Tronic KB3270 Plus (22 November 2026). It shows two rows of PF keys (PF13-24 above PF1-12), a left block of 10 keys (Help/Clear, ExSel/Finish, PrtSc-Jump/Erase EOF, Print/Copy-Auto, cursor-select/Ctrl), Dup-PA1 / Field Mark-PA2 / PA3 above the cursor cluster, Reset and two Alt keys in the bottom row, and a numeric pad with Esc / Num Lock / ScrLk / Sys Req on top and Enter at the bottom right. Save the photo into `docs\spec\IBM3270\Keyboard\` when the keyboard work starts; it came in as a chat image and is not a file here
 - [ ] Fit the RetroIO 3270 screen model into RetroTerm: it is not a stream emulator, so decide how it sits beside `TerminalEmulatorBase` and the renderer
-- [ ] RetroIO side (section R): data stream parser — W, EW, EWA, EAU, RB, RM, RMA, WSF; orders SF, SFE, SBA, SA, MF, IC, PT, RA, EUA, GE
-- [ ] RetroIO side (section R): inbound — AID keys, Read Modified reply, Query Reply structured fields
-- [ ] Local field editing: protected/numeric fields, insert mode, Tab/Backtab, ErEOF, ErInp, Dup, FieldMark, keyboard lock and Reset
+- [ ] Move RetroTerm's own telnet client and telnet server onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
 - [ ] A RetroTerm connection type for TN3270 that uses the RetroIO TN3270 session
 - [ ] Models 2-5 (24x80, 32x80, 43x80, 27x132) and the 3279 colours
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
@@ -111,7 +111,7 @@ clean-room rewrite in C#.
   - [ ] 3287 printer session: a tab that acts as a 3270 printer (needs the SCS printer data stream researched like the screen one; TK5 sent no printer data in the first test)
   - [ ] Send one typed line to all tabs
   - [ ] Overview of all open tabs as small live pictures
-  - [ ] LOW PRIORITY: Telnet over TLS (no TLS code exists in RetroTerm or RetroIO today); for client and server, so the emulators can offer TLS too
+  - [ ] LOW PRIORITY: Telnet over TLS (no TLS code exists in RetroTerm or RetroIO today); for client and server, so the emulators can offer TLS too. Build implicit TLS first: TLS starts straight after the TCP connect, then all telnet negotiation runs inside it, on a configurable port with 992 (IANA "telnets") as the secure default, and the server certificate is checked. The telnet reader and encoder already work on bytes and own no socket, so TLS is a wrapper around the stream. Telnet START-TLS (a plain-text start, then a switch to TLS, from an IETF draft that expired) comes only when a host needs it. Sources from Ronny, 22 November 2026: Boston University and UCLA require TN3270 over TLS on port 992; IBM z/OS supports both forms. The IBM page was not fetched here
 - [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
   - [ ] Send every attention key: Enter, PF1-PF24, PA1-PA3, Clear, Attn, SysReq (extend `terminal_sendkey`)
   - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys

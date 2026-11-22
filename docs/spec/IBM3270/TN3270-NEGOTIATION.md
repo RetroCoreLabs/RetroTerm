@@ -75,7 +75,7 @@ names that VTAM inside MVS gives those devices are NOT VERIFIED.
 | EOR (command) | 239 / EF | end of one 3270 record | [tnz tnz.py] `IAC EOR` |
 | BRK | 243 / F3 | Attn in plain TN3270 | [tnz tnz.py] `send_command(243)  # BRK` |
 | IP | 244 / F4 | Attn in TN3270E | [tnz tnz.py] `send_command(244)  # IP` |
-| AO | NOT VERIFIED value (245 by memory) | SysReq in TN3270E | [RFC 2355 s.10.5.2], [x3270 telnet.c] `net_abort` |
+| AO | 245 / F5 | SysReq in TN3270E | value: RFC 854 command table (`RFC/rfc854.txt`, read 22 Nov 2026); use: [RFC 2355 s.10.5.2], [x3270 telnet.c] `net_abort` |
 | BINARY option | 0 / 00 | 8-bit data both ways | [RFC 1576 s.3] |
 | TERMINAL-TYPE option | 24 / 18 | name the terminal | [RFC 1576 s.3] |
 | EOR option | 25 / 19 | records end with IAC EOR | [RFC 1576 s.3] |
