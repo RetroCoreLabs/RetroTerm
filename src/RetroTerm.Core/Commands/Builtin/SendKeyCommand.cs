@@ -11,7 +11,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Emulators.TDV;
+using RetroTerm.Core.Terminal.Input;
 
 namespace RetroTerm.Core.Commands.Builtin;
 
@@ -24,13 +26,13 @@ namespace RetroTerm.Core.Commands.Builtin;
 public sealed class SendKeyCommand : ISessionCommand
 {
     public string Name => "SENDKEY";
-    public string Summary => "Send a named TDV function key (e.g. HJELP, ANGRE, F7) — resolves the right escape sequence for the current mode";
+    public string Summary => "Press a named terminal key: TDV.HJELP, IBM.PF3, IBM.ENTER (a bare name like HJELP uses the tab's own terminal) — the family must match the tab";
     public string Example => "SENDKEY HJELP";
 
     public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
     {
         new CommandParameter("key", CommandParameterType.String, required: true, defaultValue: null,
-            "Key legend printed on the TDV2200 keyboard (HJELP, ANGRE, F1..F8, ...) or a grid " +
+            "Key name, optionally with its family: TDV.HJELP, IBM.PF3, IBM.CLEAR. Without a family it is looked up in the tab's own terminal. TDV keys are the legends printed on the TDV2200 keyboard (HJELP, ANGRE, F1..F8, ...) or a grid " +
             "position like G53 or F51. A legend and a grid position can name the SAME key: F1 and " +
             "F51 are one key, because F51 is where the key labelled F1 sits."),
         new CommandParameter("shift", CommandParameterType.Bool, required: false, defaultValue: "false",
@@ -39,13 +41,53 @@ public sealed class SendKeyCommand : ISessionCommand
 
     public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
     {
-        if (session.Emulator is not TDVEmulatorBase)
+        // A key's full name is FAMILY.KEY (TDV.HJELP, IBM.PF3, VT.PF1). The family is checked
+        // against the tab's terminal, so a script written for one terminal cannot press a
+        // same-named key on another. A bare name is looked up in the tab's own terminal, which
+        // keeps every existing SENDKEY HJELP working. Ronny's choice, 22 November 2026.
+        string family = FamilyOf(session.Emulator);
+        var keySpec = args.GetString("key")!;
+        int dot = keySpec.IndexOf('.');
+        if (dot > 0)
         {
-            return CommandResult.Fail("SENDKEY needs a TDV emulator (current: "
-                + session.Emulator.GetType().Name + ") — use SENDRAW for other terminals");
+            string wanted = keySpec.Substring(0, dot).ToUpperInvariant();
+            if (wanted != "TDV" && wanted != "IBM" && wanted != "VT")
+            {
+                return CommandResult.Fail("unknown key family '" + keySpec.Substring(0, dot)
+                    + "' — the families are TDV, IBM and VT (for example IBM.PF3)");
+            }
+
+            if (wanted != family)
+            {
+                return CommandResult.Fail("'" + keySpec + "' is a " + wanted + " key, but this tab is a "
+                    + family + " terminal (" + session.Emulator.GetType().Name + ") — nothing was sent");
+            }
+
+            keySpec = keySpec.Substring(dot + 1);
         }
 
-        var keySpec = args.GetString("key")!;
+        if (session.Emulator is INamedKeyTerminal named)
+        {
+            switch (named.PressNamedKey(keySpec, out string? reason))
+            {
+                case NamedKeyResult.Pressed:
+                    // The key ran on the session thread; wait so a WAITFOR after it sees the result.
+                    await session.FlushAsync().ConfigureAwait(false);
+                    return CommandResult.Ok("pressed " + family + "." + keySpec.ToUpperInvariant());
+                case NamedKeyResult.NotBuilt:
+                    return CommandResult.Fail(family + "." + keySpec.ToUpperInvariant()
+                        + " is a real key that RetroTerm does not do yet (" + reason + ") — nothing was sent");
+                default:
+                    return CommandResult.Fail("unknown " + family + " key '" + keySpec + "' — the keys are: "
+                        + string.Join(" ", named.KeyNames));
+            }
+        }
+
+        if (session.Emulator is not TDVEmulatorBase)
+        {
+            return CommandResult.Fail("SENDKEY has no key names for VT terminals yet (current: "
+                + session.Emulator.GetType().Name + ") — use SENDRAW to send the bytes");
+        }
 
         // Name → grid position; a grid position itself (G53) also works.
         var grid = TDV2200KeyRegistry.GetGridForName(keySpec);
@@ -95,5 +137,30 @@ public sealed class SendKeyCommand : ISessionCommand
         }
         sb.Append(')');
         return CommandResult.Ok(sb.ToString());
+    }
+
+    /// <summary>
+    /// The key family of a terminal: TDV for the Tandberg terminals, the terminal's own family
+    /// when it names its keys (IBM for the 3270), and VT for every other stream terminal.
+    /// </summary>
+    /// <param name="emulator">
+    /// The tab's terminal.
+    /// </param>
+    /// <returns>
+    /// The family, upper case, without the dot.
+    /// </returns>
+    public static string FamilyOf(TerminalEmulatorBase emulator)
+    {
+        if (emulator is TDVEmulatorBase)
+        {
+            return "TDV";
+        }
+
+        if (emulator is INamedKeyTerminal named)
+        {
+            return named.KeyFamily;
+        }
+
+        return "VT";
     }
 }

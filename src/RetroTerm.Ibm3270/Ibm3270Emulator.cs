@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 
 using RetroIO.Protocols.Tn3270;
 
@@ -34,7 +35,7 @@ namespace RetroTerm.Ibm3270;
 /// adds IAC EOR.
 /// </para>
 /// </remarks>
-public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
+public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal
 {
     private static readonly TerminalProfile Model2Profile = new(
         name: "IBM-3278-2",
@@ -127,9 +128,8 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
     public event Action<string>? KeyNotBuilt;
 
     /// <summary>
-    /// The PC key to 3270 key table. Source: docs\spec\IBM3270\KEYBOARD.md section 7 (what x3270
-    /// and tnz map), with Ronny's choices of 22 November 2026: Alt+letter gives 3270 keys as in
-    /// x3270, and PgUp/PgDn are PF7/PF8 as in tnz.
+    /// A PC key press: turned into a 3270 key name (PcKeyToName) and pressed through the one
+    /// name table (PressNamedKey) that SENDKEY, MCP and the on-screen keyboard also use.
     /// </summary>
     /// <param name="keyName">
     /// The Avalonia key name.
@@ -154,70 +154,185 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
             return false;
         }
 
+        string? name = PcKeyToName(keyName, shift, control, alt);
+        if (name == null)
+        {
+            // Taken but unused: a Ctrl or Alt key left untaken would let the canvas turn it into
+            // a C0 byte and put it in the 3270 data stream. Untaken plain keys (letters, digits)
+            // come back through HandleText.
+            return control || alt;
+        }
+
+        if (PressNamedKey(name, out string? reason) == NamedKeyResult.NotBuilt)
+        {
+            KeyNotBuilt?.Invoke(reason!);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The PC key to 3270 key-name table. Source: docs\spec\IBM3270\KEYBOARD.md section 7 (what
+    /// x3270 and tnz map), with Ronny's choices of 22 November 2026: Alt+letter gives 3270 keys
+    /// as in x3270, and PgUp/PgDn are PF7/PF8 as in tnz.
+    /// </summary>
+    /// <param name="keyName">
+    /// The Avalonia key name.
+    /// </param>
+    /// <param name="shift">
+    /// Shift held.
+    /// </param>
+    /// <param name="control">
+    /// Ctrl held.
+    /// </param>
+    /// <param name="alt">
+    /// Alt held.
+    /// </param>
+    /// <returns>
+    /// The 3270 key name, or null when the PC key is not a 3270 key.
+    /// </returns>
+    internal static string? PcKeyToName(string keyName, bool shift, bool control, bool alt)
+    {
         if (alt && !control)
         {
             switch (keyName)
             {
-                case "D1": return Attention(Aid.PA1);
-                case "D2": return Attention(Aid.PA2);
-                case "D3": return Attention(Aid.PA3);
-                case "C": return Attention(Aid.Clear);
-                case "R": return Local(() => _display.Reset());
-                case "A": return NotBuilt("Attn (needs the TN3270 connection: IAC BRK)");
-                case "D": return NotBuilt("Dup");
-                case "F": return NotBuilt("Field Mark");
-                case "E": return NotBuilt("Erase EOF");
-                case "I": return NotBuilt("Insert");
-                default: return true; // taken: an unused Alt key must not reach the line
+                case "D1": return "PA1";
+                case "D2": return "PA2";
+                case "D3": return "PA3";
+                case "C": return "CLEAR";
+                case "R": return "RESET";
+                case "A": return "ATTN";
+                case "D": return "DUP";
+                case "F": return "FIELDMARK";
+                case "E": return "ERASEEOF";
+                case "I": return "INSERT";
+                default: return null;
             }
         }
 
         if (control || alt)
         {
-            // Taken and ignored. Left untaken, the canvas would turn Ctrl+letter into a C0 byte
-            // and send it into the 3270 data stream.
-            return true;
+            return null;
         }
 
         if (keyName.Length >= 2 && keyName[0] == 'F' && int.TryParse(keyName.AsSpan(1), out int f) && f >= 1 && f <= 12)
         {
-            return Attention(Aid.Pf(shift ? f + 12 : f));
+            return "PF" + (shift ? f + 12 : f).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         switch (keyName)
         {
             case "Enter":
             case "Return":
-                return Attention(Aid.Enter);
+                return "ENTER";
             case "PageUp":
-                return Attention(Aid.Pf(7));
+                return "PF7";
             case "PageDown":
-                return Attention(Aid.Pf(8));
+                return "PF8";
             case "Tab":
-                return shift ? NotBuilt("Back Tab") : Local(() => _display.Tab());
+                return shift ? "BACKTAB" : "TAB";
             case "Home":
-                return Local(() => _display.Home());
+                return "HOME";
             case "Left":
-                return Local(() => MoveBy(-1));
+                return "LEFT";
             case "Right":
-                return Local(() => MoveBy(1));
+                return "RIGHT";
             case "Up":
-                return Local(() => MoveBy(-_display.Columns));
+                return "UP";
             case "Down":
-                return Local(() => MoveBy(_display.Columns));
+                return "DOWN";
             case "Back":
-                return NotBuilt("Backspace");
+                return "BACKSPACE";
             case "Delete":
-                return NotBuilt("Delete");
+                return "DELETE";
             case "Insert":
-                return NotBuilt("Insert");
+                return "INSERT";
             case "End":
-                return NotBuilt("End (go to end of field)");
-            case "Escape":
-                return NotBuilt("Escape has no 3270 meaning yet");
+                return "END";
             default:
-                // Letters, digits and symbols come through HandleText.
-                return false;
+                return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public string KeyFamily => "IBM";
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> KeyNames => AllKeyNames;
+
+    // Every 3270 key RetroTerm knows by name. The names are the legends on the IBM 3278 keyboard
+    // (GA27-2890-4), written without spaces: ERASE EOF is ERASEEOF.
+    private static readonly string[] AllKeyNames = BuildKeyNames();
+
+    private static string[] BuildKeyNames()
+    {
+        string[] fixedNames =
+        {
+            "ENTER", "CLEAR", "PA1", "PA2", "PA3", "RESET", "TAB", "BACKTAB", "HOME", "LEFT",
+            "RIGHT", "UP", "DOWN", "NEWLINE", "BACKSPACE", "DELETE", "INSERT", "END", "ERASEEOF",
+            "ERASEINPUT", "DUP", "FIELDMARK", "ATTN", "SYSREQ", "CURSORSELECT",
+        };
+        var names = new string[fixedNames.Length + 24];
+        for (int i = 0; i < fixedNames.Length; i++)
+        {
+            names[i] = fixedNames[i];
+        }
+
+        for (int i = 1; i <= 24; i++)
+        {
+            names[fixedNames.Length + i - 1] = "PF" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return names;
+    }
+
+    /// <inheritdoc/>
+    public NamedKeyResult PressNamedKey(string name, out string? notBuiltReason)
+    {
+        notBuiltReason = null;
+        string key = name.ToUpperInvariant();
+
+        if (key.Length >= 3 && key.StartsWith("PF", StringComparison.Ordinal)
+            && int.TryParse(key.AsSpan(2), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int pf))
+        {
+            if (pf < 1 || pf > 24)
+            {
+                return NamedKeyResult.UnknownName;
+            }
+
+            Attention(Aid.Pf(pf));
+            return NamedKeyResult.Pressed;
+        }
+
+        switch (key)
+        {
+            case "ENTER": Attention(Aid.Enter); return NamedKeyResult.Pressed;
+            case "CLEAR": Attention(Aid.Clear); return NamedKeyResult.Pressed;
+            case "PA1": Attention(Aid.PA1); return NamedKeyResult.Pressed;
+            case "PA2": Attention(Aid.PA2); return NamedKeyResult.Pressed;
+            case "PA3": Attention(Aid.PA3); return NamedKeyResult.Pressed;
+            case "RESET": Local(() => _display.Reset()); return NamedKeyResult.Pressed;
+            case "TAB": Local(() => _display.Tab()); return NamedKeyResult.Pressed;
+            case "HOME": Local(() => _display.Home()); return NamedKeyResult.Pressed;
+            case "LEFT": Local(() => MoveBy(-1)); return NamedKeyResult.Pressed;
+            case "RIGHT": Local(() => MoveBy(1)); return NamedKeyResult.Pressed;
+            case "UP": Local(() => MoveBy(-_display.Columns)); return NamedKeyResult.Pressed;
+            case "DOWN": Local(() => MoveBy(_display.Columns)); return NamedKeyResult.Pressed;
+            case "BACKTAB": notBuiltReason = "Back Tab"; return NamedKeyResult.NotBuilt;
+            case "NEWLINE": notBuiltReason = "New Line"; return NamedKeyResult.NotBuilt;
+            case "BACKSPACE": notBuiltReason = "Backspace"; return NamedKeyResult.NotBuilt;
+            case "DELETE": notBuiltReason = "Delete"; return NamedKeyResult.NotBuilt;
+            case "INSERT": notBuiltReason = "Insert"; return NamedKeyResult.NotBuilt;
+            case "END": notBuiltReason = "End (go to end of field)"; return NamedKeyResult.NotBuilt;
+            case "ERASEEOF": notBuiltReason = "Erase EOF"; return NamedKeyResult.NotBuilt;
+            case "ERASEINPUT": notBuiltReason = "Erase Input"; return NamedKeyResult.NotBuilt;
+            case "DUP": notBuiltReason = "Dup"; return NamedKeyResult.NotBuilt;
+            case "FIELDMARK": notBuiltReason = "Field Mark"; return NamedKeyResult.NotBuilt;
+            case "ATTN": notBuiltReason = "Attn (needs the TN3270 connection to send IAC BRK)"; return NamedKeyResult.NotBuilt;
+            case "SYSREQ": notBuiltReason = "Sys Req"; return NamedKeyResult.NotBuilt;
+            case "CURSORSELECT": notBuiltReason = "Cursor Select"; return NamedKeyResult.NotBuilt;
+            default: return NamedKeyResult.UnknownName;
         }
     }
 
@@ -275,12 +390,6 @@ public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard
             });
         }
 
-        return true;
-    }
-
-    private bool NotBuilt(string what)
-    {
-        KeyNotBuilt?.Invoke(what);
         return true;
     }
 
