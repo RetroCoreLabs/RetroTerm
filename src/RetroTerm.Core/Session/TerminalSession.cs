@@ -543,6 +543,40 @@ public partial class TerminalSession : IDisposable
     /// </summary>
     public Task SendInputAsync(string input, CancellationToken cancellationToken = default)
     {
+        // A block-mode terminal (the IBM 3270) does not put typed text on the line: it types into
+        // its own fields, and only an attention key sends a record. Text from MCP and scripts
+        // (SEND "HERC03\r") must therefore go through the same local keyboard a person uses,
+        // or the host receives raw characters where it expects a 3270 record. CR is the Enter
+        // key and TAB the Tab key; everything else is typed.
+        if (Emulator is Terminal.Input.ILocalKeyboard localKeyboard)
+        {
+            int start = 0;
+            for (int i = 0; i <= input.Length; i++)
+            {
+                bool end = i == input.Length;
+                char c = end ? '\0' : input[i];
+                if (!end && c != '\r' && c != '\t')
+                {
+                    continue;
+                }
+
+                if (i > start)
+                {
+                    localKeyboard.HandleText(input.Substring(start, i - start));
+                }
+
+                if (!end)
+                {
+                    localKeyboard.HandleKey(c == '\r' ? "Enter" : "Tab", false, false, false);
+                }
+
+                start = i + 1;
+            }
+
+            // The keys ran on the pump; wait for them, so a WAITFOR right after sees the result.
+            return FlushAsync();
+        }
+
         // The TERMINAL decides how text becomes bytes, not this method. A TDV line is 8-bit and a
         // modern host behind an ANSI session speaks UTF-8; sending UTF-8 to both — which is what
         // this used to do — puts two bytes on an ND line for every character above 0x7F.

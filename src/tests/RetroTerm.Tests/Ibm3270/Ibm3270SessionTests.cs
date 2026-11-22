@@ -60,4 +60,24 @@ public class Ibm3270SessionTests
         Assert.Equal(new byte[] { 0x7D, 0x40, 0xC8, 0x11, 0x40, 0xC6, 0x88, 0x89 }, sent[0]);
         Assert.Equal(KeyboardLock.WaitingForHost, emulator.Display.Lock);
     }
+
+    [Fact]
+    public async Task TextFromMcpAndScriptsIsTypedNotSentRaw()
+    {
+        // terminal_send / SEND "hi\r" reaches SendInputAsync. For a 3270 it must type "hi" and
+        // press Enter, giving ONE 3270 record - never the raw characters.
+        var emulator = new Ibm3270Emulator();
+        var session = new TerminalSession(emulator, "Test");
+        var connection = new InMemoryConnection();
+        await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+        connection.SimulateReceive(Screen);
+        await session.FlushAsync();
+        connection.ClearSentData();
+
+        await session.SendInputAsync("hi\r", TestContext.Current.CancellationToken);
+
+        var sent = connection.GetSentData();
+        Assert.Single(sent);
+        Assert.Equal(new byte[] { 0x7D, 0x40, 0xC8, 0x11, 0x40, 0xC6, 0x88, 0x89 }, sent[0]);
+    }
 }
