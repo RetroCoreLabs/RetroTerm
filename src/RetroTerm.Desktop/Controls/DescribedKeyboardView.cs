@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 using Avalonia;
@@ -17,46 +18,6 @@ using RetroTerm.Core.Terminal.Input.Keyboards;
 
 namespace RetroTerm.Desktop.Controls
 {
-    /// <summary>
-    /// What one on-screen key press does, after Shift, Lock and Alt are taken into account.
-    /// </summary>
-    public sealed class DescribedKeyPressedEventArgs : EventArgs
-    {
-        /// <summary>
-        /// Creates the arguments.
-        /// </summary>
-        /// <param name="cap">
-        /// The cap that was clicked.
-        /// </param>
-        /// <param name="keyName">
-        /// The key name to press, without the family, or null.
-        /// </param>
-        /// <param name="text">
-        /// The text to type, or null.
-        /// </param>
-        public DescribedKeyPressedEventArgs(KeyCap cap, string? keyName, string? text)
-        {
-            Cap = cap;
-            KeyName = keyName;
-            Text = text;
-        }
-
-        /// <summary>
-        /// The cap that was clicked.
-        /// </summary>
-        public KeyCap Cap { get; }
-
-        /// <summary>
-        /// The key name to press (IBM key names have no family prefix here), or null.
-        /// </summary>
-        public string? KeyName { get; }
-
-        /// <summary>
-        /// The text to type, or null.
-        /// </summary>
-        public string? Text { get; }
-    }
-
     /// <summary>
     /// Draws any <see cref="KeyboardDescription"/> and turns clicks into key presses. One control
     /// for every terminal's keyboard (Ronny, 22 November 2026: one window, one shared model).
@@ -74,6 +35,9 @@ namespace RetroTerm.Desktop.Controls
     /// </remarks>
     public sealed class DescribedKeyboardView : Control
     {
+        private KeyboardDescription? _description;
+        private KeyCap? _pressed;
+
         /// <summary>
         /// Pixels per key unit.
         /// </summary>
@@ -96,8 +60,10 @@ namespace RetroTerm.Desktop.Controls
         // rendered test and a colour fallback font drew I, P and the arrows in blue and purple.
         private static readonly Typeface Face = new Typeface(FontFamily.Default);
 
-        private KeyboardDescription? _description;
-        private KeyCap? _pressed;
+        /// <summary>
+        /// Raised for each key press that does something.
+        /// </summary>
+        public event OnScreenKeyPressed? KeyPressed;
 
         /// <summary>
         /// Creates the control.
@@ -108,11 +74,6 @@ namespace RetroTerm.Desktop.Controls
             // legends (I, L, the arrows) in the rendered image.
             TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
         }
-
-        /// <summary>
-        /// Raised for each key press that does something.
-        /// </summary>
-        public event EventHandler<DescribedKeyPressedEventArgs>? KeyPressed;
 
         /// <summary>
         /// The keyboard drawn, or null for none.
@@ -180,7 +141,7 @@ namespace RetroTerm.Desktop.Controls
 
             if (did)
             {
-                KeyPressed?.Invoke(this, new DescribedKeyPressedEventArgs(cap, keyName, text));
+                KeyPressed?.Invoke(cap, keyName, text);
             }
         }
 
@@ -200,7 +161,7 @@ namespace RetroTerm.Desktop.Controls
                 return null;
             }
 
-            var keys = _description.Keys;
+            IReadOnlyList<KeyCap> keys = _description.Keys;
             for (int i = 0; i < keys.Count; i++)
             {
                 if (CapRect(keys[i]).Contains(point))
@@ -227,7 +188,7 @@ namespace RetroTerm.Desktop.Controls
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {
             base.OnPointerPressed(e);
-            var cap = HitTest(e.GetPosition(this));
+            KeyCap? cap = HitTest(e.GetPosition(this));
             if (cap != null)
             {
                 _pressed = cap;
@@ -256,7 +217,7 @@ namespace RetroTerm.Desktop.Controls
                 return;
             }
 
-            var keys = _description.Keys;
+            IReadOnlyList<KeyCap> keys = _description.Keys;
             for (int i = 0; i < keys.Count; i++)
             {
                 DrawCap(context, keys[i]);
@@ -274,7 +235,7 @@ namespace RetroTerm.Desktop.Controls
 
         private void DrawCap(DrawingContext context, KeyCap cap)
         {
-            var rect = CapRect(cap);
+            Rect rect = CapRect(cap);
             context.DrawRectangle(FillFor(cap), EdgePen, rect, 4, 4);
 
             IBrush ink = cap.Role == KeyRole.Blank ? BlankLegendBrush : LegendBrush;
@@ -338,7 +299,7 @@ namespace RetroTerm.Desktop.Controls
                 return;
             }
 
-            var formatted = Format(text, size, brush, area.Width - 4, TextAlignment.Center);
+            FormattedText formatted = Format(text, size, brush, area.Width - 4, TextAlignment.Center);
             double y = area.Y + (area.Height - formatted.Height) / 2 + yOffset;
             context.DrawText(formatted, new Point(area.X + 2, y));
         }

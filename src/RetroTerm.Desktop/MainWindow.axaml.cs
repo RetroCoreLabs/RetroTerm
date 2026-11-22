@@ -1709,7 +1709,7 @@ public partial class MainWindow : Window
     /// </summary>
     /// <param name="tab">
     /// The tab to pop out. Must be attached to this window (e.g. from
-    /// <see cref="AddTabForTesting"/>).
+    /// <see cref="AddTabForTesting(string)"/>).
     /// </param>
     /// <returns>
     /// The popout window <see cref="PopOutTab"/> created and showed.
@@ -3777,11 +3777,11 @@ public partial class MainWindow : Window
     /// A press on the shared keyboard control (a 3270 keyboard) goes to the active tab's terminal
     /// through its key table; anything that could not be sent is said in the status bar.
     /// </summary>
-    private void OnDescribedKeyPressed(object? sender, DescribedKeyPressedEventArgs e)
+    private void OnDescribedKeyPressed(RetroTerm.Core.Terminal.Input.Keyboards.KeyCap cap, string? keyName, string? text)
     {
         string family = _virtualKeyboardWindow?.CurrentDescribedKeyboard?.Family ?? string.Empty;
         string? problem = RetroTerm.Core.Terminal.Input.Keyboards.OnScreenKeyPress.Deliver(
-            _activeTab?.Session?.Emulator, family, e.KeyName, e.Text);
+            _activeTab?.Session?.Emulator, family, keyName, text);
         if (problem != null)
         {
             UpdateStatus(problem);

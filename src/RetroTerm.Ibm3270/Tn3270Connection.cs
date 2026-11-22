@@ -13,237 +13,265 @@ using System.Threading.Tasks;
 using RetroTerm.Core.Logging;
 using RetroTerm.Core.Protocols;
 
-namespace RetroTerm.Ibm3270;
-
-/// <summary>
-/// A TN3270 connection over TCP. Each <see cref="DataReceived"/> is ONE complete 3270 record, and
-/// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
-/// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
-/// </summary>
-public sealed class Tn3270Connection : IConnection
+namespace RetroTerm.Ibm3270
 {
-    private readonly string _host;
-    private readonly int _port;
-    private readonly object _gate = new object();
-    private readonly Tn3270Protocol _protocol;
-
-    private TcpClient? _client;
-    private NetworkStream? _stream;
-    private CancellationTokenSource? _receiveCts;
-    private Task? _receiveTask;
-
     /// <summary>
-    /// Creates a connection; nothing happens until <see cref="ConnectAsync"/>.
+    /// A TN3270 connection over TCP. Each <see cref="DataReceived"/> is ONE complete 3270 record, and
+    /// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
+    /// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
     /// </summary>
-    /// <param name="host">
-    /// Host name or address.
-    /// </param>
-    /// <param name="port">
-    /// TCP port; TK5 listens on 3270.
-    /// </param>
-    /// <param name="terminalType">
-    /// The TERMINAL-TYPE name sent to the host.
-    /// </param>
-    public Tn3270Connection(string host, int port = 23, string terminalType = "IBM-3278-2")
+    public sealed class Tn3270Connection : IConnection
     {
-        if (string.IsNullOrWhiteSpace(host))
+        private readonly string _host;
+        private readonly int _port;
+        private readonly object _gate = new object();
+        private readonly Tn3270Protocol _protocol;
+
+        private TcpClient? _client;
+        private NetworkStream? _stream;
+        private CancellationTokenSource? _receiveCts;
+        private Task? _receiveTask;
+
+        /// <summary>
+        /// Creates a connection; nothing happens until <see cref="ConnectAsync"/>.
+        /// </summary>
+        /// <param name="host">
+        /// Host name or address.
+        /// </param>
+        /// <param name="port">
+        /// TCP port; TK5 listens on 3270.
+        /// </param>
+        /// <param name="terminalType">
+        /// The TERMINAL-TYPE name sent to the host.
+        /// </param>
+        public Tn3270Connection(string host, int port = 23, string terminalType = "IBM-3278-2")
         {
-            throw new ArgumentException("Host cannot be empty", nameof(host));
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                throw new ArgumentException("Host cannot be empty", nameof(host));
+            }
+
+            if (port <= 0 || port > 65535)
+            {
+                throw new ArgumentException("Port must be between 1 and 65535", nameof(port));
+            }
+
+            _host = host;
+            _port = port;
+            Description = host + ":" + port;
+            _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
+            _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
+            _protocol.ProtocolError += message =>
+            {
+                ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
+                ErrorOccurred?.Invoke(new InvalidOperationException(message));
+            };
         }
 
-        if (port <= 0 || port > 65535)
+        /// <summary>
+        /// Raised when the connection status changes.
+        /// </summary>
+        public event Action<ConnectionStatus>? StatusChanged;
+
+        /// <summary>
+        /// Raised with each complete 3270 record from the host, without telnet framing.
+        /// </summary>
+        public event Action<ReadOnlyMemory<byte>>? DataReceived;
+
+        /// <summary>
+        /// Raised when the connection fails.
+        /// </summary>
+        public event Action<Exception>? ErrorOccurred;
+
+        /// <summary>
+        /// The connection status now.
+        /// </summary>
+        public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
+
+        /// <summary>
+        /// The protocol name shown in the UI: TN3270.
+        /// </summary>
+        public string ConnectionType => "TN3270";
+
+        /// <summary>
+        /// The host and port, for the UI.
+        /// </summary>
+        public string Description { get; }
+
+        /// <summary>
+        /// Opens the TCP connection and starts the TN3270 negotiation.
+        /// </summary>
+        /// <param name="cancellationToken">
+        /// Stops the connect attempt.
+        /// </param>
+        /// <returns>
+        /// A task that completes when the socket is open.
+        /// </returns>
+        public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            throw new ArgumentException("Port must be between 1 and 65535", nameof(port));
-        }
+            if (Status != ConnectionStatus.Disconnected)
+            {
+                throw new InvalidOperationException("Cannot connect when status is " + Status);
+            }
 
-        _host = host;
-        _port = port;
-        Description = host + ":" + port;
-        _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
-        _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
-        _protocol.ProtocolError += message =>
-        {
-            ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
-            ErrorOccurred?.Invoke(new InvalidOperationException(message));
-        };
-    }
-
-    /// <inheritdoc/>
-    public event Action<ConnectionStatus>? StatusChanged;
-
-    /// <inheritdoc/>
-    public event Action<ReadOnlyMemory<byte>>? DataReceived;
-
-    /// <inheritdoc/>
-    public event Action<Exception>? ErrorOccurred;
-
-    /// <inheritdoc/>
-    public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
-
-    /// <inheritdoc/>
-    public string ConnectionType => "TN3270";
-
-    /// <inheritdoc/>
-    public string Description { get; }
-
-    /// <inheritdoc/>
-    public async Task ConnectAsync(CancellationToken cancellationToken = default)
-    {
-        if (Status != ConnectionStatus.Disconnected)
-        {
-            throw new InvalidOperationException("Cannot connect when status is " + Status);
-        }
-
-        try
-        {
-            SetStatus(ConnectionStatus.Connecting);
-            _client = new TcpClient();
-            await _client.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
-            _stream = _client.GetStream();
-            _receiveCts = new CancellationTokenSource();
-            _receiveTask = ReceiveLoopAsync(_receiveCts.Token);
-            SetStatus(ConnectionStatus.Connected);
-        }
-        catch (Exception ex)
-        {
-            SetStatus(ConnectionStatus.Error);
-            ErrorOccurred?.Invoke(ex);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Sends one inbound 3270 record (from <see cref="Ibm3270Emulator"/>); IAC EOR is added here.
-    /// </summary>
-    /// <param name="data">
-    /// The record.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// Not used: the write is synchronous under the connection's lock.
-    /// </param>
-    /// <returns>
-    /// A completed task.
-    /// </returns>
-    public Task SendAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
-    {
-        if (Status != ConnectionStatus.Connected || _stream == null)
-        {
-            throw new InvalidOperationException("Cannot send when status is " + Status);
-        }
-
-        lock (_gate)
-        {
-            _protocol.SendRecord(data.Span);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Sends IAC BRK, which is what the Attn key does in plain TN3270.
-    /// </summary>
-    public void SendAttention()
-    {
-        lock (_gate)
-        {
-            _protocol.SendBreak();
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task DisconnectAsync()
-    {
-        if (Status == ConnectionStatus.Disconnected)
-        {
-            return;
-        }
-
-        SetStatus(ConnectionStatus.Disconnecting);
-        _receiveCts?.Cancel();
-        if (_receiveTask != null)
-        {
             try
             {
-                await _receiveTask.ConfigureAwait(false);
+                SetStatus(ConnectionStatus.Connecting);
+                _client = new TcpClient();
+                await _client.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
+                _stream = _client.GetStream();
+                _receiveCts = new CancellationTokenSource();
+                _receiveTask = ReceiveLoopAsync(_receiveCts.Token);
+                SetStatus(ConnectionStatus.Connected);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ConnectionStatus.Error);
+                ErrorOccurred?.Invoke(ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Sends one inbound 3270 record (from <see cref="Ibm3270Emulator"/>); IAC EOR is added here.
+        /// </summary>
+        /// <param name="data">
+        /// The record.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Not used: the write is synchronous under the connection's lock.
+        /// </param>
+        /// <returns>
+        /// A completed task.
+        /// </returns>
+        public Task SendAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+        {
+            if (Status != ConnectionStatus.Connected || _stream == null)
+            {
+                throw new InvalidOperationException("Cannot send when status is " + Status);
+            }
+
+            lock (_gate)
+            {
+                _protocol.SendRecord(data.Span);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Sends IAC BRK, which is what the Attn key does in plain TN3270.
+        /// </summary>
+        public void SendAttention()
+        {
+            lock (_gate)
+            {
+                _protocol.SendBreak();
+            }
+        }
+
+        /// <summary>
+        /// Closes the connection.
+        /// </summary>
+        /// <returns>
+        /// A task that completes when the socket is closed.
+        /// </returns>
+        public async Task DisconnectAsync()
+        {
+            if (Status == ConnectionStatus.Disconnected)
+            {
+                return;
+            }
+
+            SetStatus(ConnectionStatus.Disconnecting);
+            _receiveCts?.Cancel();
+            if (_receiveTask != null)
+            {
+                try
+                {
+                    await _receiveTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected: the loop was cancelled on purpose.
+                }
+            }
+
+            _stream?.Close();
+            _client?.Close();
+            _stream = null;
+            _client = null;
+            SetStatus(ConnectionStatus.Disconnected);
+        }
+
+        /// <summary>
+        /// Closes the connection and frees the socket.
+        /// </summary>
+        public void Dispose()
+        {
+            _receiveCts?.Cancel();
+            _stream?.Dispose();
+            _client?.Dispose();
+            _receiveCts?.Dispose();
+        }
+
+        private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+        {
+            byte[] buffer = new byte[8192];
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested && _stream != null)
+                {
+                    int read = await _stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Tn3270Connection",
+                            "Read 0 bytes - connection closed by remote host");
+                        break;
+                    }
+
+                    lock (_gate)
+                    {
+                        _protocol.Feed(buffer.AsSpan(0, read));
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
-                // Expected: the loop was cancelled on purpose.
+                return;
             }
-        }
-
-        _stream?.Close();
-        _client?.Close();
-        _stream = null;
-        _client = null;
-        SetStatus(ConnectionStatus.Disconnected);
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        _receiveCts?.Cancel();
-        _stream?.Dispose();
-        _client?.Dispose();
-        _receiveCts?.Dispose();
-    }
-
-    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
-    {
-        byte[] buffer = new byte[8192];
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _stream != null)
+            catch (Exception ex)
             {
-                int read = await _stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-                if (read == 0)
-                {
-                    ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Tn3270Connection",
-                        "Read 0 bytes - connection closed by remote host");
-                    break;
-                }
+                ErrorOccurred?.Invoke(ex);
+            }
 
-                lock (_gate)
-                {
-                    _protocol.Feed(buffer.AsSpan(0, read));
-                }
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                SetStatus(ConnectionStatus.Disconnected);
             }
         }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-        catch (Exception ex)
-        {
-            ErrorOccurred?.Invoke(ex);
-        }
 
-        if (!cancellationToken.IsCancellationRequested)
+        private void WriteToSocket(ReadOnlyMemory<byte> bytes)
         {
-            SetStatus(ConnectionStatus.Disconnected);
-        }
-    }
+            // Called with _gate held, from the receive loop (negotiation replies) or SendAsync.
+            NetworkStream? stream = _stream;
+            if (stream == null)
+            {
+                throw new InvalidOperationException("Not connected.");
+            }
 
-    private void WriteToSocket(ReadOnlyMemory<byte> bytes)
-    {
-        // Called with _gate held, from the receive loop (negotiation replies) or SendAsync.
-        NetworkStream? stream = _stream;
-        if (stream == null)
-        {
-            throw new InvalidOperationException("Not connected.");
+            stream.Write(bytes.Span);
         }
 
-        stream.Write(bytes.Span);
-    }
-
-    private void SetStatus(ConnectionStatus status)
-    {
-        if (Status == status)
+        private void SetStatus(ConnectionStatus status)
         {
-            return;
-        }
+            if (Status == status)
+            {
+                return;
+            }
 
-        Status = status;
-        StatusChanged?.Invoke(status);
+            Status = status;
+            StatusChanged?.Invoke(status);
+        }
     }
 }

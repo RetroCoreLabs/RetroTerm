@@ -245,7 +245,7 @@ public partial class TerminalSession : IDisposable
         // on the UI thread. Hand it the pump, the only thread allowed to change an emulator.
         if (Emulator is Terminal.Input.ILocalKeyboard localKeyboard)
         {
-            localKeyboard.SessionThread = job => _ = _pump.RunAsync(job);
+            localKeyboard.SessionThread = job => _ = _pump.RunAsync(() => job());
         }
     }
 

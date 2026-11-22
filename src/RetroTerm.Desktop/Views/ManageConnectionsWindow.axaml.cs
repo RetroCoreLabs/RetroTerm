@@ -63,8 +63,8 @@ public partial class ManageConnectionsWindow : Window
     private RadioButton? _opcomSimRadio;
     private RadioButton? _tn3270Radio;
 
-    // The stream terminal chosen before TN3270 was, put back when TN3270 is unchosen.
-    private string? _streamTerminalBeforeTn3270;
+    // The protocol's terminal rule, and the choice made before TN3270 (Core, shared).
+    private readonly TerminalChoiceTracker _terminalChoice = new();
     private TextBox? _hostBox;
     private TextBox? _portBox;
     private TextBox? _usernameBox;
@@ -1287,43 +1287,21 @@ public partial class ManageConnectionsWindow : Window
     }
 
     /// <summary>
-    /// The terminal box follows the protocol, by the same rule as Quick Connect and MCP
-    /// (ConnectionFactory.EmulatorTypeFor): TN3270 shows the IBM 3278 model 2, greyed, and saves
-    /// it with the connection; leaving TN3270 puts the stream terminals and the earlier choice back.
+    /// Puts the protocol's terminal rule on the terminal box (TN3270 shows the IBM 3278, fixed).
     /// </summary>
     /// <param name="protocol">
     /// The protocol name as the profile stores it.
     /// </param>
+    /// <remarks>
+    /// The rule is shared with Quick Connect (<see cref="TerminalChoiceBox"/>). The box's own
+    /// change handler writes the shown terminal into the profile.
+    /// </remarks>
     private void ApplyTerminalRuleForProtocol(string protocol)
     {
-        if (_emulatorCombo == null)
+        if (_emulatorCombo != null)
         {
-            return;
+            TerminalChoiceBox.Apply(_emulatorCombo, _terminalChoice, ConnectionFactory.ParseProtocolType(protocol));
         }
-
-        var type = ConnectionFactory.ParseProtocolType(protocol);
-        bool tn3270 = type == ConnectionFactory.ProtocolType.TN3270;
-        bool showing3270 = _emulatorCombo.ItemsSource is string[] items && items.Length == 1
-            && items[0] == ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, null);
-
-        if (tn3270)
-        {
-            if (!showing3270)
-            {
-                _streamTerminalBeforeTn3270 = _emulatorCombo.SelectedItem as string;
-                _emulatorCombo.ItemsSource = new[] { ConnectionFactory.EmulatorTypeFor(type, null) };
-            }
-
-            _emulatorCombo.SelectedIndex = 0;
-            _viewModel.CurrentProfile.EmulatorType = ConnectionFactory.EmulatorTypeFor(type, null);
-        }
-        else if (showing3270)
-        {
-            _emulatorCombo.ItemsSource = RetroTerm.Core.Configuration.EmulatorFactory.AvailableEmulators;
-            _emulatorCombo.SelectedItem = _streamTerminalBeforeTn3270 ?? "VT100";
-        }
-
-        _emulatorCombo.IsEnabled = !tn3270;
     }
 
     private void SetProtocolRadio(string protocol)

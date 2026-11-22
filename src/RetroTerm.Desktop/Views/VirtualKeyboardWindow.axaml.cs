@@ -32,14 +32,11 @@ namespace RetroTerm.Desktop.Views
         private IReadOnlyList<KeyboardDescription>? _describedKeyboards;
         private bool _settingChoice;
 
-        // The keyboard last chosen, per key family, so switching tabs back and forth keeps it.
-        private static readonly Dictionary<string, string> ChosenKeyboardByFamily = new();
-
         /// <summary>
-        /// Raised when a key on the shared keyboard control is pressed: the key name (without the
-        /// family) or the text to type. MainWindow hands it to the active tab's terminal.
+        /// Raised when a key on the shared keyboard control is pressed. MainWindow hands it to the
+        /// active tab's terminal.
         /// </summary>
-        public event EventHandler<DescribedKeyPressedEventArgs>? DescribedKeyPressed;
+        public event OnScreenKeyPressed? DescribedKeyPressed;
 
         /// <summary>
         /// True while the window shows a described keyboard (a 3270 tab) instead of the TDV panel.
@@ -53,15 +50,19 @@ namespace RetroTerm.Desktop.Views
 
         /// <summary>
         /// Shows the keyboard that belongs to the active tab's terminal: its own descriptions when
-        /// it has them (the 3270), otherwise the TDV panel. The window stays open and resizes to
-        /// fit, so every key is visible (Ronny, 22 November 2026).
+        /// it has them (the 3270), otherwise the TDV panel.
         /// </summary>
         /// <param name="keyboards">
         /// The terminal's keyboards, or null for a terminal without descriptions.
         /// </param>
+        /// <remarks>
+        /// The window stays open across tab changes and resizes to fit, so every key is visible
+        /// (Ronny, 22 November 2026). Which keyboard is shown comes from
+        /// <see cref="OnScreenKeyboardChoice"/> in Core.
+        /// </remarks>
         public void ShowKeyboardsFor(IReadOnlyList<KeyboardDescription>? keyboards)
         {
-            if (_describedPanel == null || _describedChoice == null || _describedKeyboard == null || _virtualKeyboard == null)
+            if (_describedPanel == null || _describedChoice == null || _virtualKeyboard == null)
             {
                 return;
             }
@@ -78,39 +79,30 @@ namespace RetroTerm.Desktop.Views
                 return;
             }
 
+            _virtualKeyboard.IsVisible = false;
+            _describedPanel.IsVisible = true;
+
             if (!ReferenceEquals(keyboards, _describedKeyboards))
             {
                 _describedKeyboards = keyboards;
-                int chosen = 0;
-                ChosenKeyboardByFamily.TryGetValue(keyboards[0].Family, out string? chosenId);
+                int chosen = OnScreenKeyboardChoice.IndexToShow(keyboards);
 
                 _settingChoice = true;
                 _describedChoice.Items.Clear();
                 for (int i = 0; i < keyboards.Count; i++)
                 {
                     _describedChoice.Items.Add(keyboards[i].Name);
-                    if (keyboards[i].Id == chosenId)
-                    {
-                        chosen = i;
-                    }
                 }
 
                 _describedChoice.SelectedIndex = chosen;
                 _settingChoice = false;
-                _describedKeyboard.Description = keyboards[chosen];
+                ShowDescribed(keyboards[chosen]);
             }
-
-            _virtualKeyboard.IsVisible = false;
-            _describedPanel.IsVisible = true;
-            Title = "Virtual Keyboard - " + _describedKeyboard.Description?.Name;
-
-            // Fit the window to the keyboard so no key is cut off.
-            SizeToContent = SizeToContent.WidthAndHeight;
         }
 
         private void OnDescribedChoiceChanged(object? sender, SelectionChangedEventArgs e)
         {
-            if (_settingChoice || _describedKeyboards == null || _describedChoice == null || _describedKeyboard == null)
+            if (_settingChoice || _describedKeyboards == null || _describedChoice == null)
             {
                 return;
             }
@@ -121,8 +113,18 @@ namespace RetroTerm.Desktop.Views
                 return;
             }
 
-            var keyboard = _describedKeyboards[i];
-            ChosenKeyboardByFamily[keyboard.Family] = keyboard.Id;
+            OnScreenKeyboardChoice.Remember(_describedKeyboards[i]);
+            ShowDescribed(_describedKeyboards[i]);
+        }
+
+        // Draws one keyboard and fits the window to it, so no key is cut off.
+        private void ShowDescribed(KeyboardDescription keyboard)
+        {
+            if (_describedKeyboard == null)
+            {
+                return;
+            }
+
             _describedKeyboard.Description = keyboard;
             Title = "Virtual Keyboard - " + keyboard.Name;
             SizeToContent = SizeToContent.WidthAndHeight;
@@ -195,7 +197,7 @@ namespace RetroTerm.Desktop.Views
 
             if (_describedKeyboard != null)
             {
-                _describedKeyboard.KeyPressed += (s, e) => DescribedKeyPressed?.Invoke(this, e);
+                _describedKeyboard.KeyPressed += (cap, keyName, text) => DescribedKeyPressed?.Invoke(cap, keyName, text);
             }
 
             // Handle window closing to unsubscribe
