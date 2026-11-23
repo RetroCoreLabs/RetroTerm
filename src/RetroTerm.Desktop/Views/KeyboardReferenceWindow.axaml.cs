@@ -367,8 +367,8 @@ public partial class KeyboardReferenceWindow : Window
                     }
 
                     // Pressed on a throwaway emulator that is connected to nothing, so the page asks
-                    // the same code a real press runs whether the key is built (Backspace waits on a
-                    // decision, KEYBOARD.md open question 3) rather than keeping its own list.
+                    // the same code a real press runs whether the key is built, rather than keeping its own
+                    // list. Since Backspace was built (23 November 2026) no key answers not built.
                     var probe = new RetroTerm.Ibm3270.Ibm3270Emulator();
                     bool built = probe.PressNamedKey(order[k], out _) != NamedKeyResult.NotBuilt;
                     found.Add((pc, order[k], !built

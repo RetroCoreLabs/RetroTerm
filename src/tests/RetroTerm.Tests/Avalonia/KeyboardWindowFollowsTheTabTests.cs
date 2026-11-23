@@ -93,13 +93,14 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
-        public void APressForAnotherFamilyOrAnUnbuiltKeyIsRefusedWithAReason()
+        public void APressForAnotherFamilyIsRefusedWithAReasonAndBackspaceIsDelivered()
         {
             string? wrongFamily = OnScreenKeyPress.Deliver(new TDV2200Emulator(80, 24), "IBM", "ENTER", null);
-            string? notBuilt = OnScreenKeyPress.Deliver(new Ibm3270Emulator(), "IBM", "BACKSPACE", null);
+            // Backspace was the last key not built; it erases left since 23 November 2026.
+            string? backspace = OnScreenKeyPress.Deliver(new Ibm3270Emulator(), "IBM", "BACKSPACE", null);
 
             Assert.Contains("not a key of this tab", wrongFamily);
-            Assert.Contains("not built yet", notBuilt);
+            Assert.Null(backspace);
         }
     }
 }

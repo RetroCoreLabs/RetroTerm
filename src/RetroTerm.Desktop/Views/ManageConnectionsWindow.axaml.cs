@@ -72,6 +72,9 @@ public partial class ManageConnectionsWindow : Window
     private ComboBox? _emulatorCombo;
     private ComboBox? _sizeCombo;
 
+    // True while RefreshSizeBox refills the size box, so its own selections are not written back.
+    private bool _refreshingSizeBox;
+
     /// <summary>
     /// Whether this connection follows the window or keeps the size above.
     /// </summary>
@@ -282,8 +285,13 @@ public partial class ManageConnectionsWindow : Window
         // list that lives somewhere else is a promise to update two places forever.
         _terminalPanel.Children.Add(CreateLabeledComboBox("Terminal Type", out _emulatorCombo,
             RetroTerm.Core.Configuration.EmulatorFactory.AvailableEmulators));
+        // The sizes follow the terminal (TerminalSizeChoices, Ronny 23 November 2026): a 3278
+        // lists its four models, a terminal that follows the window takes any size typed in, and
+        // every other terminal shows its one screen. RefreshSizeBox fills it.
         _terminalPanel.Children.Add(CreateLabeledComboBox("Terminal Size", out _sizeCombo,
-            new[] { "80x24", "80x25", "132x24", "132x25", "80x43", "80x50" }));
+            TerminalSizeChoices.AnySizeShortcuts));
+        if (_sizeCombo != null) _sizeCombo.Name = "SizeCombo";
+        if (_emulatorCombo != null) _emulatorCombo.Name = "EmulatorCombo";
         // Straight after the size, because it says what that size MEANS: a fixed connection keeps
         // it, and one following the window overrides it on the first arrange. The choices come from
         // the view model rather than being listed again here.
@@ -348,16 +356,33 @@ public partial class ManageConnectionsWindow : Window
         {
             _emulatorCombo.SelectionChanged += (_, _) =>
             {
-                if (_emulatorCombo.SelectedItem is string emu)
+                // IBM-3278 is the family; the size box picks the model and writes it.
+                if (_emulatorCombo.SelectedItem is string emu && emu != TerminalSizeChoices.Ibm3278)
+                {
                     _viewModel.CurrentProfile.EmulatorType = emu;
+                    RefreshSizeBox();
+                }
             };
         }
         if (_sizeCombo != null)
         {
             _sizeCombo.SelectionChanged += (_, _) =>
             {
-                if (_sizeCombo.SelectedItem is string size)
-                    _viewModel.CurrentProfile.Size = size;
+                if (_refreshingSizeBox || _sizeCombo.SelectedItem is not string size) return;
+                string? model = TerminalSizeChoices.ModelFor(size);
+                if (model != null)
+                    _viewModel.CurrentProfile.EmulatorType = model;
+                else if (TerminalSizeChoices.TryParse(size, out int columns, out int rows))
+                    _viewModel.CurrentProfile.Size = TerminalSizeChoices.Format(columns, rows);
+            };
+            // A typed size (only possible where the box is editable): kept when it is a size, held
+            // to the limits in TerminalSizeChoices.TryParse; anything else leaves the stored size.
+            // Watched through the property, because TextChanged does not fire on a set from code.
+            _sizeCombo.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != ComboBox.TextProperty || _refreshingSizeBox || !_sizeCombo.IsEditable) return;
+                if (TerminalSizeChoices.TryParse(_sizeCombo.Text, out int columns, out int rows))
+                    _viewModel.CurrentProfile.Size = TerminalSizeChoices.Format(columns, rows);
             };
         }
         if (_screenSizeModeCombo != null)
@@ -1265,8 +1290,17 @@ public partial class ManageConnectionsWindow : Window
 
         // The terminal box follows the protocol through SetProtocolRadio above (its change event
         // applies ApplyTerminalRuleForProtocol), so a saved TN3270 connection shows the 3278 models.
-        if (_emulatorCombo != null) _emulatorCombo.SelectedItem = savedTerminal;
-        if (_sizeCombo != null) _sizeCombo.SelectedItem = profile.Size;
+        if (TerminalSizeChoices.Is3278(savedTerminal))
+        {
+            // The box shows IBM-3278; the saved model goes back into the profile and the size box.
+            profile.EmulatorType = savedTerminal;
+        }
+        else if (_emulatorCombo != null)
+        {
+            _emulatorCombo.SelectedItem = savedTerminal;
+        }
+
+        RefreshSizeBox();
         if (_screenSizeModeCombo != null) _screenSizeModeCombo.SelectedItem = profile.ScreenSizeMode;
         if (_languageCombo != null) _languageCombo.SelectedItem = profile.Language;
         // Terminal colours: select the matching list entry without writing anything back.
@@ -1359,6 +1393,47 @@ public partial class ManageConnectionsWindow : Window
         if (_emulatorCombo != null)
         {
             TerminalChoiceBox.Apply(_emulatorCombo, _terminalChoice, ConnectionFactory.ParseProtocolType(protocol));
+
+            // On TN3270 the box shows the family; the model it picked moves to the size box.
+            if (_emulatorCombo.SelectedItem is string chosen && TerminalSizeChoices.Is3278(chosen))
+            {
+                _viewModel.CurrentProfile.EmulatorType = chosen;
+                _emulatorCombo.ItemsSource = new[] { TerminalSizeChoices.Ibm3278 };
+                _emulatorCombo.SelectedItem = TerminalSizeChoices.Ibm3278;
+            }
+
+            RefreshSizeBox();
+        }
+    }
+
+    /// <summary>
+    /// Fills the size box for the profile's terminal and selects the profile's size.
+    /// </summary>
+    /// <remarks>
+    /// A 3278 selects its model; a terminal that takes any size becomes editable and shows the
+    /// stored size even when it is not one of the shortcuts; any other terminal shows its one
+    /// size. Nothing is written to the profile while the box is refilled.
+    /// </remarks>
+    private void RefreshSizeBox()
+    {
+        if (_sizeCombo == null) return;
+        string terminal = _viewModel.CurrentProfile.EmulatorType;
+        _refreshingSizeBox = true;
+        try
+        {
+            string[] items = TerminalSizeChoices.For(terminal);
+            _sizeCombo.ItemsSource = items;
+            _sizeCombo.IsEditable = TerminalSizeChoices.AllowsAnySize(terminal);
+            string wanted = TerminalSizeChoices.LabelFor3278(terminal) ?? _viewModel.CurrentProfile.Size;
+            _sizeCombo.SelectedItem = System.Array.IndexOf(items, wanted) >= 0 ? wanted : null;
+            if (_sizeCombo.IsEditable)
+                _sizeCombo.Text = wanted;
+            else if (_sizeCombo.SelectedItem == null && items.Length > 0)
+                _sizeCombo.SelectedItem = items[0];
+        }
+        finally
+        {
+            _refreshingSizeBox = false;
         }
     }
 

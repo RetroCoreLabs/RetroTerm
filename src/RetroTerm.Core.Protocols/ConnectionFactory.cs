@@ -569,6 +569,18 @@ public static class ConnectionFactory
     public static readonly string[] Ibm3278Models = { "IBM-3278-2", "IBM-3278-3", "IBM-3278-4", "IBM-3278-5" };
 
     /// <summary>
+    /// The screen of each entry of <see cref="Ibm3278Models"/>, in the same order, as columns x
+    /// rows: 24 x 80, 32 x 80, 43 x 80 and 27 x 132 (RFC 1576 section 4; x3270 include\3270ds.h,
+    /// MODEL_n_ROWS and MODEL_n_COLS).
+    /// </summary>
+    /// <remarks>
+    /// The emulator builds its screen from its own copy of these numbers (Ibm3270Emulator,
+    /// AlternateRows and AlternateColumns); a test builds every model and compares, so the two
+    /// cannot drift apart.
+    /// </remarks>
+    public static readonly string[] Ibm3278ModelSizes = { "80x24", "80x32", "80x43", "132x27" };
+
+    /// <summary>
     /// The terminal a connection must use, whatever was picked. TN3270 carries 3270 records,
     /// not a character stream, so only an IBM 3278 can sit on it: the model picked, or the model 2
     /// when anything else was picked. Every other protocol keeps the choice. ONE rule for the

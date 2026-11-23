@@ -496,7 +496,7 @@ is clickable on the on-screen keyboard regardless of this table.
 | Ctrl+Shift+End | ERASE INPUT | PROPOSAL; neither oracle has a key |
 | Insert | Insert mode on/off | both oracles |
 | Delete | Delete | both |
-| Backspace | ← (IBM, moves only) **or** erase left (wc3270) | Open question 3 |
+| Backspace | Erase left, as wc3270 (`Display3270.Erase`, x3270's Erase action) | Decided by Ronny, 23 November 2026 |
 | Tab, Shift+Tab | Tab, Back Tab | both |
 | Home | Home | both |
 | End | go to end of field | both |
@@ -532,7 +532,7 @@ is clickable on the on-screen keyboard regardless of this table.
    uses Alt+H, D, U, P, S, Backspace, M, F, X, A, L, R, E, W, K, V, J, I, 1-8, F1-F8, Delete, PgUp,
    PgDn. A 3270 Alt map needs its own table per emulation. **NOT VERIFIED:** whether the user's saved
    key bindings are stored per emulation or shared.
-9. **Backspace**: IBM moves the cursor; wc3270 erases. Users of PC emulators expect erase.
+9. **Backspace**: DECIDED 23 November 2026, erase left as wc3270 does. IBM's own key only moved the cursor; wc3270's built-in key map (x3270 source, Common\fb-c3270) gives Backspace the Erase action, and that is what RetroTerm does.
 10. **Esc**: Reset (proposal) versus anything RetroTerm itself does with Esc today (not checked).
 
 ### 8.2 How the on-screen keyboard follows the TDV one

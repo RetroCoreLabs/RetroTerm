@@ -159,15 +159,15 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
-        public async Task AKeyThatIsNotBuiltFailsAndSendsNothing()
+        public async Task BackspaceIsALocalKeyThatSucceedsAndSendsNothing()
         {
+            // Built 23 November 2026 as erase left (wc3270); it used to be the one key not built.
             var (session, connection) = await Open(new Ibm3270Emulator());
             connection.ClearSentData();
 
             var result = await SendKey(session, "IBM.BACKSPACE");
 
-            Assert.False(result.Success);
-            Assert.Contains("does not do yet", result.Error);
+            Assert.True(result.Success, result.Error);
             Assert.Empty(connection.GetSentData());
         }
 

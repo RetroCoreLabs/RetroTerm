@@ -483,7 +483,7 @@ namespace RetroTerm.Ibm3270
                 case "DOWN": Local(() => _display.MoveCursorBy(0, 1)); return NamedKeyResult.Pressed;
                 case "BACKTAB": Local(() => _display.BackTab()); return NamedKeyResult.Pressed;
                 case "NEWLINE": Local(() => _display.NewLine()); return NamedKeyResult.Pressed;
-                case "BACKSPACE": notBuiltReason = "Backspace"; return NamedKeyResult.NotBuilt;
+                case "BACKSPACE": Local(() => _display.Erase()); return NamedKeyResult.Pressed; // erase left, as wc3270 (Ronny, 23 November 2026)
                 case "DELETE": Local(() => _display.Delete()); return NamedKeyResult.Pressed;
                 case "INSERT": Local(() => _display.ToggleInsert()); return NamedKeyResult.Pressed;
                 case "END": Local(() => _display.FieldEnd()); return NamedKeyResult.Pressed;
@@ -778,6 +778,22 @@ namespace RetroTerm.Ibm3270
         {
             AlternateRows(model);
             return "IBM-3278-" + model.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-E";
+        }
+
+        /// <summary>
+        /// A model's alternate screen, the one an Erase/Write Alternate switches to, as columns x
+        /// rows: such as "132x27" for model 5.
+        /// </summary>
+        /// <param name="model">
+        /// 2, 3, 4 or 5.
+        /// </param>
+        /// <returns>
+        /// The size, written the way a connection stores it.
+        /// </returns>
+        public static string AlternateScreenSize(int model)
+        {
+            return AlternateColumns(model).ToString(System.Globalization.CultureInfo.InvariantCulture) + "x"
+                + AlternateRows(model).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         // The alternate screen sizes (RFC 1576 section 4; x3270 include\3270ds.h, MODEL_n_ROWS).

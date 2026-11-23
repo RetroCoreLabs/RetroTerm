@@ -124,15 +124,20 @@ public class Ibm3270KeyboardTests
     }
 
     [AvaloniaFact]
-    public void AKeyNotBuiltYetIsReportedAndNotSentToTheHost()
+    public void BackspaceErasesLeftOnTheScreenAndSendsNothing()
     {
+        // Erase left, as wc3270 does (Ronny, 23 November 2026; KEYBOARD.md open question 3).
         var (window, emulator, records, mapperOutput) = Build();
         var notBuilt = new List<string>();
         emulator.KeyNotBuilt += notBuilt.Add;
+        window.KeyTextInput("hi");
 
         window.KeyPressQwerty(PhysicalKey.Backspace, RawInputModifiers.None);
 
-        Assert.Single(notBuilt);
+        Assert.Empty(notBuilt);
+        Assert.Equal('h', (char)emulator.Buffer.GetCell(0, 6).Codepoint);
+        Assert.NotEqual('i', (char)emulator.Buffer.GetCell(0, 7).Codepoint);
+        Assert.Equal(7, emulator.Cursor.Column);
         Assert.Empty(records);
         Assert.Equal(string.Empty, mapperOutput.ToString());
         window.Close();

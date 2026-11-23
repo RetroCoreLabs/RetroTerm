@@ -56,12 +56,6 @@ public class Ibm3270KeyReferenceTests
         // the host.
         for (int i = 0; i < rows.Count; i++)
         {
-            if (rows[i].Key3270 == "BACKSPACE")
-            {
-                // Not built: waits on a decision (KEYBOARD.md open question 3).
-                Assert.Equal("Not built yet: does nothing", rows[i].Description);
-                continue;
-            }
 
             Assert.Equal(Ibm3270Emulator.IsAttentionKey(rows[i].Key3270), rows[i].Description == "Sends to the host");
         }

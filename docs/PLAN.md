@@ -71,9 +71,7 @@ clean-room rewrite in C#.
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] 3270 Backspace erases left, as wc3270 does (Ronny, 23 November 2026)
-- [ ] 3270 double-click moves the cursor there and presses Enter, as wc3270 does (Ronny, 23 November 2026)
-- [ ] Terminal Size box follows the chosen terminal (Ronny, 23 November 2026): only the sizes that terminal really had; a 3270 shows IBM 3278 in Terminal Type and the four models in the size box; DEC sizes checked against DEC's manuals first; a terminal that may follow the window (xterm and the others with the HostResize flag) takes any width and height typed in, not a fixed list (Ronny, 23 November 2026: "some terminals allow free-size, like xterm")
+- [ ] 3270 double-click: ASK AGAIN. Ronny chose "move the cursor and press Enter, as wc3270" on a wrong description; wc3270 (select.c, SE_DOUBLE_CLICK) and x3270 (SelectUp) both select a word on a double-click and never press Enter
 - [ ] TN3270E built now from RFC 2355, checked against the oracle code (x3270, tnz) and recorded-byte tests, since TK5 cannot test it (Ronny, 23 November 2026)
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
@@ -137,7 +135,7 @@ clean-room rewrite in C#.
 - **Where the code lives** (22 November 2026, from a proposal Ronny got from ChatGPT, checked against both repos): the 3270 data stream, the 3270 screen model (buffer, fields, cursor, keyboard lock, building the reply on Enter/PF/PA — usable with no network and no window) and later the 3287 printer model go in **RetroIO**, so a future System/360/370 emulator can drive the same model as its console. RetroTerm keeps drawing, tabs, PC-key-to-3270-key mapping and where printouts go. RetroTerm takes RetroIO as NuGet packages, the way RetroCommander, RetroServer and RetroX25 already do (RetroTerm uses none today)
 - **One Telnet in RetroIO** used by everything: today telnet is written four times (RetroTerm `TelnetConnection`, RetroTerm `TelnetServer`/`TelnetCodec`/`TelnetNegotiator`/`TelnetSession`, RetroIO X.25 `TelnetPadServer`, RetroIO X.25 switch `TelnetCliServer`). Build it with TN3270's needs and TLS (client and server) designed in; move the four users onto it one at a time, each with its own tests
 
-**Settled without asking, because the rule is to do what the hardware did** (KEYBOARD.md section 9): a typing error locks the keyboard (IBM), keys pressed while locked are refused (IBM), Backspace moves left without erasing (IBM), insert room is "one less than the blanks left in the field" (IBM), numeric-only checking follows the 3274 manual figure 6-2.
+**Settled without asking, because the rule is to do what the hardware did** (KEYBOARD.md section 9): a typing error locks the keyboard (IBM), keys pressed while locked are refused (IBM), Backspace erases left (wc3270; overruled by Ronny on 23 November 2026, the one place RetroTerm follows wc3270 rather than IBM), insert room is "one less than the blanks left in the field" (IBM), numeric-only checking follows the 3274 manual figure 6-2.
 
 - [ ] Font: search for a dump of a real IBM 3278/3279/3179/3191 character generator ROM (MAME, bitsavers, vintage keyboard/terminal sites) and IBM's published glyph drawings (GA27-2837-9 draws every character); build the RetroTerm 3270 font from the ROM if one exists, else from the manual's drawings. Check the licence of anything used. Also look at rbanffy/3270font (a remake, licence to check) only as a cross-check
 

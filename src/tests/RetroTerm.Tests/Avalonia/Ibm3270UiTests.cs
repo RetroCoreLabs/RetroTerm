@@ -265,19 +265,19 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
-        public async Task AKeyThatIsNotBuiltSaysSoInTheStatusBarAndSendsNothing()
+        public async Task BackspaceOnTheKeyboardWindowErasesLocallyAndSendsNothing()
         {
             var (main, ibm, _, connection) = await TwoTabs();
             var keyboard = main.ToggleVirtualKeyboardForTesting();
             Dispatcher.UIThread.RunJobs();
             var view = keyboard.FindControl<DescribedKeyboardView>("DescribedKeyboard")!;
 
-            // Backspace waits on a decision (docs\spec\IBM3270\KEYBOARD.md, open question 3).
+            // Backspace erases left, a local key (Ronny, 23 November 2026; KEYBOARD.md question 3).
             ClickKeyThatPresses(keyboard, view, "BACKSPACE");
             await ibm.Session.FlushAsync();
 
             Assert.Empty(connection.GetSentData());
-            Assert.Contains("IBM.BACKSPACE is not built yet", main.StatusTextForTesting);
+            Assert.DoesNotContain("not built", main.StatusTextForTesting);
 
             keyboard.AllowClose = true;
             keyboard.Close();
@@ -456,7 +456,9 @@ namespace RetroTerm.Tests.Avalonia
             radio.IsChecked = true;
 
             Assert.True(terminal.IsEnabled);
-            Assert.Equal("IBM-3278-2", terminal.SelectedItem);
+            // The box shows the family; the model is in the size box (23 November 2026).
+            Assert.Equal("IBM-3278", terminal.SelectedItem);
+            Assert.Equal("80x24 (model 2)", Field<ComboBox>(window, "_sizeCombo").SelectedItem);
             Assert.Equal("TN3270", window.ProfileForTesting.Protocol);
             Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
             Assert.Equal(ConnectionFactory.ProtocolType.TN3270, window.ProfileForTesting.ToConnectionParameters().Protocol);
@@ -488,7 +490,9 @@ namespace RetroTerm.Tests.Avalonia
 
             Assert.True(Field<RadioButton>(window, "_tn3270Radio").IsChecked);
             var terminal = Field<ComboBox>(window, "_emulatorCombo");
-            Assert.Equal("IBM-3278-5", terminal.SelectedItem);
+            Assert.Equal("IBM-3278", terminal.SelectedItem);
+            Assert.Equal("132x27 (model 5)", Field<ComboBox>(window, "_sizeCombo").SelectedItem);
+            Assert.Equal("IBM-3278-5", window.ProfileForTesting.EmulatorType);
             Assert.True(terminal.IsEnabled);
             Assert.Equal(3270, window.ProfileForTesting.Port);
             Done(window, path);

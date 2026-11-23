@@ -262,6 +262,18 @@ public static class EmulatorFactory
     /// </returns>
     public static (int width, int height) GetRecommendedSize(string emulatorType)
     {
+        // A 3278 model has no profile here (its class is in RetroTerm.Ibm3270); its screen comes
+        // from the model table. Until 23 November 2026 every model answered 80 x 24, so a saved
+        // model 5 connection stored a size it never had.
+        for (int i = 0; i < RetroTerm.Core.Protocols.ConnectionFactory.Ibm3278Models.Length; i++)
+        {
+            if (string.Equals(emulatorType, RetroTerm.Core.Protocols.ConnectionFactory.Ibm3278Models[i], StringComparison.OrdinalIgnoreCase)
+                && TerminalSizeChoices.TryParse(RetroTerm.Core.Protocols.ConnectionFactory.Ibm3278ModelSizes[i], out int columns, out int rows))
+            {
+                return (columns, rows);
+            }
+        }
+
         try
         {
             var profile = GetProfile(emulatorType);

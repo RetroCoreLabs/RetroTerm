@@ -6870,14 +6870,16 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
     /// <remarks>
     /// A ceiling rather than trust: <c>CSI 8 t</c> carries whatever number the host typed, and a
     /// request for a million columns would allocate a million cells per row before anything else
-    /// noticed. 512 is comfortably past every real terminal width and cheap to hold.
+    /// noticed. 512 is comfortably past every real terminal width and cheap to hold. The size a
+    /// person types into Manage Connections for a terminal that follows the window is held to the
+    /// same limits (TerminalSizeChoices).
     /// </remarks>
-    private const int MinimumHostRequestedSize = 1;
+    public const int MinimumHostRequestedSize = 1;
 
     /// <summary>
     /// See <see cref="MinimumHostRequestedSize"/>.
     /// </summary>
-    private const int MaximumHostRequestedSize = 512;
+    public const int MaximumHostRequestedSize = 512;
 
     /// <summary>
     /// The two widths DECCOLM switches between.
