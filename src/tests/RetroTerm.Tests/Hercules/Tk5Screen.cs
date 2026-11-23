@@ -27,7 +27,7 @@ namespace RetroTerm.Tests.Hercules
             @"\d\d:\d\d(:\d\d)?|\d\d\.\d\d\.\d\d|CUU0C\w|ON [A-Z]+ \d\d?, \d{4}|TERMINAL : \w+",
             RegexOptions.Compiled);
 
-        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes, string status = "", string line25 = "")
+        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes, string status = "", string line25 = "", byte[]? highlights = null)
         {
             Lines = new string[Rows];
             for (int r = 0; r < Rows; r++)
@@ -42,6 +42,7 @@ namespace RetroTerm.Tests.Hercules
             FieldAttributes = fieldAttributes;
             Status = status;
             Line25 = line25;
+            Highlights = highlights;
         }
 
         public string[] Lines { get; }
@@ -73,6 +74,20 @@ namespace RetroTerm.Tests.Hercules
         /// wc3270 draws for the state s3270 reports. Empty when there is none.
         /// </summary>
         public string Line25 { get; }
+
+        /// <summary>
+        /// The highlight of every buffer position, in s3270's terms: a field attribute's own
+        /// highlight at its position, a character's own (SA) highlight elsewhere, as the low four
+        /// bits (0 default or normal, 1 blink, 2 reverse, 4 underscore). Null when not read.
+        /// </summary>
+        /// <remarks>
+        /// x3270 keeps only the low four bits (ctlr.c, ctlr_add_gr with value AND 0x0F) and prints
+        /// them with F0 added (task.c, the ReadBuffer loop), so "default" X'00' and "normal" X'F0'
+        /// are one value there and are made one here. Colour is NOT compared: s3270 runs as a
+        /// 3278, and x3270 drops every colour a 3278 is sent (ctlr.c, each colour store is inside
+        /// "if (mode3279)").
+        /// </remarks>
+        public byte[]? Highlights { get; }
 
         public bool Contains(string text)
         {
@@ -135,6 +150,24 @@ namespace RetroTerm.Tests.Hercules
             if (CursorRow != other.CursorRow || CursorColumn != other.CursorColumn)
             {
                 found.Add("cursor: RetroTerm " + (CursorRow + 1) + "," + (CursorColumn + 1) + ", " + theirName + " " + (other.CursorRow + 1) + "," + (other.CursorColumn + 1));
+            }
+
+            if (Highlights != null && other.Highlights != null)
+            {
+                int shown = 0;
+                for (int a = 0; a < Highlights.Length && a < other.Highlights.Length; a++)
+                {
+                    if (Highlights[a] != other.Highlights[a] && shown++ < 5)
+                    {
+                        found.Add("highlight at row " + ((a / Columns) + 1) + " column " + ((a % Columns) + 1) + ": RetroTerm " +
+                            Highlights[a].ToString("X1") + ", " + theirName + " " + other.Highlights[a].ToString("X1"));
+                    }
+                }
+
+                if (shown > 5)
+                {
+                    found.Add("highlight: " + shown + " positions differ in all");
+                }
             }
 
             if (FieldAddresses.Count != other.FieldAddresses.Count)

@@ -145,6 +145,11 @@ namespace RetroTerm.Tests.Hercules
 
             var addresses = new List<int>();
             var attributes = new List<byte>();
+            var highlights = new byte[Tk5Screen.Rows * Tk5Screen.Columns];
+
+            // The running character highlight: SA(...) is printed only where it changes, and is
+            // never reset at a field (task.c, current_gr, starting at 0).
+            byte highlight = 0;
             int address = 0;
             for (int i = 0; i < buffer.Data.Count; i++)
             {
@@ -158,13 +163,25 @@ namespace RetroTerm.Tests.Hercules
                     // Common\task.c, the ReadBuffer loop, read 22 November 2026).
                     if (token.StartsWith("SA(", StringComparison.Ordinal))
                     {
+                        highlight = HighlightIn(token, highlight);
                         continue;
+                    }
+
+                    if (address < highlights.Length)
+                    {
+                        highlights[address] = highlight;
                     }
 
                     if (token.StartsWith("SF(c0=", StringComparison.Ordinal))
                     {
                         addresses.Add(address);
                         attributes.Add(byte.Parse(token.AsSpan(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+
+                        // A field attribute's own highlight, printed only when it is not 0.
+                        if (address < highlights.Length)
+                        {
+                            highlights[address] = HighlightIn(token, 0);
+                        }
                     }
 
                     address++;
@@ -176,7 +193,20 @@ namespace RetroTerm.Tests.Hercules
             int row = int.Parse(status[8], CultureInfo.InvariantCulture);
             int column = int.Parse(status[9], CultureInfo.InvariantCulture);
             string line25 = string.Join(' ', status, 0, 8);
-            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes, line25, Wc3270Line25(status));
+            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes, line25, Wc3270Line25(status), highlights);
+        }
+
+        // The 41= (XA_HIGHLIGHTING) value in an SF(...) or SA(...) token, as its low four bits, or
+        // the given value when the token has none.
+        private static byte HighlightIn(string token, byte otherwise)
+        {
+            int at = token.IndexOf("41=", StringComparison.Ordinal);
+            if (at < 0)
+            {
+                return otherwise;
+            }
+
+            return (byte)(byte.Parse(token.AsSpan(at + 3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) & 0x0F);
         }
 
         public async ValueTask DisposeAsync()

@@ -112,16 +112,23 @@ namespace RetroTerm.Tests.Hercules
                 Display3270 display = _emulator.Display;
                 var addresses = new List<int>();
                 var attributes = new List<byte>();
+                var highlights = new byte[display.Size];
                 for (int a = 0; a < display.Size; a++)
                 {
                     if (display.IsFieldAttribute(a))
                     {
                         addresses.Add(a);
                         attributes.Add(display.GetByte(a));
+                        highlights[a] = (byte)(display.GetFieldHighlight(a) & 0x0F);
+                    }
+                    else
+                    {
+                        // Low four bits, as s3270 keeps them (Tk5Screen.Highlights).
+                        highlights[a] = (byte)(display.GetCharacterHighlight(a) & 0x0F);
                     }
                 }
 
-                return new Tk5Screen(snapshot.Text.Split('\n'), snapshot.CursorRow, snapshot.CursorColumn, addresses, attributes, Line25(display), DrawnLine25(snapshot));
+                return new Tk5Screen(snapshot.Text.Split('\n'), snapshot.CursorRow, snapshot.CursorColumn, addresses, attributes, Line25(display), DrawnLine25(snapshot), highlights);
             });
             return screen;
         }
