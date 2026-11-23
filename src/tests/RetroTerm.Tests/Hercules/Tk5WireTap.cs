@@ -206,15 +206,42 @@ namespace RetroTerm.Tests.Hercules
         /// <returns>
         /// The decoded text, one item per line.
         /// </returns>
-        public static string Decode(List<Tk5WireChunk> chunks, bool fromHost)
+        public static string Decode(List<Tk5WireChunk> chunks, bool fromHost) => Decode(chunks, fromHost, new Oracle.SentDataMask());
+
+        /// <summary>
+        /// As <see cref="Decode(List{Tk5WireChunk}, bool)"/>, with the mask given: a test hands
+        /// it one with made-up passwords.
+        /// </summary>
+        /// <param name="chunks">
+        /// The chunks, from <see cref="Chunks"/>.
+        /// </param>
+        /// <param name="fromHost">
+        /// Which direction to decode.
+        /// </param>
+        /// <param name="mask">
+        /// The mask for what the client sent, new for this call.
+        /// </param>
+        /// <returns>
+        /// The decoded text, one item per line, what the client sent masked.
+        /// </returns>
+        public static string Decode(List<Tk5WireChunk> chunks, bool fromHost, Oracle.SentDataMask mask)
         {
             var text = new StringBuilder();
             var record = new List<byte>();
             int state = 0; // 0 data, 1 after IAC, 2 inside SB, 3 IAC inside SB, 4 waiting for the option of a verb
             byte verb = 0;
             var sub = new List<byte>();
+
+            // What the client sent is masked before it is decoded, so the logon record never
+            // shows the password (see PasswordMask). The mask reads the host's records too, to know
+            // when a non-display input field is on the screen.
             for (int c = 0; c < chunks.Count; c++)
             {
+                if (!fromHost && chunks[c].FromHost && chunks[c].Note == null)
+                {
+                    mask.HostWire(chunks[c].Bytes);
+                }
+
                 if (chunks[c].FromHost != fromHost || chunks[c].Note != null)
                 {
                     continue;
@@ -248,7 +275,7 @@ namespace RetroTerm.Tests.Hercules
                             else if (b == 0xEF)
                             {
                                 text.Append("  IAC EOR ends a record of ").Append(record.Count.ToString(CultureInfo.InvariantCulture)).Append(" bytes:\n");
-                                text.Append(DecodeRecord(record.ToArray()));
+                                text.Append(DecodeRecord(fromHost ? record.ToArray() : mask.Client(record.ToArray())));
                                 record.Clear();
                             }
                             else if (b == Sb)
@@ -308,11 +335,12 @@ namespace RetroTerm.Tests.Hercules
 
             if (record.Count > 0)
             {
+                byte[] rest = fromHost ? record.ToArray() : mask.Client(record.ToArray());
                 text.Append("  ").Append(record.Count.ToString(CultureInfo.InvariantCulture)).Append(" bytes after the last EOR, never ended: ")
-                    .Append(Hex(record.ToArray(), 0, record.Count)).Append('\n');
+                    .Append(Hex(rest, 0, rest.Length)).Append('\n');
             }
 
-            return text.ToString();
+            return mask.Text(text.ToString());
         }
 
         /// <summary>

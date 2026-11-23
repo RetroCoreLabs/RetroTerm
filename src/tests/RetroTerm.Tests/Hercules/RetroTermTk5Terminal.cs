@@ -16,6 +16,7 @@ using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Session;
 using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Ibm3270;
+using RetroTerm.Tests.Oracle;
 
 namespace RetroTerm.Tests.Hercules
 {
@@ -30,9 +31,9 @@ namespace RetroTerm.Tests.Hercules
         private readonly string _host;
 
         // Every record in both directions, in order, printed when a wait fails so a failure says
-        // what crossed the wire instead of only what the screen ended up as. Written from the
-        // network and session threads, so it is locked.
-        private readonly List<string> _wire = new List<string>();
+        // what crossed the wire instead of only what the screen ended up as. What the client
+        // sent is masked before it is written down (see PasswordMask).
+        private readonly Tk5WireLog _wire = new Tk5WireLog();
 
         private RetroTermTk5Terminal(TerminalSession session, Ibm3270Emulator emulator, string host)
         {
@@ -67,8 +68,8 @@ namespace RetroTerm.Tests.Hercules
                 EmulatorType = "IBM-3278-" + model.ToString(System.Globalization.CultureInfo.InvariantCulture),
             });
             var terminal = new RetroTermTk5Terminal(session, emulator, settings.Host);
-            connection.DataReceived += data => terminal.Note("host", data.Span);
-            emulator.DataToSend += data => terminal.Note("sent", data);
+            connection.DataReceived += data => terminal._wire.Host(data.Span);
+            emulator.DataToSend += data => terminal._wire.Sent(data);
             await session.ConnectAsync(connection, Xunit.TestContext.Current.CancellationToken);
             return terminal;
         }
@@ -100,8 +101,10 @@ namespace RetroTerm.Tests.Hercules
             {
                 if (clock.ElapsedMilliseconds > timeoutMs)
                 {
-                    throw new Xunit.Sdk.XunitException("RetroTerm: no " + what + " with the keyboard unlocked after " + timeoutMs +
-                        " ms (lock " + _emulator.Display.Lock + "). Screen:\n" + screen.Text() + "\nRecords, oldest first:\n" + WireText());
+                    // The whole message is masked, not only the records: the screen text and the
+                    // step's name are printed too (see PasswordMask).
+                    throw new Xunit.Sdk.XunitException(PasswordMask.Text("RetroTerm: no " + what + " with the keyboard unlocked after " + timeoutMs +
+                        " ms (lock " + _emulator.Display.Lock + "). Screen:\n" + screen.Text() + "\nRecords, oldest first:\n" + WireText()));
                 }
 
                 await Task.Delay(50);
@@ -165,41 +168,14 @@ namespace RetroTerm.Tests.Hercules
             return line.Length >= Tk5Screen.Columns ? line.Substring(0, Tk5Screen.Columns) : line.PadRight(Tk5Screen.Columns);
         }
 
-        private void Note(string direction, ReadOnlySpan<byte> data)
-        {
-            var line = new System.Text.StringBuilder(direction.Length + 2 + (data.Length * 3));
-            line.Append(direction).Append(':');
-            // 256 bytes: enough for a whole IND$FILE message record (112 bytes on TK5).
-            int shown = data.Length > 256 ? 256 : data.Length;
-            for (int i = 0; i < shown; i++)
-            {
-                line.Append(' ').Append(data[i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
-            }
-
-            if (shown < data.Length)
-            {
-                line.Append(" ... (").Append(data.Length).Append(" bytes)");
-            }
-
-            lock (_wire)
-            {
-                _wire.Add(line.ToString());
-            }
-        }
-
         /// <summary>
-        /// Every record both ways so far, oldest first, one line each (256 bytes shown).
+        /// Every record both ways so far, oldest first, one line each (256 bytes shown), what
+        /// the client sent masked (<see cref="Tk5WireLog"/>).
         /// </summary>
         /// <returns>
         /// The lines.
         /// </returns>
-        public string WireText()
-        {
-            lock (_wire)
-            {
-                return string.Join("\n", _wire);
-            }
-        }
+        public string WireText() => _wire.Text();
 
         public async ValueTask DisposeAsync()
         {

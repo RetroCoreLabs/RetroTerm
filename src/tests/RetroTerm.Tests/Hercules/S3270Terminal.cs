@@ -12,6 +12,8 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
+using RetroTerm.Tests.Oracle;
+
 namespace RetroTerm.Tests.Hercules
 {
     /// <summary>
@@ -76,7 +78,10 @@ namespace RetroTerm.Tests.Hercules
 
         public async Task TypeAsync(string text)
         {
-            await RunAsync("String(\"" + text.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")");
+            // A failure names the command without the typed text: the text may be a password
+            // (see PasswordMask), and the message cannot tell which typed text is.
+            await RunAsync("String(\"" + text.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\")",
+                "String(" + text.Length.ToString(CultureInfo.InvariantCulture) + " typed characters, not shown)");
         }
 
         public async Task PressAsync(string key)
@@ -254,7 +259,11 @@ namespace RetroTerm.Tests.Hercules
             }
         }
 
-        private async Task<Reply> RunAsync(string command)
+        private Task<Reply> RunAsync(string command) => RunAsync(command, command);
+
+        // shown: what a failure message calls the command. Every message also goes through
+        // PasswordMask, which replaces the known passwords in every form.
+        private async Task<Reply> RunAsync(string command, string shown)
         {
             await _process.StandardInput.WriteLineAsync(command);
             await _process.StandardInput.FlushAsync();
@@ -265,7 +274,7 @@ namespace RetroTerm.Tests.Hercules
                 string? line = await _process.StandardOutput.ReadLineAsync();
                 if (line == null)
                 {
-                    throw new Xunit.Sdk.XunitException("s3270 ended during " + command);
+                    throw new Xunit.Sdk.XunitException(PasswordMask.Text("s3270 ended during " + shown));
                 }
 
                 if (line == "ok" || line == "error")
@@ -273,7 +282,7 @@ namespace RetroTerm.Tests.Hercules
                     reply.Status = previous ?? string.Empty;
                     if (line == "error")
                     {
-                        throw new Xunit.Sdk.XunitException("s3270 refused " + command + ": " + string.Join(" | ", reply.Data));
+                        throw new Xunit.Sdk.XunitException(PasswordMask.Text("s3270 refused " + shown + ": " + string.Join(" | ", reply.Data)));
                     }
 
                     return reply;

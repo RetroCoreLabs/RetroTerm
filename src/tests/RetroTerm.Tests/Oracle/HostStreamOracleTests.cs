@@ -171,7 +171,9 @@ namespace RetroTerm.Tests.Oracle
                 report.Append("telnet sent to the host:\n    RetroTerm: ").Append(a).Append("\n    s3270:     ").Append(b).Append('\n');
             }
 
-            return report.ToString();
+            // Masked like every print of what a client sent (see PasswordMask). The records were
+            // compared above unmasked; only the printed report is masked.
+            return PasswordMask.Text(report.ToString());
         }
 
         private static List<string> WithoutTimingMarks(List<string> units)

@@ -298,8 +298,10 @@ namespace RetroTerm.Tests.Oracle
             long left = timeoutMs - clock.ElapsedMilliseconds;
             if (left <= 0 || !await _arrived.WaitAsync((int)left, _stop.Token))
             {
-                throw new Xunit.Sdk.XunitException("The client never sent " + what + " within " + timeoutMs + " ms. It sent, in order:\n  " +
-                    string.Join("\n  ", Describe()));
+                // Masked like every print of what a client sent (see PasswordMask); a replay types
+                // only the placeholder, but the rule is one rule everywhere.
+                throw new Xunit.Sdk.XunitException(PasswordMask.Text("The client never sent " + what + " within " + timeoutMs + " ms. It sent, in order:\n  " +
+                    string.Join("\n  ", Describe())));
             }
         }
 

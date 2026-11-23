@@ -93,7 +93,7 @@ namespace RetroTerm.Tests.Oracle
         /// What a password is replaced with. The replay types this, and the host bytes that
         /// follow were the host's answer to the real one.
         /// </summary>
-        public const string PasswordPlaceholder = "PASSWORD";
+        public const string PasswordPlaceholder = PasswordMask.Placeholder;
 
         public HostRecording(int model, List<RecordingLine> lines)
         {
@@ -298,14 +298,8 @@ namespace RetroTerm.Tests.Oracle
                     continue;
                 }
 
-                string[] forms =
-                {
-                    secret.ToUpperInvariant(),
-                    TelnetUnit.Hex(Encoding.ASCII.GetBytes(secret)),
-                    TelnetUnit.Hex(Encoding.ASCII.GetBytes(secret.ToUpperInvariant())),
-                    TelnetUnit.Hex(Ebcdic(secret)),
-                    TelnetUnit.Hex(Ebcdic(secret.ToUpperInvariant())),
-                };
+                // The same forms the failure-message masking replaces (PasswordMask.Forms).
+                string[] forms = PasswordMask.Forms(secret);
                 for (int f = 0; f < forms.Length; f++)
                 {
                     if (upperFile.Contains(forms[f], StringComparison.Ordinal))
@@ -330,22 +324,6 @@ namespace RetroTerm.Tests.Oracle
             return units[0];
         }
 
-        // The text in EBCDIC code page 037, the code page the recording sessions ran in. A
-        // character the code page does not have cannot have been sent, so it is left out.
-        private static byte[] Ebcdic(string text)
-        {
-            var bytes = new List<byte>(text.Length);
-            for (int i = 0; i < text.Length; i++)
-            {
-                if (CodePage.Cp037.TryFromUnicode(text[i], out byte b))
-                {
-                    bytes.Add(b);
-                }
-            }
-
-            return bytes.ToArray();
-        }
-
         private static byte[] Join(byte[] a, byte[] b)
         {
             byte[] joined = new byte[a.Length + b.Length];
@@ -364,43 +342,12 @@ namespace RetroTerm.Tests.Oracle
                 return unit;
             }
 
-            byte[] wire = unit.Wire;
-            for (int s = 0; s < secrets.Length; s++)
-            {
-                if (secrets[s].Length == 0)
-                {
-                    continue;
-                }
-
-                wire = Replace(wire, Ebcdic(secrets[s]));
-                wire = Replace(wire, Ebcdic(secrets[s].ToUpperInvariant()));
-            }
+            // One masking step for recordings and failure messages alike (see PasswordMask).
+            byte[] wire = PasswordMask.ReplaceKnown(unit.Wire, secrets);
 
             var units = new List<TelnetUnit>();
             TelnetUnit.Split(wire, units, out _);
             return units[0];
-        }
-
-        private static byte[] Replace(byte[] wire, byte[] secret)
-        {
-            byte[] placeholder = Ebcdic(PasswordPlaceholder);
-            var result = new List<byte>(wire.Length);
-            int i = 0;
-            while (i < wire.Length)
-            {
-                if (i + secret.Length <= wire.Length && wire.AsSpan(i, secret.Length).SequenceEqual(secret))
-                {
-                    result.AddRange(placeholder);
-                    i += secret.Length;
-                }
-                else
-                {
-                    result.Add(wire[i]);
-                    i++;
-                }
-            }
-
-            return result.ToArray();
         }
     }
 }

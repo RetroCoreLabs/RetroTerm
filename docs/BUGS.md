@@ -278,12 +278,3 @@ both again.
 - The oracle test stays RED (four of its five cases; `logon-panel` ends before the query) until
   the question is settled from IBM's documents or a real terminal and one side is changed. The
   query reply BYTES are not compared at all: each terminal lists its own features, by design.
-
-## B17 - A failing live Hercules test prints the TK5 password in its output
-
-Found 23 November 2026 while building the offline oracle: when a live TK5 test fails,
-`RetroTermTk5Terminal` (`src\tests\RetroTerm.Tests\Hercules\`) writes every record the client sent
-into the failure message, and the logon record holds the password in EBCDIC hex. Nothing writes it to a
-file in the repository, but it lands in test logs and CI output. Fix: replace the password field's data
-the same way the oracle recorder does before any record is printed, and add a test that a failure
-message never contains it.

@@ -102,6 +102,41 @@ namespace RetroTerm.Tests.Hercules
             };
         }
 
+        /// <summary>
+        /// Every password in the settings file, for masking them out of what the tests print
+        /// (Oracle\PasswordMask.cs). No file means none, so a machine without TK5 still masks by
+        /// the non-display field rule alone.
+        /// </summary>
+        /// <returns>
+        /// The passwords, empty ones left out.
+        /// </returns>
+        public static string[] Passwords()
+        {
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".retroterm", "tk5-tests.json");
+            if (!File.Exists(path))
+            {
+                return Array.Empty<string>();
+            }
+
+            using JsonDocument json = JsonDocument.Parse(File.ReadAllText(path));
+            JsonElement root = json.RootElement;
+            string[] keys = { "password", "comparePassword", "jrpPassword" };
+            var found = new System.Collections.Generic.List<string>(keys.Length);
+            for (int k = 0; k < keys.Length; k++)
+            {
+                if (root.TryGetProperty(keys[k], out JsonElement value))
+                {
+                    string text = value.GetString() ?? string.Empty;
+                    if (text.Length > 0)
+                    {
+                        found.Add(text);
+                    }
+                }
+            }
+
+            return found.ToArray();
+        }
+
         public static Tk5Settings Load()
         {
             string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".retroterm", "tk5-tests.json");

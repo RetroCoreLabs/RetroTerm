@@ -453,12 +453,12 @@ namespace RetroTerm.Tests.Oracle
                     }
                     catch (OperationCanceledException)
                     {
-                        throw new Xunit.Sdk.XunitException("s3270 did not answer " + command + " within " + HostStreamReplay.TimeoutMs + " ms. Its output so far: " + string.Join(" | ", reply.Data));
+                        throw new Xunit.Sdk.XunitException(PasswordMask.Text("s3270 did not answer " + command + " within " + HostStreamReplay.TimeoutMs + " ms. Its output so far: " + string.Join(" | ", reply.Data)));
                     }
 
                     if (line == null)
                     {
-                        throw new Xunit.Sdk.XunitException("s3270 ended during " + command);
+                        throw new Xunit.Sdk.XunitException(PasswordMask.Text("s3270 ended during " + command));
                     }
 
                     if (line == "ok" || line == "error")
@@ -466,7 +466,7 @@ namespace RetroTerm.Tests.Oracle
                         reply.Status = previous ?? string.Empty;
                         if (line == "error")
                         {
-                            throw new Xunit.Sdk.XunitException("s3270 refused " + command + ": " + string.Join(" | ", reply.Data));
+                            throw new Xunit.Sdk.XunitException(PasswordMask.Text("s3270 refused " + command + ": " + string.Join(" | ", reply.Data)));
                         }
 
                         return reply;

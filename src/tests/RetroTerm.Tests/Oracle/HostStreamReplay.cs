@@ -195,7 +195,8 @@ namespace RetroTerm.Tests.Oracle
 
         private static string Head(byte[] record)
         {
-            string hex = TelnetUnit.Hex(record);
+            // Masked like every print of what a client sent (see PasswordMask).
+            string hex = PasswordMask.Text(TelnetUnit.Hex(record));
             return hex.Length > 48 ? hex.Substring(0, 48) + " ..." : hex;
         }
     }
