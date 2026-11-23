@@ -95,10 +95,9 @@ clean-room rewrite in C#.
 - [ ] Later, when real programming is needed: add JavaScript (Jint, pure .NET, BSD-2-Clause) as a second script language over the same CommandRegistry. Not REXX (no .NET version; Regina is native LGPL)
 - [ ] BEFORE THE NEXT RELEASE: switch RetroTerm from the local folder feed (`src\nuget.config`, `..\..\localfeed`) to GitHub Packages (`https://nuget.pkg.github.com/retrocorelabs/index.json`, `0.1.0-alpha.*`). Needs a read:packages token on this PC (environment variable, never in git) and, in the release workflow, GITHUB_TOKEN with `packages: read` after RetroIO's package settings grant RetroTerm access. Until then a tag build cannot restore the 3270 packages (Ronny, 22 November 2026: stay local for now)
 - [ ] Align the 3270 with wc3270 (Ronny, 22 November 2026): run the same steps in RetroTerm and in `s3270.exe` (the window-less wc3270, in the Hercules wc3270 folder) against TK5 and compare screen text and cursor after each step; then the layout, colours and keys against wc3270
-  - [ ] Seen in the rendered test screen (`ibm3270-screen.png`, 22 November 2026): the 3270 draws on the app's dark-green background and its protected-field blue is dim. wc3270 uses a black background and a bright blue; compare the colours against wc3270 and fix
 - [ ] Move RetroTerm's own telnet client and telnet server onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
 - [ ] A RetroTerm connection type for TN3270 that uses the RetroIO TN3270 client (waits for the `retroio` session's Tn3270Client): fill in `ProtocolType.TN3270` in `ConnectionFactory`, which throws today, and create `Ibm3270Emulator` for it. The screen (`src\RetroTerm.Ibm3270\Ibm3270Emulator.cs`) and the local keys are built
-- [ ] The 3279 colours (models 2-5 are built: chosen in the terminal list of a TN3270 connection)
+- [ ] B8 in BUGS.md: darker lines at cell edges on a screen with its own background colour (the 3270 since its colours match x3270); the fix is known, one search test still fails with it
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
@@ -108,7 +107,6 @@ clean-room rewrite in C#.
 - [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)
-  - [ ] Colour: the 3279 base colours (from the protect and intensify bits) and the seven extended colours
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons
   - [ ] Block copy and cut: select a rectangle; copy takes the text, cut also erases it but only in unprotected fields; paste puts it back field by field
   - [ ] Macros: record and replay keys and text, built on RetroTerm's existing script language so MCP and scripts get them too

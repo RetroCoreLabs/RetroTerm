@@ -72,9 +72,11 @@ public class Ibm3270EmulatorTests
         e.Display.Type('x');
         e.Refresh();
 
-        // Protected normal: blue (palette 12). Unprotected normal: green (palette 10).
-        Assert.Equal(TerminalColor.FromIndex(12), e.Buffer.GetCell(0, 1).Foreground);
-        Assert.Equal(TerminalColor.FromIndex(10), e.Buffer.GetCell(0, 6).Foreground);
+        // Protected normal: blue. Unprotected normal: green. x3270's RGB values
+        // (Common\c3270\cscreen.c, rgbmap), on its neutral black.
+        Assert.Equal(TerminalColor.FromRgb(0x1E, 0x90, 0xFF), e.Buffer.GetCell(0, 1).Foreground);
+        Assert.Equal(TerminalColor.FromRgb(0x32, 0xCD, 0x32), e.Buffer.GetCell(0, 6).Foreground);
+        Assert.Equal(TerminalColor.FromRgb(0x10, 0x10, 0x10), e.Buffer.GetCell(0, 6).Background);
         Assert.Equal('x', (char)e.Buffer.GetCell(0, 6).Codepoint);
     }
 

@@ -44,6 +44,19 @@ namespace RetroTerm.Ibm3270
     /// </remarks>
     public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen
     {
+        // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
+        // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
+        // the theme's palette: a 3279 has its own colours (Ronny, 22 November 2026: align the
+        // colours with wc3270), and the theme's dark green background made the blue dim.
+        private static readonly TerminalColor NeutralBlack = TerminalColor.FromRgb(0x10, 0x10, 0x10);
+        private static readonly TerminalColor Blue = TerminalColor.FromRgb(0x1E, 0x90, 0xFF);
+        private static readonly TerminalColor Red = TerminalColor.FromRgb(0xFF, 0x00, 0x00);
+        private static readonly TerminalColor Pink = TerminalColor.FromRgb(0xFF, 0x00, 0xFF);
+        private static readonly TerminalColor Green = TerminalColor.FromRgb(0x32, 0xCD, 0x32);
+        private static readonly TerminalColor Turquoise = TerminalColor.FromRgb(0x00, 0xFF, 0xFF);
+        private static readonly TerminalColor Yellow = TerminalColor.FromRgb(0xFF, 0xFF, 0x00);
+        private static readonly TerminalColor NeutralWhite = TerminalColor.FromRgb(0xFF, 0xFF, 0xFF);
+
         // The operator information area: the row under the model's largest screen (line 25 on a
         // model 2, line 44 on a model 4).
         private readonly int _statusRow;
@@ -790,7 +803,7 @@ namespace RetroTerm.Ibm3270
             int columns = _display.Columns;
             int rows = _display.Rows;
             int width = AlternateColumns(Model);
-            var blank = new TerminalCell(' ', CharacterAttributes.None, TerminalColor.Default, TerminalColor.Default);
+            var blank = new TerminalCell(' ', CharacterAttributes.None, NeutralWhite, NeutralBlack);
             for (int row = 0; row < _statusRow; row++)
             {
                 for (int column = 0; column < width; column++)
@@ -827,7 +840,7 @@ namespace RetroTerm.Ibm3270
                     StatusLine3270.OnlineColumn => CharacterAttributes.Underline,
                     _ => CharacterAttributes.None,
                 };
-                Buffer.SetCell(_statusRow, column, new TerminalCell(line[column], flags, TerminalColor.Default, TerminalColor.Default));
+                Buffer.SetCell(_statusRow, column, new TerminalCell(line[column], flags, NeutralWhite, NeutralBlack));
             }
         }
 
@@ -842,13 +855,13 @@ namespace RetroTerm.Ibm3270
             // A field attribute position shows as a blank (GA23-0059-4 p. 4-13).
             if (_display.IsFieldAttribute(address))
             {
-                return new TerminalCell(' ', flags, foreground, TerminalColor.Default);
+                return new TerminalCell(' ', flags, foreground, NeutralBlack);
             }
 
             // Nondisplay fields show nothing (p. 4-13) - a password field.
             if ((attribute & FieldAttribute.DisplayMask) == FieldAttribute.NonDisplay)
             {
-                return new TerminalCell(' ', flags, foreground, TerminalColor.Default);
+                return new TerminalCell(' ', flags, foreground, NeutralBlack);
             }
 
             if ((attribute & FieldAttribute.DisplayMask) == FieldAttribute.Intensified)
@@ -896,7 +909,7 @@ namespace RetroTerm.Ibm3270
                 c = ' ';
             }
 
-            return new TerminalCell(c, flags, foreground, TerminalColor.Default);
+            return new TerminalCell(c, flags, foreground, NeutralBlack);
         }
 
         /// <summary>
@@ -910,19 +923,20 @@ namespace RetroTerm.Ibm3270
         /// </remarks>
         private static TerminalColor BaseColour(int fa, byte attribute)
         {
+            // wc3270\screen.c, field_colors: green, red, blue, neutral white.
             if (fa < 0)
             {
-                return TerminalColor.FromIndex(10);
+                return Green;
             }
 
             bool isProtected = FieldAttribute.IsProtected(attribute);
             bool intensified = (attribute & FieldAttribute.DisplayMask) == FieldAttribute.Intensified;
             if (isProtected)
             {
-                return TerminalColor.FromIndex(intensified ? (byte)15 : (byte)12);
+                return intensified ? NeutralWhite : Blue;
             }
 
-            return TerminalColor.FromIndex(intensified ? (byte)9 : (byte)10);
+            return intensified ? Red : Green;
         }
 
         /// <summary>
@@ -933,13 +947,13 @@ namespace RetroTerm.Ibm3270
         {
             switch (value)
             {
-                case 0xF1: return TerminalColor.FromIndex(12);
-                case 0xF2: return TerminalColor.FromIndex(9);
-                case 0xF3: return TerminalColor.FromIndex(13);
-                case 0xF4: return TerminalColor.FromIndex(10);
-                case 0xF5: return TerminalColor.FromIndex(14);
-                case 0xF6: return TerminalColor.FromIndex(11);
-                case 0xF7: return TerminalColor.FromIndex(15);
+                case 0xF1: return Blue;
+                case 0xF2: return Red;
+                case 0xF3: return Pink;
+                case 0xF4: return Green;
+                case 0xF5: return Turquoise;
+                case 0xF6: return Yellow;
+                case 0xF7: return NeutralWhite;
                 default: return fallback;
             }
         }

@@ -119,3 +119,26 @@ the first input after it (the Hercules terminal handler in the Hercules source, 
 USS table), or a wc3270 session by hand on that path to see what a person gets. Until then the
 TK5 tests go red when they meet this path, with the records in the failure message. Not checked
 whether typing the user id a second time works.
+
+## B8 - Darker lines at cell edges when a cell has its own background colour
+
+Seen 23 November 2026 in `src\tests\RetroTerm.Tests\Avalonia\images\rendered\ibm3270-model5.png`,
+the first screen where every cell carries an explicit background (the 3270's black, 0x101010,
+from x3270's rgbmap). Along one pixel row the background reads 0x10 with a 3-pixel strip of 0x0B
+to 0x0E at every cell edge; down one pixel column, the same at every row edge. On screens that use
+the theme background the cells paint no background of their own, so the lines do not show.
+
+The cause, found the same day: `TerminalRenderer.DrawRow` fills one rectangle per CELL at
+fractional positions (a cell is a fraction of a pixel wide and tall), so two neighbouring
+rectangles each cover only part of the pixel they share and the theme ground shows through. A first
+try at painting each run of same-coloured cells as one rectangle changed nothing, because an RGB
+background gets a NEW brush object for every cell (`GetCellBackground`) and the runs were compared
+by object identity. Compared by colour, and with each rectangle's edges snapped to whole device
+pixels (as `RepaintDirtyRows` already snaps its bands), the measured background is a clean 0x10 in
+both directions.
+
+Why it is still open: that change makes
+`SearchHighlightTests.AMatchInHistoryIsHighlightedOnceTheViewScrollsToIt` fail, and the rendered
+pictures with and without it look the same to the eye (1,584 pixels differ). The test measures the
+most common colour in a cell that the "Scrollback" label mostly covers. Not yet known whether the
+change really moves the highlight or the test sits on the edge of its threshold.
