@@ -850,6 +850,24 @@ What the oracles actually send:
 | 3 | X'80' |
 | 4-n | QCODEs of every supported reply, including X'80' itself, **excluding Null** |
 
+### 9.3a RetroTerm's reply against s3270's, read by TK5's TERMTEST (23 November 2026)
+
+TK5's TERMTEST (ISPF option M.7) prints the Query Reply it received, field by field. RetroTerm sends
+Summary, Usable Area, Character Sets, Color, Highlighting, Reply Modes, Field Validation, DDM and
+Implicit Partition. s3270 differs in five places; checked against this manual, none of ours is wrong:
+
+- Usable Area: ours has X'FFFFFFFF' for Xr and Yr. That is the manual's value for unknown, refused
+  only for a terminal with Load PS (p. 6-89), which RetroTerm does not announce.
+- Color: 8 pairs (default, X'F1'-X'F7'); s3270 lists 16, up to X'FF', which the manual does not
+  define (Open question 5).
+- Highlighting: no X'F8' intensify; chapter 4 and p. 6-56 disagree on it (Open question 4).
+- Alphanumeric Partitions (X'84') and RPQ Names (X'A1'): s3270 sends them, RetroTerm does not. Both
+  are optional (table above).
+- Field Validation (X'8A'): RetroTerm sends it and does mandatory fill and mandatory entry; s3270 does
+  not send it.
+
+A live test reads the screen: `Scenario09IspfMenuTests` (option M.7).
+
 ### 9.4 Usable Area, X'81' (p. 6-85 to 6-89, table from the image)
 
 Always sent on Query and every Query List form.

@@ -107,7 +107,6 @@ clean-room rewrite in C#.
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons
   - [ ] Block copy and cut: select a rectangle; copy takes the text, cut also erases it but only in unprotected fields; paste puts it back field by field
   - [ ] Macros: record and replay keys and text, built on RetroTerm's existing script language so MCP and scripts get them too
-  - [ ] Check RetroTerm's Query Reply against GA23-0059-4 chapter 6, item by item. TK5's TERMTEST (ISPF M.7) shows both, 23 November 2026, and they differ from s3270's: Usable Area (s3270 gives cell size and units, ours FF bytes), Color (16 pairs vs 8), Highlighting (s3270 has F8 intensify, ours not), s3270 also sends Alphanumeric Partitions (84) and RPQ Names (A1), ours sends Field Validation (8A). s3270 is not the authority - the manual is
   - [ ] IND$FILE file transfer from the menu: a dialog for HOSTSEND / HOSTRECEIVE (the commands, for scripts and MCP, are done and tested live on TK5, 23 November 2026)
   - [ ] Several sessions to one host: each tab its own TN3270 connection, with an optional LU name per connection (RFC 1646 / RFC 2355) so each tab can get a set terminal
 - [ ] From ZOC (commercial terminal, emtec.com/zoc/features.html; chosen by Ronny 22 November 2026):
