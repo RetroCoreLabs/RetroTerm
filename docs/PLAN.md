@@ -69,12 +69,13 @@ clean-room rewrite in C#.
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] BUGS.md B15, a change in RetroIO (settled from GA23-0059-4 on 23 November 2026): the base character set's local ID must be one of X'F0'-X'F7' (p. 6-26), not X'00'; Usable Area for two sizes where neither holds the other must report the default size plus an Alternate Usable Area (p. 6-89, 6-93). Ibm3270QueryReplyTests.TheBaseCharacterSetHasALocalIdForANonLoadableOneByteSet is red until then. Left open by the manual (3270-DATA-STREAM.md 9.4a, 9.9): which of X'F0'-X'F7', the CB flag on a terminal with no local copy, and whether nested sizes (every RetroTerm model) also need an Alternate Usable Area
+- [ ] Left open by GA23-0059-4 in the query replies (3270-DATA-STREAM.md 9.4a, 9.9), after B15 was fixed in RetroIO on 24 November 2026: the CB flag on a terminal with no local copy, and whether nested sizes (every RetroTerm model) also need an Alternate Usable Area
 - [ ] TN3270E BIND-IMAGE, SYSREQ (suspended mode, SSCP-LU-DATA) and NVT-DATA mode, then the 3287 printer (ASSOCIATE): not built; with BIND-IMAGE, Attn sends IAC IP when bound (x3270 Attn_action)
 - [ ] 3287 compared byte by byte with pr3287: not possible on this PC yet. The Windows pr3287 and wpr3287 (wc3270 folder) only print to a Windows printer (`-printer`), and every printer here either asks for a file name (Print to PDF, XPS) or is real paper; a pr3287 that writes to a file (the Linux build, or a "Generic / Text Only" printer on a file port) is needed
 - [ ] JRP console screen differs from what it should be? (BUGS.md B11): compare RetroTerm and s3270 on the same JRP keys
 - [ ] Move the 3287 printer code to RetroIO together with the rest of RetroTerm's 3270 code, in one planned step (Ronny, 23 November 2026: keep it in RetroTerm until then)
 - [ ] BUGS.md B12: SSH to "localhost" still waits about 2 s, because SSH.NET opens its own socket; every other connection now tries IPv6 and IPv4 together
+- [ ] RECORDSTOP makes an MP4 beside the animated PNG when ffmpeg is installed (Ronny, 24 November 2026): find ffmpeg (a path in Preferences, else the system PATH; no environment variable of our own), run it as a separate process after the PNG is closed, keep each frame's real duration, H.264 + yuv420p so YouTube and editors take it; no ffmpeg = the PNG only and RECORDSTOP says MP4 was not made and why; ffmpeg failing = its error text reported, PNG kept. Nothing shipped with RetroTerm
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages
@@ -111,7 +112,6 @@ clean-room rewrite in C#.
   - [ ] LOW PRIORITY: Telnet over TLS (no TLS code exists in RetroTerm or RetroIO today); for client and server, so the emulators can offer TLS too. Build implicit TLS first: TLS starts straight after the TCP connect, then all telnet negotiation runs inside it, on a configurable port with 992 (IANA "telnets") as the secure default, and the server certificate is checked. The telnet reader and encoder already work on bytes and own no socket, so TLS is a wrapper around the stream. Telnet START-TLS (a plain-text start, then a switch to TLS, from an IETF draft that expired) comes only when a host needs it. Sources from Ronny, 22 November 2026: Boston University and UCLA require TN3270 over TLS on port 992; IBM z/OS supports both forms. The IBM page was not fetched here
 - [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
   - [ ] Choose the code page, the model and the screen size per connection
-- [ ] Settle BUGS.md B16 (keyboard locked or not after a query reply; the offline s3270 oracle, `Oracle\HostStreamOracleTests`, is red on it in four of five sessions). Run it with `dotnet test src\RetroTerm.slnx --filter "Category=Oracle"`; it needs only s3270, from the "s3270" entry of tk5-tests.json
 - [ ] Second oracle: drive IBM's Python tnz library the same way, and mine its `test\` folder for known-good byte streams
 
 **C. Needs a machine**
