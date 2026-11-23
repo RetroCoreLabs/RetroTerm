@@ -88,6 +88,7 @@ namespace RetroTerm.Tests.Hercules
                     case "BACKTAB": await RunAsync("BackTab()"); break;
                     case "HOME": await RunAsync("Home()"); break;
                     case "ERASEEOF": await RunAsync("EraseEOF()"); break;
+                    case "NEWLINE": await RunAsync("Newline()"); break;
                     default: throw new Xunit.Sdk.XunitException("S3270Terminal has no mapping for key " + key);
                 }
             }

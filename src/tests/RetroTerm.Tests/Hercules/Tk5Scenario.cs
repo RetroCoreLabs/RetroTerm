@@ -123,7 +123,8 @@ namespace RetroTerm.Tests.Hercules
 
                 await terminal.PressAsync("RESET");
                 await terminal.PressAsync("PA1");
-                for (int i = 0; i < 6; i++)
+                string before = string.Empty;
+                for (int i = 0; i < 8; i++)
                 {
                     screen = await terminal.WaitUntilAsync(s => true, "an unlocked keyboard", HostTimeoutMs);
                     if (screen.Contains("READY"))
@@ -131,7 +132,24 @@ namespace RetroTerm.Tests.Hercules
                         break;
                     }
 
-                    await terminal.PressAsync("PF3");
+                    // PF3 that changed nothing: REVEDIT will not end while a line command is wrong
+                    // or pending (found 23 November 2026, "UNKNOWN LINE COMMAND"; the user stayed
+                    // logged on and the next run was refused). CANCEL on the command line leaves
+                    // the editor without saving, whatever is pending.
+                    string now = screen.Text();
+                    if (now == before)
+                    {
+                        await terminal.PressAsync("HOME");
+                        await terminal.PressAsync("ERASEEOF");
+                        await terminal.TypeAsync("CANCEL");
+                        await terminal.PressAsync("ENTER");
+                    }
+                    else
+                    {
+                        await terminal.PressAsync("PF3");
+                    }
+
+                    before = now;
                 }
 
                 await terminal.TypeAsync("LOGOFF");
