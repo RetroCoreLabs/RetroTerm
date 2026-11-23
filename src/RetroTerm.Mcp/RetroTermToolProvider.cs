@@ -151,8 +151,8 @@ public sealed class RetroTermToolProvider
             var command = commands[i];
             var parameters = command.Parameters;
 
-            var schemaParams = new (string Name, string Type, bool Required, string Description)[parameters.Count + 1];
-            schemaParams[0] = ("sessionId", "string", true, "The session to operate on");
+            var schemaParams = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Count + 1];
+            schemaParams[0] = ("sessionId", "string", true, "The session to operate on", null);
             for (int p = 0; p < parameters.Count; p++)
             {
                 var param = parameters[p];
@@ -165,14 +165,16 @@ public sealed class RetroTermToolProvider
                 var description = param.DefaultValue != null && !param.Required
                     ? $"{param.Description} (default {param.DefaultValue})"
                     : param.Description;
-                schemaParams[p + 1] = (param.Name, typeName, param.Required, description);
+                // A parameter with a word list (SCREENSHOT's area) carries it as a JSON Schema enum,
+                // read from the same metadata the script parser checks - the two-surface rule.
+                schemaParams[p + 1] = (param.Name, typeName, param.Required, description, param.AllowedValues);
             }
 
             tools.Add(new Tool
             {
                 Name = "terminal_" + command.Name.ToLowerInvariant(),
                 Description = $"{command.Summary}. Script DSL equivalent: {command.Example}",
-                InputSchema = Schema(schemaParams)
+                InputSchema = SchemaWithChoices(schemaParams)
             });
         }
 
@@ -692,6 +694,21 @@ public sealed class RetroTermToolProvider
     /// </summary>
     private static JsonElement Schema(params (string Name, string Type, bool Required, string Description)[] parameters)
     {
+        var withChoices = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Length];
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            withChoices[i] = (parameters[i].Name, parameters[i].Type, parameters[i].Required, parameters[i].Description, null);
+        }
+        return SchemaWithChoices(withChoices);
+    }
+
+    /// <summary>
+    /// Builds a JSON Schema object element for a tool's parameters, with an <c>enum</c> for each
+    /// parameter that declares its allowed words.
+    /// </summary>
+    private static JsonElement SchemaWithChoices(
+        (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[] parameters)
+    {
         var sb = new StringBuilder(256);
         sb.Append("{\"type\":\"object\",\"properties\":{");
         for (int i = 0; i < parameters.Length; i++)
@@ -699,8 +716,19 @@ public sealed class RetroTermToolProvider
             if (i > 0) sb.Append(',');
             sb.Append(JsonSerializer.Serialize(parameters[i].Name))
               .Append(":{\"type\":\"").Append(parameters[i].Type).Append("\",\"description\":")
-              .Append(JsonSerializer.Serialize(parameters[i].Description))
-              .Append('}');
+              .Append(JsonSerializer.Serialize(parameters[i].Description));
+            var allowed = parameters[i].Allowed;
+            if (allowed != null)
+            {
+                sb.Append(",\"enum\":[");
+                for (int a = 0; a < allowed.Count; a++)
+                {
+                    if (a > 0) sb.Append(',');
+                    sb.Append(JsonSerializer.Serialize(allowed[a]));
+                }
+                sb.Append(']');
+            }
+            sb.Append('}');
         }
         sb.Append('}');
 

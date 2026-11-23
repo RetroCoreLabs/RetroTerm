@@ -18,6 +18,7 @@ using RetroTerm.Core.Scripting;
 using RetroTerm.Core.Session;
 using RetroTerm.Desktop.Models;
 using RetroTerm.Mcp;
+using ScreenCaptureArea = RetroTerm.Core.Commands.Builtin.ScreenCaptureArea;
 
 namespace RetroTerm.Desktop;
 
@@ -268,10 +269,14 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Draws one session's tab - text and every graphics plane - into a PNG file.
+    /// Draws one session's tab - text and every graphics plane - into a PNG file, either the
+    /// terminal control alone or the whole window that shows the tab.
     /// </summary>
     /// <param name="session">
     /// The session whose tab to draw.
+    /// </param>
+    /// <param name="area">
+    /// The terminal control only, or the whole window holding it.
     /// </param>
     /// <param name="path">
     /// Full path of the file to write.
@@ -280,52 +285,164 @@ public partial class MainWindow
     /// Null when the file was written, or a sentence saying why it was not.
     /// </returns>
     /// <remarks>
-    /// <para><b>It renders the REAL control, not a copy of the drawing logic</b></para>
-    /// <c>RenderTargetBitmap.Render</c> calls the control's own <c>Render</c>, so what lands in the
-    /// file is what is on the glass - the same route the headless tests use. Drawing a second time
-    /// from the buffer would produce a picture that agrees with itself and with nothing else, which
-    /// is how three graphics defects survived a green suite.
+    /// <para><b>It renders the REAL controls, not a copy of the drawing logic</b></para>
+    /// <c>RenderTargetBitmap.Render</c> calls the controls' own <c>Render</c>, so what lands in the
+    /// file is what those controls draw - the same route the headless tests use. Drawing a second
+    /// time from the buffer would produce a picture that agrees with itself and with nothing else,
+    /// which is how three graphics defects survived a green suite.
+    /// <para><b>What it is NOT</b></para>
+    /// It is not a capture of the screen. The controls are drawn again into an offscreen bitmap,
+    /// so the operating system's frame and title bar are absent, nothing lying over the window
+    /// appears, and a frame the real window has not yet put on the glass can already be in the
+    /// file. CLAUDE.md records a case where such a picture differed from the real window.
     /// <para><b>On the UI thread, always</b></para>
-    /// The control and its visual tree are UI-thread state, and this is called from the MCP server's
-    /// thread. The whole render is marshalled as one unit.
+    /// The controls and their visual tree are UI-thread state, and this is called from the MCP
+    /// server's thread. The whole render is marshalled as one unit.
     /// </remarks>
-    private string? CaptureSessionScreenshot(TerminalSession session, string path)
+    private string? CaptureSessionScreenshot(TerminalSession session, ScreenCaptureArea area, string path)
     {
         if (session == null) return "no session";
 
         return Dispatcher.UIThread.Invoke(() =>
         {
-            var tab = FindTabForSession(session);
-            if (tab == null) return "that session has no tab in this window";
+            var target = FindCaptureTarget(session, area, out var problem);
+            if (target == null) return problem;
 
-            var control = tab.Control;
-
-            // Bounds are zero for a tab that has never been laid out - a background tab on a window
-            // that has not been shown. Saying so beats writing a 0 by 0 PNG and calling it a pass.
-            int width = (int)Math.Round(control.Bounds.Width);
-            int height = (int)Math.Round(control.Bounds.Height);
-            if (width <= 0 || height <= 0)
-            {
-                return "that tab has not been laid out yet, so it has no pixels to capture - "
-                    + "select it in the window first";
-            }
-
-            try
-            {
-                using var target = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
-                    new global::Avalonia.PixelSize(width, height),
-                    new global::Avalonia.Vector(96, 96));
-
-                target.Render(control);
-                target.Save(path, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                return "render failed: " + ex.Message;
-            }
+            return RenderVisualToPng(target, path);
         });
     }
+
+    /// <summary>
+    /// Picks the visual a capture of one area draws: the tab's terminal control, or the window
+    /// that holds the tab - this one, or the popout window it was moved to.
+    /// </summary>
+    /// <param name="session">
+    /// The session whose tab is wanted.
+    /// </param>
+    /// <param name="area">
+    /// Which area.
+    /// </param>
+    /// <param name="problem">
+    /// Why there is nothing to draw, when the result is null.
+    /// </param>
+    /// <returns>
+    /// The visual to draw, or null.
+    /// </returns>
+    /// <remarks>
+    /// Kept apart from the PNG writing so RECORD START (planned in docs\PLAN.md, same option) can
+    /// draw its frames from the same choice. Runs on the UI thread.
+    /// </remarks>
+    private global::Avalonia.Visual? FindCaptureTarget(TerminalSession session, ScreenCaptureArea area,
+        out string? problem)
+    {
+        problem = null;
+
+        TabSession? tab = FindTabForSession(session);
+        global::Avalonia.Controls.Window? holder = tab != null ? this : null;
+
+        // A popped-out tab lives in its own window, and that window is the one showing it.
+        if (tab == null)
+        {
+            for (int i = 0; i < _popoutWindows.Count; i++)
+            {
+                if (ReferenceEquals(_popoutWindows[i].TabSession.Session, session))
+                {
+                    tab = _popoutWindows[i].TabSession;
+                    holder = _popoutWindows[i];
+                    break;
+                }
+            }
+        }
+
+        if (tab == null || holder == null)
+        {
+            problem = "that session has no tab in this window";
+            return null;
+        }
+
+        if (area == ScreenCaptureArea.Terminal)
+        {
+            return tab.Control;
+        }
+
+        // A picture of the main window while ANOTHER tab is selected would show that other tab's
+        // screen under this session's name. Refuse rather than hand back the wrong terminal; the
+        // command does not switch tabs on its own, because a screenshot must not change the window.
+        if (ReferenceEquals(holder, this) && !ReferenceEquals(tab, _activeTab))
+        {
+            problem = "that session's tab is not the selected tab, so a picture of the window would show "
+                + "a different terminal - select the tab first, or use area=terminal";
+            return null;
+        }
+
+        return holder;
+    }
+
+    /// <summary>
+    /// Draws one visual into a PNG at its laid-out size, one pixel per layout unit.
+    /// </summary>
+    /// <param name="visual">
+    /// The control or window to draw.
+    /// </param>
+    /// <param name="path">
+    /// Full path of the file to write.
+    /// </param>
+    /// <returns>
+    /// Null when the file was written, or a sentence saying why it was not.
+    /// </returns>
+    private static string? RenderVisualToPng(global::Avalonia.Visual visual, string path)
+    {
+        // Bounds are zero for a tab that has never been laid out - a background tab on a window
+        // that has not been shown. Saying so beats writing a 0 by 0 PNG and calling it a pass.
+        int width = (int)Math.Round(visual.Bounds.Width);
+        int height = (int)Math.Round(visual.Bounds.Height);
+        if (width <= 0 || height <= 0)
+        {
+            return "that tab has not been laid out yet, so it has no pixels to capture - "
+                + "select it in the window first";
+        }
+
+        try
+        {
+            using var target = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
+                new global::Avalonia.PixelSize(width, height),
+                new global::Avalonia.Vector(96, 96));
+
+            target.Render(visual);
+            target.Save(path, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return "render failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Test seam: runs the same capture SCREENSHOT runs.
+    /// </summary>
+    /// <param name="session">
+    /// The session to draw.
+    /// </param>
+    /// <param name="area">
+    /// Which area.
+    /// </param>
+    /// <param name="path">
+    /// Full path of the PNG.
+    /// </param>
+    /// <returns>
+    /// Null on success, or the reason it failed.
+    /// </returns>
+    internal string? CaptureSessionScreenshotForTesting(TerminalSession session, ScreenCaptureArea area, string path)
+        => CaptureSessionScreenshot(session, area, path);
+
+    /// <summary>
+    /// Test seam: the command registry the MCP server and the script editor share.
+    /// </summary>
+    /// <returns>
+    /// The registry.
+    /// </returns>
+    internal CommandRegistry GetCommandRegistryForTesting() => GetOrCreateCommandRegistry();
 
     private ScriptLibrary GetOrCreateScriptLibrary()
     {

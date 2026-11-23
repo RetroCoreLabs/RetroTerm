@@ -15,10 +15,14 @@ using RetroTerm.Core.Session;
 namespace RetroTerm.Core.Commands.Builtin;
 
 /// <summary>
-/// Renders one session's screen - text, Sixel, ReGIS and vectors together - to a PNG file.
+/// Renders one session's screen - text, Sixel, ReGIS and vectors together - to a PNG file, either
+/// the terminal area alone or the whole program window that shows it.
 /// </summary>
 /// <param name="session">
 /// The session whose screen to draw.
+/// </param>
+/// <param name="area">
+/// Which part to draw - see <see cref="ScreenCaptureArea"/> for exactly what each holds.
 /// </param>
 /// <param name="path">
 /// Full path of the PNG to write.
@@ -30,7 +34,7 @@ namespace RetroTerm.Core.Commands.Builtin;
 /// A named delegate rather than a bare <c>Func</c>, and supplied by the desktop layer, because only
 /// the desktop owns a renderer. Core stays free of any dependency on Avalonia.
 /// </remarks>
-public delegate string? TerminalScreenCapture(TerminalSession session, string path);
+public delegate string? TerminalScreenCapture(TerminalSession session, ScreenCaptureArea area, string path);
 
 /// <summary>
 /// SCREENSHOT - save the screen as a PNG, graphics included.
@@ -83,7 +87,7 @@ public sealed class ScreenshotCommand : ISessionCommand
     /// <summary>
     /// A usable example for the generated help.
     /// </summary>
-    public string Example => "SCREENSHOT \"C:\\\\shots\\\\after-regis.png\""; // \\ in the DSL - \ starts an escape
+    public string Example => "SCREENSHOT \"C:\\\\shots\\\\after-regis.png\" area=window"; // \\ in the DSL - \ starts an escape
 
     /// <summary>
     /// Whether the command writes a line of output.
@@ -99,7 +103,10 @@ public sealed class ScreenshotCommand : ISessionCommand
             "PNG file to write (directory must exist)"),
         new CommandParameter("settle", CommandParameterType.Int, required: false, defaultValue: "250",
             "Wait for the screen to be quiet this many milliseconds before drawing, so the picture is "
-            + "not one change out of date; 0 takes the frame immediately")
+            + "not one change out of date; 0 takes the frame immediately"),
+
+        // Declared by the shared helper so RECORD START (planned) takes the same words.
+        ScreenCaptureAreaParameter.CreateParameter()
     };
 
     /// <summary>
@@ -131,7 +138,9 @@ public sealed class ScreenshotCommand : ISessionCommand
         await SettleBeforeDrawingAsync(session, args.GetInt("settle", DefaultSettleMs), cancellationToken)
             .ConfigureAwait(false);
 
-        var problem = _capture(session, path);
+        var area = ScreenCaptureAreaParameter.Parse(args);
+
+        var problem = _capture(session, area, path);
         if (problem != null)
         {
             return CommandResult.Fail(problem);
@@ -146,7 +155,9 @@ public sealed class ScreenshotCommand : ISessionCommand
                 $"the render wrote nothing to {path} - the file is empty");
         }
 
-        return CommandResult.Ok($"screen saved to {path} ({bytes} bytes)");
+        return CommandResult.Ok(area == ScreenCaptureArea.Window
+            ? $"window saved to {path} ({bytes} bytes)"
+            : $"screen saved to {path} ({bytes} bytes)");
     }
 
     /// <summary>

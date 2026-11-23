@@ -81,18 +81,60 @@ public static class CommandParameterValidation
                 continue;
             }
 
-            if (p.Type == CommandParameterType.Int
-                && !int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            if (!TryCheckValue(command.Name, p, raw, out error))
             {
-                error = $"{command.Name}: '{p.Name}' must be a whole number, got '{raw}'";
                 return false;
             }
+        }
 
-            if (p.Type == CommandParameterType.Bool && !IsBoolValue(raw))
-            {
-                error = $"{command.Name}: '{p.Name}' must be true/false (or 1/0, on/off, yes/no), got '{raw}'";
-                return false;
-            }
+        return true;
+    }
+
+    /// <summary>
+    /// Checks one supplied value against its parameter's declared type and word list.
+    /// </summary>
+    /// <param name="commandName">
+    /// The command's name, for the message.
+    /// </param>
+    /// <param name="p">
+    /// The parameter the value is for.
+    /// </param>
+    /// <param name="raw">
+    /// The value as supplied, already known not to hold a variable reference.
+    /// </param>
+    /// <param name="error">
+    /// The refusal, naming the parameter and the value, or null.
+    /// </param>
+    /// <returns>
+    /// True when the value is acceptable.
+    /// </returns>
+    /// <remarks>
+    /// The ONE copy of these rules. The script parser calls it at parse time and
+    /// <see cref="TryValidate"/> calls it at dispatch time, so the two cannot give different
+    /// answers or different messages.
+    /// </remarks>
+    public static bool TryCheckValue(string commandName, CommandParameter p, string raw, out string? error)
+    {
+        if (p == null) throw new ArgumentNullException(nameof(p));
+        error = null;
+
+        if (p.Type == CommandParameterType.Int
+            && !int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+        {
+            error = $"{commandName}: '{p.Name}' must be a whole number, got '{raw}'";
+            return false;
+        }
+
+        if (p.Type == CommandParameterType.Bool && !IsBoolValue(raw))
+        {
+            error = $"{commandName}: '{p.Name}' must be true/false (or 1/0, on/off, yes/no), got '{raw}'";
+            return false;
+        }
+
+        if (!p.IsAllowedValue(raw))
+        {
+            error = $"{commandName}: '{p.Name}' must be one of {string.Join(", ", p.AllowedValues!)}, got '{raw}'";
+            return false;
         }
 
         return true;

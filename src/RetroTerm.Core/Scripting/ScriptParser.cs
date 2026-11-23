@@ -284,18 +284,11 @@ public sealed class ScriptParser
             {
                 continue;
             }
-            if (p.Type == CommandParameterType.Int
-                && !int.TryParse(raw, System.Globalization.NumberStyles.Integer,
-                       System.Globalization.CultureInfo.InvariantCulture, out _))
+            // Type and word-list rules live in CommandParameterValidation, shared with the
+            // dispatch-time check, so a script and an MCP call are refused with the same words.
+            if (!CommandParameterValidation.TryCheckValue(command.Name, p, raw, out var valueError))
             {
-                errors.Add(new ScriptParseError(lineNumber,
-                    $"{command.Name}: '{p.Name}' must be a whole number, got '{raw}'"));
-                return;
-            }
-            if (p.Type == CommandParameterType.Bool && !IsBoolValue(raw))
-            {
-                errors.Add(new ScriptParseError(lineNumber,
-                    $"{command.Name}: '{p.Name}' must be true/false (or 1/0, on/off, yes/no), got '{raw}'"));
+                errors.Add(new ScriptParseError(lineNumber, valueError!));
                 return;
             }
         }

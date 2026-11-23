@@ -77,7 +77,7 @@ public class ScreenshotCommandTests
 
         try
         {
-            var result = Run((session, p) => null, path);
+            var result = Run((session, area, p) => null, path);
 
             Assert.False(result.Success);
             Assert.Contains("empty", result.Error!, System.StringComparison.OrdinalIgnoreCase);
@@ -97,7 +97,7 @@ public class ScreenshotCommandTests
 
         try
         {
-            var result = Run((session, p) =>
+            var result = Run((session, area, p) =>
             {
                 File.WriteAllBytes(p, new byte[] { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4 });
                 return null;
@@ -119,7 +119,7 @@ public class ScreenshotCommandTests
         // zero-by-zero picture.
         var path = Path.Combine(Path.GetTempPath(), "retroterm-never-written.png");
 
-        var result = Run((session, p) => "that tab has not been laid out yet", path);
+        var result = Run((session, area, p) => "that tab has not been laid out yet", path);
 
         Assert.False(result.Success);
         Assert.Contains("laid out", result.Error!);
@@ -130,7 +130,7 @@ public class ScreenshotCommandTests
     {
         bool rendered = false;
 
-        var result = Run((session, p) => { rendered = true; return null; },
+        var result = Run((session, area, p) => { rendered = true; return null; },
             Path.Combine(Path.GetTempPath(), "no-such-folder-here", "shot.png"));
 
         Assert.False(result.Success);
@@ -144,12 +144,12 @@ public class ScreenshotCommandTests
         // The two-surface rule. One registration, and the script parser and the MCP tool list both
         // read this same declaration - so SCREENSHOT cannot exist on one surface and not the other.
         var registry = new CommandRegistry();
-        ScreenshotCommand.RegisterAll(registry, (session, p) => null);
+        ScreenshotCommand.RegisterAll(registry, (session, area, p) => null);
 
         Assert.True(registry.TryGet("SCREENSHOT", out var command));
 
         Assert.NotNull(command);
-        Assert.Equal(2, command!.Parameters.Count);
+        Assert.Equal(3, command!.Parameters.Count);
 
         Assert.Equal("file", command.Parameters[0].Name);
         Assert.True(command.Parameters[0].Required);
@@ -159,6 +159,116 @@ public class ScreenshotCommandTests
         Assert.Equal("settle", command.Parameters[1].Name);
         Assert.False(command.Parameters[1].Required);
         Assert.Equal("250", command.Parameters[1].DefaultValue);
+
+        // area chooses the terminal or the whole window. Optional and defaulting to the terminal,
+        // which is what SCREENSHOT drew before the option existed, so old scripts keep their meaning.
+        Assert.Equal("area", command.Parameters[2].Name);
+        Assert.False(command.Parameters[2].Required);
+        Assert.Equal("terminal", command.Parameters[2].DefaultValue);
+        Assert.Equal(new[] { "terminal", "window" }, command.Parameters[2].AllowedValues);
+    }
+
+    /// <summary>
+    /// Runs the command with one area word and reports which area reached the renderer.
+    /// </summary>
+    /// <param name="areaWord">
+    /// The value of area=, or null to leave it out.
+    /// </param>
+    /// <returns>
+    /// The area the renderer was asked for, and what the command said.
+    /// </returns>
+    private static (ScreenCaptureArea? Seen, CommandResult Result) RunWithArea(string? areaWord)
+    {
+        var path = Path.Combine(Path.GetTempPath(), "retroterm-area-shot.png");
+        ScreenCaptureArea? seen = null;
+
+        try
+        {
+            var command = new ScreenshotCommand((session, area, p) =>
+            {
+                seen = area;
+                File.WriteAllBytes(p, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+                return null;
+            });
+
+            var values = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["file"] = path,
+                ["settle"] = "0"
+            };
+            if (areaWord != null) values["area"] = areaWord;
+
+            var result = command.ExecuteAsync(NewSession(), new CommandArgs(values), CancellationToken.None)
+                .GetAwaiter().GetResult();
+            return (seen, result);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void LeavingAreaOutDrawsTheTerminal()
+    {
+        var (seen, result) = RunWithArea(null);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(ScreenCaptureArea.Terminal, seen);
+        Assert.StartsWith("screen saved", result.Output!);
+    }
+
+    [Fact]
+    public void AreaWindowAsksTheRendererForTheWindowAndSaysSo()
+    {
+        var (seen, result) = RunWithArea("Window");
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(ScreenCaptureArea.Window, seen);
+        Assert.StartsWith("window saved", result.Output!);
+    }
+
+    [Fact]
+    public void AnUnknownAreaIsRefusedAtParseTimeByName()
+    {
+        // Refused by the script parser before anything runs, naming the parameter and the word,
+        // so a typo cannot quietly fall back to the terminal and save the wrong picture.
+        var registry = new CommandRegistry();
+        ScreenshotCommand.RegisterAll(registry, (session, area, p) => null);
+        var parser = new RetroTerm.Core.Scripting.ScriptParser(registry);
+
+        var parsed = parser.Parse("SCREENSHOT \"shot.png\" area=windwo");
+
+        Assert.NotEmpty(parsed.Errors);
+        var message = parsed.Errors[0].ToString();
+        Assert.Contains("'area'", message);
+        Assert.Contains("windwo", message);
+        Assert.Contains("terminal, window", message);
+    }
+
+    [Fact]
+    public async Task AnUnknownAreaIsRefusedAtDispatchWithoutDrawing()
+    {
+        // The MCP route: no parser in front, so the registry's own check must refuse it.
+        bool drawn = false;
+        var registry = new CommandRegistry();
+        ScreenshotCommand.RegisterAll(registry, (session, area, p) => { drawn = true; return null; });
+
+        var args = new CommandArgs(new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["file"] = Path.Combine(Path.GetTempPath(), "retroterm-never.png"),
+            ["area"] = "desktop"
+        });
+
+        var result = await registry.ExecuteAsync("SCREENSHOT", NewSession(), args, CancellationToken.None);
+
+        Assert.False(result.Success);
+
+        // The shared validation's words, not just any failure: with the word-list check broken,
+        // ScreenCaptureAreaParameter.Parse still throws and the registry reports THAT, so a bare
+        // "it failed" would pass for the wrong reason (seen when this rule was broken on purpose).
+        Assert.Contains("'area' must be one of terminal, window, got 'desktop'", result.Error!);
+        Assert.False(drawn, "the renderer ran for an area that does not exist");
     }
 
     [Fact]
@@ -170,7 +280,7 @@ public class ScreenshotCommandTests
 
         try
         {
-            var command = new ScreenshotCommand((session, p) =>
+            var command = new ScreenshotCommand((session, area, p) =>
             {
                 File.WriteAllBytes(p, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
                 return null;
@@ -209,7 +319,7 @@ public class ScreenshotCommandTests
 
         try
         {
-            var result = Run((session, p) =>
+            var result = Run((session, area, p) =>
             {
                 File.WriteAllBytes(p, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
                 return null;

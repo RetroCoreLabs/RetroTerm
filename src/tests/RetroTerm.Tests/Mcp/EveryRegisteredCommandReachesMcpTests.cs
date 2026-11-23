@@ -109,7 +109,7 @@ public class EveryRegisteredCommandReachesMcpTests : IDisposable
 
         RetroTerm.Core.Protocols.WebSocket.Gateway.GatewayCommand.RegisterAll(registry, () => null);
 
-        ScreenshotCommand.RegisterAll(registry, (session, path) => null);
+        ScreenshotCommand.RegisterAll(registry, (session, area, path) => null);
 
         LocalInputCommands.RegisterAll(registry,
             (TerminalSession session, string key, bool shift) => null,

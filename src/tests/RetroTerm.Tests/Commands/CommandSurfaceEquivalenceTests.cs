@@ -140,8 +140,7 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
 
     public CommandSurfaceEquivalenceTests()
     {
-        var real = new CommandRegistry();
-        BuiltinCommands.RegisterAll(real);
+        var real = BuildRegistry();
 
         var commands = real.Commands;
         for (int i = 0; i < commands.Count; i++)
@@ -174,15 +173,52 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
     /// </summary>
     public static IEnumerable<object[]> StringParameters()
     {
-        var registry = new CommandRegistry();
-        BuiltinCommands.RegisterAll(registry);
+        var registry = BuildRegistry();
         var commands = registry.Commands;
         for (int i = 0; i < commands.Count; i++)
         {
             var parameters = commands[i].Parameters;
             for (int j = 0; j < parameters.Count; j++)
             {
-                if (parameters[j].Type == CommandParameterType.String)
+                // A parameter with a word list accepts only those words, so free text is not a
+                // value it can carry; WordListParameters covers it instead.
+                if (parameters[j].Type == CommandParameterType.String && parameters[j].AllowedValues == null)
+                {
+                    yield return new object[] { commands[i].Name, parameters[j].Name };
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The registry under test: the built-ins plus SCREENSHOT, which is the command that brought
+    /// word-list parameters in (its <c>area</c>). The capture is a stub; the recording wrapper
+    /// never calls it.
+    /// </summary>
+    /// <returns>
+    /// The registry.
+    /// </returns>
+    private static CommandRegistry BuildRegistry()
+    {
+        var registry = new CommandRegistry();
+        BuiltinCommands.RegisterAll(registry);
+        ScreenshotCommand.RegisterAll(registry, (session, area, path) => null);
+        return registry;
+    }
+
+    /// <summary>
+    /// Every (command, parameter) pair whose parameter declares a word list.
+    /// </summary>
+    public static IEnumerable<object[]> WordListParameters()
+    {
+        var registry = BuildRegistry();
+        var commands = registry.Commands;
+        for (int i = 0; i < commands.Count; i++)
+        {
+            var parameters = commands[i].Parameters;
+            for (int j = 0; j < parameters.Count; j++)
+            {
+                if (parameters[j].AllowedValues != null)
                 {
                     yield return new object[] { commands[i].Name, parameters[j].Name };
                 }
@@ -195,8 +231,7 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
     /// </summary>
     public static IEnumerable<object[]> AllParameters()
     {
-        var registry = new CommandRegistry();
-        BuiltinCommands.RegisterAll(registry);
+        var registry = BuildRegistry();
         var commands = registry.Commands;
         for (int i = 0; i < commands.Count; i++)
         {
@@ -213,8 +248,7 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
     /// </summary>
     public static IEnumerable<object[]> AllCommands()
     {
-        var registry = new CommandRegistry();
-        BuiltinCommands.RegisterAll(registry);
+        var registry = BuildRegistry();
         var commands = registry.Commands;
         for (int i = 0; i < commands.Count; i++)
         {
@@ -387,6 +421,81 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
             $"{commandName}: MCP accepted '{parameterName}=300/ontimeout=wake' for an Int parameter — "
             + "GetInt will silently use the default and the caller will never know");
         Assert.Equal(0, recorder.CallCount);
+    }
+
+    /// <summary>
+    /// A word outside a parameter's list is refused on BOTH surfaces, by name, and the command
+    /// never runs. Written for SCREENSHOT's <c>area</c>: <c>area=windwo</c> falling back to the
+    /// terminal would save the wrong picture and say "saved".
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(WordListParameters))]
+    public async Task AWordOutsideTheListIsRefusedOnBothSurfaces(string commandName, string parameterName)
+    {
+        var command = Resolve(commandName);
+        var supplied = BuildRequired(command);
+        supplied[parameterName] = "not-one-of-them";
+
+        var recorder = _recorders[commandName];
+
+        recorder.Reset();
+        var parsed = _parser.Parse(BuildScriptLine(commandName, supplied));
+        Assert.NotEmpty(parsed.Errors);
+        Assert.Contains(parameterName, DescribeErrors(parsed), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not-one-of-them", DescribeErrors(parsed), StringComparison.Ordinal);
+        Assert.Equal(0, recorder.CallCount);
+
+        recorder.Reset();
+        var mcp = await CallMcpAsync(commandName, supplied);
+        Assert.True(mcp.IsError ?? false,
+            $"{commandName}: MCP accepted '{parameterName}=not-one-of-them', which is not in its word list");
+        Assert.Contains(parameterName, McpText(mcp), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, recorder.CallCount);
+    }
+
+    /// <summary>
+    /// Every word in a parameter's list, in any case, reaches the command unchanged on both
+    /// surfaces - the list must not be stricter on one side than the other.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(WordListParameters))]
+    public async Task EveryWordInTheListArrivesOnBothSurfaces(string commandName, string parameterName)
+    {
+        var allowed = FindParameter(Resolve(commandName), parameterName).AllowedValues!;
+        for (int i = 0; i < allowed.Count; i++)
+        {
+            await AssertBothSurfacesDeliver(commandName, parameterName, allowed[i]);
+            await AssertBothSurfacesDeliver(commandName, parameterName, allowed[i].ToUpperInvariant());
+        }
+    }
+
+    /// <summary>
+    /// The MCP tool's schema carries the word list as a JSON Schema enum, so a client is told the
+    /// choices before it calls rather than after it is refused.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(WordListParameters))]
+    public void TheMcpSchemaListsTheWords(string commandName, string parameterName)
+    {
+        var allowed = FindParameter(Resolve(commandName), parameterName).AllowedValues!;
+        var tools = _provider.BuildToolList();
+        var toolName = "terminal_" + commandName.ToLowerInvariant();
+
+        for (int i = 0; i < tools.Count; i++)
+        {
+            if (tools[i].Name != toolName) continue;
+
+            var property = tools[i].InputSchema.GetProperty("properties").GetProperty(parameterName);
+            var words = property.GetProperty("enum");
+            Assert.Equal(allowed.Count, words.GetArrayLength());
+            for (int w = 0; w < allowed.Count; w++)
+            {
+                Assert.Equal(allowed[w], words[w].GetString());
+            }
+            return;
+        }
+
+        Assert.Fail("no MCP tool named " + toolName);
     }
 
     /// <summary>
@@ -634,6 +743,11 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
     /// </summary>
     private static string SampleFor(CommandParameter parameter)
     {
+        if (parameter.AllowedValues != null)
+        {
+            return parameter.AllowedValues[0];
+        }
+
         return parameter.Type switch
         {
             CommandParameterType.Int => "1000",
