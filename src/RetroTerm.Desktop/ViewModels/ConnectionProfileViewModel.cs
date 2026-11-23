@@ -43,6 +43,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private string? _snapshotOnConnectScript;
     private string? _snapshotOnDisconnectScript;
     private bool? _snapshotBackspaceSendsDel;
+    private int? _snapshotCodePage;
+    private int? _codePage;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
     private string _snapshotNewLineTransmit = ConnectionFactory.NewLineModes.Cr;
@@ -289,6 +291,15 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The EBCDIC code page of a 3270 connection by its IBM number; null leaves the terminal on 037.
+    /// </summary>
+    public int? CodePage
+    {
+        get => _codePage;
+        set { if (_codePage != value) { _codePage = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// Whether Delete sends DEL (0x7F) instead of its terminal's own sequence.
     /// </summary>
     public bool DeleteSendsDel
@@ -419,6 +430,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _onConnectScript != _snapshotOnConnectScript
                 || _onDisconnectScript != _snapshotOnDisconnectScript
                 || _backspaceSendsDel != _snapshotBackspaceSendsDel
+                || _codePage != _snapshotCodePage
                 || _deleteSendsDel != _snapshotDeleteSendsDel
                 || _newLineReceive != _snapshotNewLineReceive
                 || _newLineTransmit != _snapshotNewLineTransmit
@@ -468,6 +480,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _onConnectScript = config.OnConnectScript;
         _onDisconnectScript = config.OnDisconnectScript;
         _backspaceSendsDel = config.BackspaceSendsDel;
+        _codePage = config.CodePage;
         _deleteSendsDel = config.DeleteSendsDel;
         // A file written before these existed has null here, and the fallbacks are the
         // behaviour that build had - so an old connection opens behaving exactly as it did.
@@ -548,6 +561,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             FollowWindowSize = _followWindowSize,
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
+            CodePage = _codePage,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -590,6 +604,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             FollowWindowSize = _followWindowSize,
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
+            CodePage = _codePage,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -638,6 +653,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotFollowWindowSize = _followWindowSize;
         _snapshotLanguage = _language;
         _snapshotBackspaceSendsDel = _backspaceSendsDel;
+        _snapshotCodePage = _codePage;
         _snapshotDeleteSendsDel = _deleteSendsDel;
         _snapshotNewLineReceive = _newLineReceive;
         _snapshotNewLineTransmit = _newLineTransmit;

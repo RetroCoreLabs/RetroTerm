@@ -70,9 +70,12 @@ clean-room rewrite in C#.
 - [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
-- [ ] TN3270E
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] 3270 Backspace: waits on Ronny's choice, move left as IBM's 3278 does or erase left as wc3270 does (`docs\spec\IBM3270\KEYBOARD.md`, open question 3)
+- [ ] 3270 Backspace erases left, as wc3270 does (Ronny, 23 November 2026)
+- [ ] 3270 double-click moves the cursor there and presses Enter, as wc3270 does (Ronny, 23 November 2026)
+- [ ] IND$PUT and IND$GET as aliases of HOSTSEND and HOSTRECEIVE (Ronny, 23 November 2026: keep the names, add the IBM ones)
+- [ ] Terminal Size box follows the chosen terminal (Ronny, 23 November 2026): only the sizes that terminal really had; a 3270 shows IBM 3278 in Terminal Type and the four models in the size box; DEC sizes checked against DEC's manuals first
+- [ ] TN3270E built now from RFC 2355, checked against the oracle code (x3270, tnz) and recorded-byte tests, since TK5 cannot test it (Ronny, 23 November 2026)
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages
@@ -98,7 +101,6 @@ clean-room rewrite in C#.
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-  - [ ] A code page box in Manage Connections for a TN3270 connection (the saved connection already carries the code page and the tab is set to it when it opens, since 23 November 2026; today it can only be set by editing the saved file or live with CODEPAGE)
 - [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)

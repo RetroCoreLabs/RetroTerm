@@ -115,6 +115,23 @@ public partial class ManageConnectionsWindow : Window
 
     // Keyboard tab: what the keys send, how line endings are handled, and local echo.
     private CheckBox? _backspaceSendsDelCheck;
+
+    // The code page box's item for a saved code page: 0 (the default) when none is saved or the
+    // number is not a base page RetroIO knows.
+    private static int CodePageIndex(int? number)
+    {
+        IReadOnlyList<RetroIO.Protocols.Tn3270.CodePage> pages = RetroIO.Protocols.Tn3270.CodePage.All;
+        for (int i = 0; number != null && i < pages.Count; i++)
+        {
+            if (pages[i].Number == number)
+            {
+                return i + 1;
+            }
+        }
+
+        return 0;
+    }
+    private ComboBox? _codePageCombo;
     private CheckBox? _deleteSendsDelCheck;
     private ComboBox? _newLineReceiveCombo;
     private ComboBox? _newLineTransmitCombo;
@@ -524,6 +541,35 @@ public partial class ManageConnectionsWindow : Window
             _viewModel.CurrentProfile.LocalEcho = _localEchoCheck.IsChecked == true;
         };
         _keyboardPanel.Children.Add(_localEchoCheck);
+
+        // ── 3270 code page ─────────────────────────────────────────
+        // Item 0 is "not chosen", which leaves the terminal on 037; then every base page, in
+        // RetroIO's order. Only a TN3270 connection uses it; every other terminal ignores it.
+        _keyboardPanel.Children.Add(new TextBlock
+        {
+            Text = "IBM 3270 code page (decides what the host's characters show as, and what typed ones are sent as):",
+            Foreground = TextPrimary,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0)
+        });
+        _codePageCombo = new ComboBox { Name = "CodePageCombo", MinWidth = 280 };
+        _codePageCombo.Items.Add("Terminal's default (037 USA, Canada)");
+        IReadOnlyList<RetroIO.Protocols.Tn3270.CodePage> pages = RetroIO.Protocols.Tn3270.CodePage.All;
+        for (int i = 0; i < pages.Count; i++)
+        {
+            _codePageCombo.Items.Add(pages[i].Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + pages[i].Name);
+        }
+
+        _codePageCombo.SelectedIndex = 0;
+        _codePageCombo.SelectionChanged += (_, _) =>
+        {
+            if (_suppressSelectionChange) return;
+            int index = _codePageCombo.SelectedIndex;
+            _viewModel.CurrentProfile.CodePage = index <= 0 ? null : RetroIO.Protocols.Tn3270.CodePage.All[index - 1].Number;
+        };
+        _keyboardPanel.Children.Add(_codePageCombo);
     }
 
     /// <summary>
@@ -811,6 +857,9 @@ public partial class ManageConnectionsWindow : Window
 
     /// <summary>Shows the Terminal tab, which holds the colour controls.</summary>
     internal void ShowTerminalTabForTesting() => SelectTab(2);
+
+    // The Keyboard tab, for a headless test: its panel is only in the window while it is shown.
+    internal void ShowKeyboardTabForTesting() => SelectTab(3);
 
     /// <summary>The Terminal Color list entry that is selected.</summary>
     internal string? SelectedColourItemForTesting => _colorPresetCombo?.SelectedItem as string;
@@ -1229,6 +1278,7 @@ public partial class ManageConnectionsWindow : Window
         // connection nobody has touched - so the handlers are suppressed while they are set.
         _suppressSelectionChange = true;
         if (_backspaceSendsDelCheck != null) _backspaceSendsDelCheck.IsChecked = profile.BackspaceSendsDel;
+        if (_codePageCombo != null) _codePageCombo.SelectedIndex = CodePageIndex(profile.CodePage);
         if (_deleteSendsDelCheck != null) _deleteSendsDelCheck.IsChecked = profile.DeleteSendsDel;
         if (_newLineReceiveCombo != null) _newLineReceiveCombo.SelectedItem = profile.NewLineReceive;
         if (_newLineTransmitCombo != null) _newLineTransmitCombo.SelectedItem = profile.NewLineTransmit;

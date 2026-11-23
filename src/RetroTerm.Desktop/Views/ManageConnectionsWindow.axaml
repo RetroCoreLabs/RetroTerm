@@ -124,8 +124,12 @@
                             Classes="ConnectionTab"/>
                 </StackPanel>
 
-                <!-- Tab Content Area -->
-                <ContentControl Name="TabContent"/>
+                <!-- Tab Content Area. It scrolls: a tab taller than the window (the Keyboard tab
+                     once the 3270 code page was added, 23 November 2026) was simply cut off at the
+                     bottom, with no way to reach what was below. -->
+                <ScrollViewer Name="TabScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ContentControl Name="TabContent"/>
+                </ScrollViewer>
             </DockPanel>
         </Border>
     </Grid>
