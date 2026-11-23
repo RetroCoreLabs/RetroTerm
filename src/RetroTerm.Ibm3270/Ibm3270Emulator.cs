@@ -7,11 +7,9 @@
 
 using System;
 using System.Collections.Generic;
-
 using RetroIO.Protocols.Tn3270;
-
+using RetroTerm.Core.Commands.Builtin;
 using RetroTerm.Core.Protocols;
-
 using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Input;
@@ -44,7 +42,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -104,6 +102,36 @@ namespace RetroTerm.Ibm3270
         /// Gets the 3270 screen model, for the key handler and for MCP.
         /// </summary>
         public Display3270 Display => _display;
+
+        /// <summary>
+        /// Gets why the keyboard is locked, or null when it is not (IStatusLineTerminal).
+        /// </summary>
+        /// <remarks>
+        /// Every lock the operator caused (protected field, too much data, a mandatory field) is
+        /// reported as an operator error: the host never lifts those, only Reset does
+        /// (Display3270.Reset).
+        /// </remarks>
+        public string? KeyboardLockReason => _display.Lock switch
+        {
+            KeyboardLock.None => null,
+            KeyboardLock.WaitingForHost => Ibm3270LockReasons.WaitingForHost,
+            KeyboardLock.SystemLock => Ibm3270LockReasons.SystemLock,
+            _ => Ibm3270LockReasons.OperatorError,
+        };
+
+        /// <summary>
+        /// Gets line 25 as drawn (IStatusLineTerminal), built by the same StatusLine3270 call the
+        /// screen is painted from.
+        /// </summary>
+        public string DrawnStatusLine
+        {
+            get
+            {
+                Span<char> line = stackalloc char[_display.Columns];
+                StatusLine3270.Build(_display, _connection, null, line);
+                return new string(line);
+            }
+        }
 
         /// <summary>
         /// Applies ONE complete outbound 3270 record and repaints.

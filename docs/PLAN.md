@@ -128,8 +128,6 @@ clean-room rewrite in C#.
   - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys
   - [ ] Read the screen WITH its fields: position, length, protected/numeric/hidden/intensified, modified flag, colour; hidden fields reported as hidden, never their text
   - [ ] Put text into a field by number or by row/column; move the cursor
-  - [ ] Wait for the keyboard to unlock (the 3270 way of knowing the host has answered) as well as for text
-  - [ ] Read the status line (keyboard locked, insert mode, connection state)
   - [ ] Choose the code page, the model and the screen size per connection
 - [ ] Oracle tests: run `s3270` on the same recorded host stream and compare screens
 - [ ] Second oracle: drive IBM's Python tnz library the same way, and mine its `test\` folder for known-good byte streams
