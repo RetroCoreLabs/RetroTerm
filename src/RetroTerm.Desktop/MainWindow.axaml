@@ -127,6 +127,10 @@
                           Name="ReceiveFileMenuItem"
                           Click="OnReceiveFileClick"
                           IsEnabled="False"/>
+                <MenuItem Header="IBM Host Files..."
+                          Name="HostFilesMenuItem"
+                          Click="OnHostFilesClick"
+                          IsEnabled="False"/>
                 <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
                 <MenuItem Header="Cancel Transfer"
                           Name="CancelTransferMenuItem"

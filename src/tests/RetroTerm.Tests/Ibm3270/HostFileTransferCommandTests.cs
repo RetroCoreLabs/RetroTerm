@@ -30,7 +30,7 @@ namespace RetroTerm.Tests.Ibm3270
     {
         // EW, WCC restore, SF protected "NAME", SF unprotected, IC: an input field from address 6
         // to the end of the screen, the cursor at its start.
-        private static readonly byte[] Screen =
+        internal static readonly byte[] Screen =
         {
             Command3270.EraseWrite, 0x02,
             Order3270.StartField, 0x60, 0xD5, 0xC1, 0xD4, 0xC5,
@@ -49,7 +49,7 @@ namespace RetroTerm.Tests.Ibm3270
             Order3270.InsertCursor,
         };
 
-        private static async Task<(TerminalSession Session, InMemoryConnection Connection, Ibm3270Emulator Emulator)> Open(byte[] screen)
+        internal static async Task<(TerminalSession Session, InMemoryConnection Connection, Ibm3270Emulator Emulator)> Open(byte[] screen)
         {
             var emulator = new Ibm3270Emulator();
             var session = new TerminalSession(emulator, "Test");
@@ -60,7 +60,7 @@ namespace RetroTerm.Tests.Ibm3270
             return (session, connection, emulator);
         }
 
-        private static byte[] Hex(string text)
+        internal static byte[] Hex(string text)
         {
             string[] parts = text.Split(' ');
             byte[] bytes = new byte[parts.Length];
@@ -75,7 +75,7 @@ namespace RetroTerm.Tests.Ibm3270
         // TK5's records for "IND$FILE PUT RTTFT.TEXT ASCII CRLF" after our Enter: Read Partition
         // Query, Open FT:DATA (upload), Set Cursor + Get twice (one record, then end of file),
         // Close, Open FT:MSG, the TRANS03 message (85 bytes: text, '$', blanks), then READY.
-        private static byte[][] Tk5Upload()
+        internal static byte[][] Tk5Upload()
         {
             byte[] head = Hex("F3 00 06 40 00 F1 C2 00 0A D0 47 11 01 05 00 80 00 00 5F D0 47 04 C0 80 61 00 5A");
             byte[] message = new byte[head.Length + 85];
@@ -171,7 +171,7 @@ namespace RetroTerm.Tests.Ibm3270
         // TK5's records for "IND$FILE GET RTTFT.TEXT ASCII CRLF", 23 November 2026: Query, Open
         // FT:DATA (download, short form), one Data to Insert with both lines and their CR LF,
         // Close, Open FT:MSG, the message, READY.
-        private static byte[][] Tk5Download(string message)
+        internal static byte[][] Tk5Download(string message)
         {
             return new[]
             {

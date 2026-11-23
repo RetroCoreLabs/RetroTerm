@@ -150,6 +150,17 @@ Run them at TSO's `READY` prompt, not inside ISPF. In a script they can also be 
 own names, `IND$PUT` and `IND$GET`. Details: `docs\MCP-AND-SCRIPTING.md` and
 `docs\spec\IBM3270\IND-FILE-TRANSFER.md`.
 
+Without a script, use **Transfer, IBM Host Files...** on a 3270 tab. Type a data set name, quoted or
+not (for example `HERC01.DEMO.CNTL(HELLO)`), choose Text or Binary, and press **View** (shows the
+data set as text in its own window), **Download...** (saves it to a PC file you pick) or
+**Upload...** (sends a PC file you pick). For a new data set you can give RECFM, LRECL and
+BLKSIZE on Upload; leave them empty and the mainframe decides. A member of a library only moves as
+Text and takes none of those three. The window first checks that TSO is at `READY` and refuses
+otherwise, so it never types into ISPF or another program. When the transfer ends it presses
+Clear, so you get an empty screen back at `READY`, and shows the mainframe's answer (TRANS03 or
+TRANS04 means it worked) at the bottom of the window. One transfer runs at a time; Cancel stops
+waiting for it.
+
 ## 10. A first login to TK5
 
 TK5 is a ready-made MVS 3.8J system for the Hercules emulator. Its README lists the ready-made

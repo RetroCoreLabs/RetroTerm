@@ -3322,6 +3322,31 @@ public partial class MainWindow : Window
         if (sendItem != null) sendItem.IsEnabled = isConnected && !isTransferring;
         if (receiveItem != null) receiveItem.IsEnabled = isConnected && !isTransferring;
         if (cancelItem != null) cancelItem.IsEnabled = isTransferring;
+
+        // IBM Host Files moves files with IND$FILE, so only a connected 3270 tab can use it.
+        var hostFilesItem = this.FindControl<MenuItem>("HostFilesMenuItem");
+        if (hostFilesItem != null) hostFilesItem.IsEnabled = isConnected && _activeTab!.Session.Emulator is Core.Transfer.IHostFileTransfer;
+    }
+
+    /// <summary>
+    /// Transfer, IBM Host Files: the window that views, downloads and uploads a host data set by
+    /// name on the active 3270 tab (HostFilesWindow; the work is HostFileTransfer in Core).
+    /// </summary>
+    /// <param name="sender">
+    /// The menu item.
+    /// </param>
+    /// <param name="e">
+    /// The click.
+    /// </param>
+    private void OnHostFilesClick(object? sender, RoutedEventArgs e)
+    {
+        TabSession? tab = _activeTab;
+        if (tab == null || !tab.Session.IsConnected || tab.Session.Emulator is not Core.Transfer.IHostFileTransfer)
+        {
+            return;
+        }
+
+        new Views.HostFilesWindow(tab.Session, tab.Title).Show(this);
     }
 
     private void UpdateTransferIndicator()
