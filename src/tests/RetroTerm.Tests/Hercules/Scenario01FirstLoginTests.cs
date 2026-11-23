@@ -68,39 +68,11 @@ namespace RetroTerm.Tests.Hercules
 
         private static List<Tk5Step> Steps(Tk5Settings settings)
         {
-            string user = settings.User;
-            var steps = new List<Tk5Step>
+            // Sections 3 and 4: the logon panel, user, password, welcome, fortune cookie, ISPF.
+            var steps = new List<Tk5Step>();
+            Tk5CommonSteps.AddLogon(steps, settings);
+            steps.AddRange(new List<Tk5Step>
             {
-                // Section 3: the first screen is the logon panel, or Hercules' information panel
-                // on a terminal address not used since MVS started; Reset then Clear leaves it.
-                new Tk5Step("connect", t => Task.CompletedTask,
-                    s => s.Contains("Logon ===>") || s.Contains("Hercules"), "the logon or Hercules panel", false),
-                new Tk5Step("logon panel", async t =>
-                {
-                    Tk5Screen first = await t.ReadAsync();
-                    if (!first.Contains("Logon ===>"))
-                    {
-                        await t.PressAsync("RESET");
-                        await t.PressAsync("CLEAR");
-                    }
-                }, s => CursorIsInTheLogonField(s), "'Logon ===>' with the cursor in its field", true),
-
-                // Section 4: user, password, welcome, fortune cookie, ISPF.
-                new Tk5Step("user id", async t =>
-                {
-                    await t.TypeAsync(user);
-                    await t.PressAsync("ENTER");
-                }, s => s.Contains("ENTER CURRENT PASSWORD FOR " + user), "the password prompt", true),
-                new Tk5Step("password", async t =>
-                {
-                    await t.TypeAsync(settings.Password);
-                    await t.PressAsync("ENTER");
-                }, s => s.Contains("LOGON IN PROGRESS") && s.Contains("***"), "the welcome screen", true),
-                new Tk5Step("fortune cookie", t => t.PressAsync("ENTER"),
-                    s => s.Contains("***") && !s.Contains("LOGON IN PROGRESS"), "the fortune cookie", false),
-                new Tk5Step("ISPF menu", t => t.PressAsync("ENTER"),
-                    s => s.Contains("ISPF primary option menu"), "the ISPF menu", true),
-
                 // Section 5: option 3, PF3 back, =3.4 straight to the data set list.
                 new Tk5Step("option 3", async t =>
                 {
@@ -138,33 +110,12 @@ namespace RetroTerm.Tests.Hercules
                     await t.PressAsync("ENTER");
                 }, s => s.Contains("ENTER DATA SET NAME"), "RENAME asking for a data set name", true),
                 new Tk5Step("PA1", t => t.PressAsync("PA1"),
-                    s => LastLineIsReady(s), "READY after PA1", true),
+                    s => Tk5CommonSteps.LastLineIsReady(s), "READY after PA1", true),
 
                 // Section 7: LOGOFF back to the logon panel.
-                new Tk5Step("LOGOFF", async t =>
-                {
-                    await t.TypeAsync("LOGOFF");
-                    await t.PressAsync("ENTER");
-                }, s => s.Contains("Logon ===>"), "the logon panel after LOGOFF", true),
-            };
+                Tk5CommonSteps.Logoff(),
+            });
             return steps;
-        }
-
-        // The logon panel can arrive in more than one write after Reset and Clear: typing before
-        // the write that puts the cursor in the field types onto the wrong place (found 22 November
-        // 2026, when s3270's first run typed too early and the host simply showed the panel again).
-        private static bool CursorIsInTheLogonField(Tk5Screen s)
-        {
-            for (int r = 0; r < Tk5Screen.Rows; r++)
-            {
-                int at = s.Lines[r].IndexOf("Logon ===>", System.StringComparison.Ordinal);
-                if (at >= 0)
-                {
-                    return s.CursorRow == r && s.CursorColumn > at + 10;
-                }
-            }
-
-            return false;
         }
 
         // READY printed after the IN CATALOG line, so the listing has finished.
@@ -186,21 +137,6 @@ namespace RetroTerm.Tests.Hercules
             }
 
             return catalog >= 0 && ready > catalog;
-        }
-
-        // The last non-blank line is READY: the question was answered by PA1.
-        private static bool LastLineIsReady(Tk5Screen s)
-        {
-            for (int r = Tk5Screen.Rows - 1; r >= 0; r--)
-            {
-                string line = s.Lines[r].Trim();
-                if (line.Length > 0)
-                {
-                    return line == "READY";
-                }
-            }
-
-            return false;
         }
     }
 }
