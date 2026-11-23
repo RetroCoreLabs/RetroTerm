@@ -27,7 +27,7 @@ namespace RetroTerm.Tests.Hercules
             @"\d\d:\d\d(:\d\d)?|\d\d\.\d\d\.\d\d|CUU0C\w|ON [A-Z]+ \d\d?, \d{4}|TERMINAL : \w+",
             RegexOptions.Compiled);
 
-        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes, string status = "", string line25 = "", byte[]? highlights = null)
+        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes, string status = "", string line25 = "", byte[]? highlights = null, byte[]? colours = null)
         {
             Lines = new string[Rows];
             for (int r = 0; r < Rows; r++)
@@ -43,6 +43,7 @@ namespace RetroTerm.Tests.Hercules
             Status = status;
             Line25 = line25;
             Highlights = highlights;
+            Colours = colours;
         }
 
         public string[] Lines { get; }
@@ -88,6 +89,15 @@ namespace RetroTerm.Tests.Hercules
         /// "if (mode3279)").
         /// </remarks>
         public byte[]? Highlights { get; }
+
+        /// <summary>
+        /// The foreground colour of every buffer position, as the host set it: a field
+        /// attribute's own colour at its position, a character's own (SA) colour elsewhere, X'00'
+        /// for "the default" and X'F1' to X'F7' for the seven colours (GA23-0061-2 p. 2-10). Null
+        /// when not read, which is always for s3270 started as a 3278 (it drops colours, see
+        /// <see cref="Highlights"/>).
+        /// </summary>
+        public byte[]? Colours { get; }
 
         public bool Contains(string text)
         {
@@ -167,6 +177,24 @@ namespace RetroTerm.Tests.Hercules
                 if (shown > 5)
                 {
                     found.Add("highlight: " + shown + " positions differ in all");
+                }
+            }
+
+            if (Colours != null && other.Colours != null)
+            {
+                int shown = 0;
+                for (int a = 0; a < Colours.Length && a < other.Colours.Length; a++)
+                {
+                    if (Colours[a] != other.Colours[a] && shown++ < 5)
+                    {
+                        found.Add("colour at row " + ((a / Columns) + 1) + " column " + ((a % Columns) + 1) + ": RetroTerm " +
+                            Colours[a].ToString("X2") + ", " + theirName + " " + other.Colours[a].ToString("X2"));
+                    }
+                }
+
+                if (shown > 5)
+                {
+                    found.Add("colour: " + shown + " positions differ in all");
                 }
             }
 

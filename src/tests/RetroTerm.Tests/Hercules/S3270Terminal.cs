@@ -32,23 +32,36 @@ namespace RetroTerm.Tests.Hercules
     internal sealed class S3270Terminal : ITk5Terminal
     {
         private readonly Process _process;
+
+        // True when started as a 3279: only then does x3270 keep the colours the host sends.
+        private readonly bool _colour;
         private bool _unlocked;
 
-        private S3270Terminal(Process process)
+        private S3270Terminal(Process process, bool colour)
         {
             _process = process;
+            _colour = colour;
         }
 
         public string Name => "s3270";
 
-        public static async Task<S3270Terminal> OpenAsync(Tk5Settings settings)
+        public static Task<S3270Terminal> OpenAsync(Tk5Settings settings)
+        {
+            return OpenAsync(settings, "3278-2");
+        }
+
+        /// <summary>
+        /// Starts s3270 as the given model and connects it. "3279-2" keeps colours, "3278-2" drops
+        /// them (x3270 ctlr.c, every colour store is inside "if (mode3279)").
+        /// </summary>
+        public static async Task<S3270Terminal> OpenAsync(Tk5Settings settings, string model)
         {
             if (!File.Exists(settings.S3270))
             {
                 throw new Xunit.Sdk.XunitException("s3270 not found at '" + settings.S3270 + "' (the s3270 entry in tk5-tests.json).");
             }
 
-            var start = new ProcessStartInfo(settings.S3270, "-model 3278-2")
+            var start = new ProcessStartInfo(settings.S3270, "-model " + model)
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
@@ -56,7 +69,7 @@ namespace RetroTerm.Tests.Hercules
                 CreateNoWindow = true,
             };
             Process process = Process.Start(start) ?? throw new Xunit.Sdk.XunitException("s3270 did not start");
-            var terminal = new S3270Terminal(process);
+            var terminal = new S3270Terminal(process, model.StartsWith("3279", StringComparison.Ordinal));
             await terminal.RunAsync("Connect(N:" + settings.Host + ":" + settings.Port.ToString(CultureInfo.InvariantCulture) + ")");
             return terminal;
         }
@@ -150,6 +163,8 @@ namespace RetroTerm.Tests.Hercules
             // The running character highlight: SA(...) is printed only where it changes, and is
             // never reset at a field (task.c, current_gr, starting at 0).
             byte highlight = 0;
+            var colours = new byte[Tk5Screen.Rows * Tk5Screen.Columns];
+            byte colour = 0;
             int address = 0;
             for (int i = 0; i < buffer.Data.Count; i++)
             {
@@ -164,12 +179,14 @@ namespace RetroTerm.Tests.Hercules
                     if (token.StartsWith("SA(", StringComparison.Ordinal))
                     {
                         highlight = HighlightIn(token, highlight);
+                        colour = ValueIn(token, "42=", colour);
                         continue;
                     }
 
                     if (address < highlights.Length)
                     {
                         highlights[address] = highlight;
+                        colours[address] = colour;
                     }
 
                     if (token.StartsWith("SF(c0=", StringComparison.Ordinal))
@@ -181,6 +198,7 @@ namespace RetroTerm.Tests.Hercules
                         if (address < highlights.Length)
                         {
                             highlights[address] = HighlightIn(token, 0);
+                            colours[address] = ValueIn(token, "42=", 0);
                         }
                     }
 
@@ -193,7 +211,15 @@ namespace RetroTerm.Tests.Hercules
             int row = int.Parse(status[8], CultureInfo.InvariantCulture);
             int column = int.Parse(status[9], CultureInfo.InvariantCulture);
             string line25 = string.Join(' ', status, 0, 8);
-            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes, line25, Wc3270Line25(status), highlights);
+            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes, line25, Wc3270Line25(status), highlights, _colour ? colours : null);
+        }
+
+        // A key=value pair in an SF(...) or SA(...) token, for example 42= (XA_FOREGROUND), or the
+        // given value when the token has none.
+        private static byte ValueIn(string token, string key, byte otherwise)
+        {
+            int at = token.IndexOf(key, StringComparison.Ordinal);
+            return at < 0 ? otherwise : byte.Parse(token.AsSpan(at + 3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
 
         // The 41= (XA_HIGHLIGHTING) value in an SF(...) or SA(...) token, as its low four bits, or

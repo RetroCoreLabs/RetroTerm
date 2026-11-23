@@ -69,6 +69,29 @@ namespace RetroTerm.Tests.Hercules
             Tk5Scenario.AssertSameScreens(steps, ours, reference, "s3270");
         }
 
+        [Fact]
+        public async Task EveryScreenOfTheIspfMenuWalkMatchesAColourS3270()
+        {
+            // s3270 as a 3279 keeps the colours the host sends (a 3278 drops them), so this run
+            // also compares the foreground colour of every position (Tk5Screen.Colours).
+            Tk5Settings settings = Tk5Settings.Load().AsCompareUser();
+            List<Tk5Step> steps = Steps(settings);
+
+            List<Tk5Screen> reference;
+            await using (S3270Terminal s3270 = await S3270Terminal.OpenAsync(settings, "3279-2"))
+            {
+                reference = await Tk5Scenario.RunAsync(s3270, steps, _output);
+            }
+
+            List<Tk5Screen> ours;
+            await using (RetroTermTk5Terminal retroTerm = await RetroTermTk5Terminal.OpenAsync(settings))
+            {
+                ours = await Tk5Scenario.RunAsync(retroTerm, steps, _output);
+            }
+
+            Tk5Scenario.AssertSameScreens(steps, ours, reference, "s3270 (3279)");
+        }
+
         // Opens one option from the primary menu and leaves it with PF3: two steps.
         private static void AddOption(List<Tk5Step> steps, string option, string expect)
         {
