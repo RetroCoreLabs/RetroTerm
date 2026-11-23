@@ -97,7 +97,7 @@ clean-room rewrite in C#.
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-- [ ] TK5: which ISPF-like program it ships and whether it has a terminal type setting (3278T is an ISPF option 0 setting, never sent on the wire; EBCDIC.md)
+- [ ] TK5: look for Graphic Escape (X'08') in the panels not yet traced — RFE, RPF, REVIEW, option T and M.7 TERMTEST — with ISPF option 0.1 set to 3278T (set it back to 3277 afterwards). TK5's ISPF menus, option 3, M and 0 send none with 3277 or 3278T (EBCDIC.md, "TK5", 24 November 2026)
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons

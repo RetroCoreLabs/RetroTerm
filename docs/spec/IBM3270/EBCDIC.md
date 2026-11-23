@@ -452,10 +452,35 @@ SC19-3628-00 `.../isp2u200.pdf`, GC19-3623-00 `.../isp2pc00.pdf` (same folder).
 They are © IBM with no redistribution permission in their notices, so they are not
 committed to `IBM-manuals\`.
 
-**TK5:** the five TK5 recordings of 23 November 2026 have no X'08' byte at all; its
-ISPF boxes are plain `|` `_` `/` (PLAN.md). What ISPF-like program TK5 ships and
-whether it has a terminal type setting was NOT checked: no TK5 document is in this
-repository and the web search found none.
+**TK5** (measured on the live system, 24 November 2026):
+
+- **Which ISPF.** Not IBM's. The *TK5 Introduction and User Manual* (in the TK5
+  `doc` folder, section "ISPF", p. 41-42) says it is Wally McLaughlin's own ISPF, "a
+  dialog manager providing table services, panel functions ... and integrated CLIST
+  support" with no PDF part; edit and browse come from REVIEW/RFE and RPF. Its
+  primary option menu shows `RELEASE : V2.2.000`, `SYSTEMID : TK5R`, and option C
+  "Summary of changes for this release".
+- **It has the terminal type setting.** Option 0 (ISPF PARMS) -> 1 TERMINAL shows
+  "TERMINAL TYPE ===> 3277" with five values: `3277` (3275/3277 terminal), `3277A`
+  (3275/3277 with APL keyboard), `3278` (3276/3278/3279/3290 terminal), `3278A`
+  (3276/3278/3279/3290 APL), `3278T` (3276/3278/3290 TEXT keyboard). This user's
+  value was `3277` (the primary menu shows `TERMINAL : 3277`). The panel also holds
+  number of PF keys (12 or 24), input pad, command delimiter and screen format.
+- **Switching to 3278T sends no Graphic Escape.** Set to 3278T, ISPF left and entered
+  again (the menu then showed `TERMINAL : 3278T`), and options 3, M, 0 and 0.1 shown.
+  Every host record of that session was decoded with `Tk5WireTap.Decode`, which
+  prints any X'08' byte as a `GE` order: **none in the whole session**. The dashed
+  title line of the ISPF PARAMETER OPTIONS and TERMINAL CHARACTERISTICS panels came
+  as plain text `-----...` both with 3277 and with 3278T. None of the panels looked
+  at has box lines; the only box-like art seen is the logon panel's plain `|` `_` `/`.
+- In that session RetroTerm answered the host's Read Partition Query and named
+  itself `IBM-3278-2-E`; its Character Sets reply carries the code page 310 set
+  (`Ibm3270QueryReplyTests.TheGraphicEscapeSetIsSetOneWithLocalIdF1`). So the host
+  was told GE is there and still sent none.
+- The setting was put back to `3277` in the same session, and checked: after
+  re-entering ISPF the menu showed `TERMINAL : 3277` again.
+- Not looked at: the panels of RFE, RPF and REVIEW, option T, and M.7 TERMTEST
+  ("Verify 3270 terminal capabilities"), any of which might use GE.
 
 Note that X'85' is in the group
 fig. 10-41 note 4 calls "graphic plot characters" that "cannot be entered from
@@ -797,8 +822,10 @@ key input is affected.
 2. **What ISPF sends.** Which GE characters ISPF actually uses for its boxes and
    whether it needs the "3278T" setting inside ISPF: needs a trace from a real
    z/OS ISPF session with GE reported in the query reply. Not available here.
-3. **"3278T" meaning.** Believed to be an ISPF terminal type setting; NOT VERIFIED.
-   Needs an ISPF manual.
+   TK5's ISPF (Wally McLaughlin's, V2.2.000) sent no GE at all, with 3277 or 3278T
+   (see "TK5" above, 24 November 2026), so TK5 cannot answer this.
+3. **"3278T" meaning.** Settled: an ISPF option 0 terminal type setting, never sent on
+   the wire (see "What 3278T means" above; TK5's ISPF has it too, as option 0.1).
 4. **Fonts for the APL symbols.** Lucida Console lacks 64 of the 110 GE
    characters. Draw them ourselves, ship or name a second font for them, or rely on
    system font fallback (whether Avalonia does that on Windows is NOT VERIFIED)?
