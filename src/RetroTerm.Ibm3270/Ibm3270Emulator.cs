@@ -43,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -68,6 +68,9 @@ namespace RetroTerm.Ibm3270
         private const int FileTransferBufferSize = 16384;
 
         private readonly Display3270 _display;
+
+        // True while the connection runs TN3270E (set by the session through ITn3270EAware).
+        private bool _inTn3270E;
 
         // The PC side of IND$FILE (IHostFileTransfer). Fed by the display's X'D0' fields.
         private readonly IndFileTransfer _transfer;
@@ -223,6 +226,20 @@ namespace RetroTerm.Ibm3270
             };
             Refresh();
         }
+
+        /// <summary>
+        /// Gets a value indicating whether the connection runs TN3270E, which changes Attn and
+        /// Sys Req.
+        /// </summary>
+        public bool InTn3270E => _inTn3270E;
+
+        /// <summary>
+        /// The connection's TN3270E state changed.
+        /// </summary>
+        /// <param name="on">
+        /// True when TN3270E is in force.
+        /// </param>
+        public void Tn3270EChanged(bool on) => _inTn3270E = on;
 
         /// <summary>
         /// Copies the operator's local change (typing, cursor moves) to the screen.
@@ -492,14 +509,31 @@ namespace RetroTerm.Ibm3270
                 case "DUP": Local(() => _display.Dup()); return NamedKeyResult.Pressed;
                 case "FIELDMARK": Local(() => _display.FieldMark()); return NamedKeyResult.Pressed;
                 case "ATTN":
-                    // x3270 Attn_action in plain TN3270: PA1, then TELNET BREAK.
                     Local(() =>
                     {
+                        if (_inTn3270E)
+                        {
+                            // x3270 Attn_action, TN3270E: IAC IP only when an SNA session is
+                            // bound, otherwise Minus Function. Basic TN3270E agrees no BIND-IMAGE,
+                            // so nothing is ever bound here.
+                            _display.RefuseFunction();
+                            return;
+                        }
+
+                        // x3270 Attn_action in plain TN3270: PA1, then TELNET BREAK.
                         _display.Attn();
                         BreakRequested?.Invoke();
                     });
                     return NamedKeyResult.Pressed;
-                case "SYSREQ": Local(() => _display.SysReq()); return NamedKeyResult.Pressed;
+                case "SYSREQ":
+                    // x3270 SysReq_action, TN3270E: net_abort, which sends IAC AO only when the
+                    // SYSREQ function was agreed. Basic TN3270E agrees none, so nothing happens.
+                    if (!_inTn3270E)
+                    {
+                        Local(() => _display.SysReq());
+                    }
+
+                    return NamedKeyResult.Pressed;
                 case "CURSORSELECT": Local(() => _display.CursorSelect()); return NamedKeyResult.Pressed;
                 default: return NamedKeyResult.UnknownName;
             }

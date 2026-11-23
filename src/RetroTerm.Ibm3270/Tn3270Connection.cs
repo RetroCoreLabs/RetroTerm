@@ -20,7 +20,7 @@ namespace RetroTerm.Ibm3270
     /// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
     /// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
     /// </summary>
-    public sealed class Tn3270Connection : IConnection, IBreakConnection
+    public sealed class Tn3270Connection : IConnection, IBreakConnection, ITn3270EConnection
     {
         private readonly string _host;
         private readonly int _port;
@@ -67,6 +67,7 @@ namespace RetroTerm.Ibm3270
             TerminalType = terminalType;
             _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
             _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
+            _protocol.Tn3270EChanged += on => Tn3270EChanged?.Invoke(on);
             _protocol.ProtocolError += message =>
             {
                 ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
@@ -78,6 +79,21 @@ namespace RetroTerm.Ibm3270
         /// Raised when the connection status changes.
         /// </summary>
         public event Action<ConnectionStatus>? StatusChanged;
+
+        /// <summary>
+        /// Raised when TN3270E comes into force or ends, on the receive thread.
+        /// </summary>
+        public event Action<bool>? Tn3270EChanged;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E is in force now.
+        /// </summary>
+        public bool InTn3270E => _protocol.InTn3270E;
+
+        /// <summary>
+        /// Gets the LU name the host gave in TN3270E, or null (plain TN3270, or not agreed yet).
+        /// </summary>
+        public string? GrantedLuName => _protocol.GrantedLuName;
 
         /// <summary>
         /// Raised with each complete 3270 record from the host, without telnet framing.

@@ -85,15 +85,191 @@ namespace RetroTerm.Tests.Ibm3270
             }
         }
 
-        [Fact]
-        public void Tn3270eIsRefused()
+        // The TN3270E exchange of RFC 2355 section 7, as docs\spec\IBM3270\TN3270-NEGOTIATION.md
+        // section 4 lists it from the RFC, x3270 and tnz: DO TN3270E, SEND DEVICE-TYPE, then IS
+        // with the LU the host gave, then FUNCTIONS. TK5 never offers TN3270E, so these bytes are
+        // the specification's, not a capture.
+        private static readonly byte[] DoTn3270E = { 0xFF, 0xFD, 0x28 };
+        private static readonly byte[] SendDeviceType = { 0xFF, 0xFA, 0x28, 0x08, 0x02, 0xFF, 0xF0 };
+
+        // DEVICE-TYPE IS IBM-3278-2-E CONNECT TCP00034
+        private static readonly byte[] DeviceTypeIs = Bytes("FF FA 28 02 04", "'IBM-3278-2-E", "01", "'TCP00034", "FF F0");
+
+        // Hex pieces, with a text piece written as "'TEXT" (its ASCII bytes), joined in order.
+        private static byte[] Bytes(params string[] parts)
         {
-            // TK5 never asks; a host that does must get WONT, since RFC 2355 is not built.
+            var all = new List<byte>();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].StartsWith('\''))
+                {
+                    all.AddRange(System.Text.Encoding.ASCII.GetBytes(parts[i].Substring(1)));
+                }
+                else
+                {
+                    all.AddRange(Convert.FromHexString(parts[i].Replace(" ", string.Empty, StringComparison.Ordinal)));
+                }
+            }
+
+            return all.ToArray();
+        }
+
+        [Fact]
+        public void BasicTn3270eIsNegotiatedAsTheRfcAndX3270DoIt()
+        {
+            var (p, wire, _, errors) = Create();
+            var changes = new List<bool>();
+            p.Tn3270EChanged += changes.Add;
+
+            p.Feed(DoTn3270E);
+            Assert.Equal(Bytes("FF FB 28"), wire.ToArray());
+
+            wire.Clear();
+            p.Feed(SendDeviceType);
+            Assert.Equal(Bytes("FF FA 28 02 07", "'IBM-3278-2-E", "FF F0"), wire.ToArray());
+
+            // Granted: the client asks for no functions, which is basic TN3270E (RFC 2355 s.9).
+            wire.Clear();
+            p.Feed(DeviceTypeIs);
+            Assert.Equal(Bytes("FF FA 28 03 07 FF F0"), wire.ToArray());
+            Assert.Equal("IBM-3278-2-E", p.GrantedDeviceType);
+            Assert.Equal("TCP00034", p.GrantedLuName);
+            Assert.False(p.InTn3270E);
+
+            wire.Clear();
+            p.Feed(Bytes("FF FA 28 03 04 FF F0"));
+            Assert.Empty(wire);
+            Assert.True(p.InTn3270E);
+            Assert.True(p.In3270Mode);
+            Assert.Equal(new[] { true }, changes);
+            Assert.Empty(errors);
+        }
+
+        [Fact]
+        public void TheWholeExchangeFedOneByteAtATimeEndsTheSame()
+        {
+            var (p, _, records, errors) = Create();
+            var all = new List<byte>();
+            all.AddRange(DoTn3270E);
+            all.AddRange(SendDeviceType);
+            all.AddRange(DeviceTypeIs);
+            all.AddRange(Bytes("FF FA 28 03 04 FF F0", "00 00 00 00 00 F5 42 FF EF"));
+
+            for (int i = 0; i < all.Count; i++)
+            {
+                p.Feed(new[] { all[i] });
+            }
+
+            Assert.True(p.InTn3270E);
+            Assert.Equal("TCP00034", p.GrantedLuName);
+            Assert.Equal(Bytes("F5 42"), Assert.Single(records));
+            Assert.Empty(errors);
+        }
+        [Fact]
+        public void AnLuAfterTheAtSignIsAskedForWithConnect()
+        {
+            var wire = new List<byte>();
+            var p = new Tn3270Protocol(bytes => wire.AddRange(bytes.ToArray()), "IBM-3278-4-E@TSO1");
+
+            p.Feed(DoTn3270E);
+            wire.Clear();
+            p.Feed(SendDeviceType);
+
+            Assert.Equal(Bytes("FF FA 28 02 07", "'IBM-3278-4-E", "01", "'TSO1", "FF F0"), wire.ToArray());
+        }
+
+        [Fact]
+        public void RecordsCarryTheFiveByteHeaderBothWays()
+        {
+            var (p, wire, records, errors) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            p.Feed(DeviceTypeIs);
+            p.Feed(Bytes("FF FA 28 03 04 FF F0"));
+            wire.Clear();
+
+            // 3270-DATA header, then Erase/Write with an FF doubled inside it, then IAC EOR.
+            p.Feed(Bytes("00 00 00 00 00 F5 42 FF FF C1 FF EF"));
+            Assert.Single(records);
+            Assert.Equal(Bytes("F5 42 FF C1"), records[0]);
+
+            // Our input: the header of zeros first (tnz send_3270_data; x3270 net_output).
+            p.SendRecord(Bytes("7D 40 40"));
+            Assert.Equal(Bytes("00 00 00 00 00 7D 40 40 FF EF"), wire.ToArray());
+            Assert.Empty(errors);
+        }
+
+        [Fact]
+        public void ARecordThatIsNot3270DataOrAsksForAResponseIsSaidOutLoud()
+        {
+            var (p, wire, records, errors) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            p.Feed(DeviceTypeIs);
+            p.Feed(Bytes("FF FA 28 03 04 FF F0"));
+            wire.Clear();
+
+            p.Feed(Bytes("05 00 00 00 00 41 42 FF EF"));
+            Assert.Empty(records);
+            Assert.Contains("data type 5", errors[0]);
+
+            p.Feed(Bytes("00 00 02 00 01 F5 42 FF EF"));
+            Assert.Single(records);
+            Assert.Contains("RESPONSES was not agreed", errors[1]);
+            Assert.Empty(wire);
+        }
+
+        [Fact]
+        public void TheHostAskingForFunctionsGetsTheEmptyListBack()
+        {
             var (p, wire, _, _) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            p.Feed(DeviceTypeIs);
+            wire.Clear();
 
-            p.Feed(new byte[] { 0xFF, 0xFD, 0x28 });
+            // The host asks for RESPONSES and SYSREQ: the answer is what both can do, nothing.
+            p.Feed(Bytes("FF FA 28 03 07 02 04 FF F0"));
+            Assert.Equal(Bytes("FF FA 28 03 07 FF F0"), wire.ToArray());
+            Assert.False(p.InTn3270E);
 
-            Assert.Equal(new byte[] { 0xFF, 0xFC, 0x28 }, wire.ToArray());
+            // Then it asks for nothing: agreed (x3270 tn3270e_negotiate, FUNCTIONS REQUEST).
+            wire.Clear();
+            p.Feed(Bytes("FF FA 28 03 07 FF F0"));
+            Assert.Equal(Bytes("FF FA 28 03 04 FF F0"), wire.ToArray());
+            Assert.True(p.InTn3270E);
+        }
+
+        [Fact]
+        public void ARejectedDeviceTypeBacksOffToPlainTn3270()
+        {
+            var (p, wire, _, errors) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            wire.Clear();
+
+            p.Feed(Bytes("FF FA 28 02 06 05 01 FF F0"));
+
+            Assert.Equal(Bytes("FF FC 28"), wire.ToArray());
+            Assert.Contains("DEVICE-IN-USE", errors[0]);
+            Assert.False(p.InTn3270E);
+            Assert.Null(p.GrantedLuName);
+        }
+
+        [Fact]
+        public void FunctionsTheHostAddedOnItsOwnEndTn3270E()
+        {
+            var (p, wire, _, errors) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            p.Feed(DeviceTypeIs);
+            wire.Clear();
+
+            p.Feed(Bytes("FF FA 28 03 04 02 FF F0"));
+
+            Assert.Equal(Bytes("FF FC 28"), wire.ToArray());
+            Assert.Contains("not asked for", errors[0]);
+            Assert.False(p.InTn3270E);
         }
 
         [Fact]

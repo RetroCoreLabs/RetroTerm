@@ -292,6 +292,21 @@ public partial class TerminalSession : IDisposable
     }
 
     /// <summary>
+    /// Hands the connection's TN3270E state to an emulator whose keys depend on it, on the pump
+    /// thread. Raised by the connection on its own thread.
+    /// </summary>
+    /// <param name="on">
+    /// True when TN3270E is in force.
+    /// </param>
+    private void OnConnectionTn3270EChanged(bool on)
+    {
+        if (Emulator is ITn3270EAware aware)
+        {
+            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on));
+        }
+    }
+
+    /// <summary>
     /// Sends an emulator-generated reply (DA, DSR, CPR, ...) back to the host.
     /// This is now the ONLY path from an emulator to the host. It takes bytes, so nothing is lost
     /// to text encoding — a reply may legitimately contain bytes above 0x7F, and the TDV path that
@@ -373,6 +388,11 @@ public partial class TerminalSession : IDisposable
         _connection.StatusChanged += OnConnectionStatusChanged;
         _connection.DataReceived += OnConnectionDataReceived;
         _connection.ErrorOccurred += OnConnectionError;
+        if (_connection is ITn3270EConnection tn3270e)
+        {
+            tn3270e.Tn3270EChanged += OnConnectionTn3270EChanged;
+            OnConnectionTn3270EChanged(tn3270e.InTn3270E);
+        }
 
         try
         {
@@ -571,6 +591,12 @@ public partial class TerminalSession : IDisposable
         conn.StatusChanged -= OnConnectionStatusChanged;
         conn.DataReceived -= OnConnectionDataReceived;
         conn.ErrorOccurred -= OnConnectionError;
+        if (conn is ITn3270EConnection tn3270eConn)
+        {
+            tn3270eConn.Tn3270EChanged -= OnConnectionTn3270EChanged;
+            OnConnectionTn3270EChanged(false);
+        }
+
         _connection = null;
         Title = "Terminal - Disconnected";
 
@@ -882,6 +908,10 @@ public partial class TerminalSession : IDisposable
         _connection.StatusChanged -= OnConnectionStatusChanged;
         _connection.DataReceived -= OnConnectionDataReceived;
         _connection.ErrorOccurred -= OnConnectionError;
+        if (_connection is ITn3270EConnection tn3270e)
+        {
+            tn3270e.Tn3270EChanged -= OnConnectionTn3270EChanged;
+        }
 
         // Dispose connection
         _connection.Dispose();

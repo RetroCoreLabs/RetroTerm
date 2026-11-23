@@ -194,6 +194,17 @@ The tnz README (line 28) says: "Code page 310 for APL graphic symbols (i.e. 3278
 
 ## 4. TN3270E - the exact bytes (from RFC and oracles; TK5 does not offer it)
 
+**What RetroTerm does (built 23 November 2026, src\RetroTerm.Ibm3270\Tn3270Protocol.cs):**
+basic TN3270E (RFC 2355 section 9). It answers DO TN3270E with WILL, asks for the device type
+in its terminal type (an @name suffix becomes CONNECT name), keeps the device type and LU the
+host grants, and asks for an EMPTY function list. 3270-DATA records lose their 5-byte header on
+the way in and get  0 00 00 00 00 on the way out. Any other data type, and a record that asks
+for a response, is reported rather than shown or answered. A refused device type, or functions
+the host adds on its own, end TN3270E with WONT TN3270E and the connection goes on as plain
+TN3270 (x3270 ackoff_tn3270e). In TN3270E, Attn locks the keyboard with Minus Function and
+Sys Req does nothing, as x3270 does when no SNA session is bound and SYSREQ is not agreed. Not
+tested against a live host: TK5 never offers TN3270E.
+
 TN3270E starts when the server sends `IAC DO TN3270E` and the client answers `IAC WILL TN3270E`
 (either side may start, but the server normally does) [RFC 2355 s.13.2]. Then the device type is
 agreed **inside TN3270E subnegotiation**, not with TERMINAL-TYPE.
@@ -389,8 +400,8 @@ only the four cases above were measured.
    `IBM-3278-2`), optionally `@<name>` for TK5-style hosts.
 2. Answer `DO`/`WILL` for BINARY and EOR with WILL/DO; refuse other options except ECHO /
    SUPPRESS-GO-AHEAD in NVT mode [RFC 1576 s.3].
-3. Answer `DO TN3270E` with WILL only if TN3270E is enabled; else WONT. Then the DEVICE-TYPE /
-   FUNCTIONS exchange of section 4.
+3. Answer `DO TN3270E` with WILL, then the DEVICE-TYPE / FUNCTIONS exchange of section 4. Built as
+   basic TN3270E (see the top of section 4).
 4. Treat the session as 3270 only while BINARY and EOR are on in both directions (plus TN3270E
    agreed, if used). Back to NVT text if either goes off [RFC 1576 s.4].
 5. Byte-level parser that survives any TCP split, undoubles FF, ends records on IAC EOR, strips

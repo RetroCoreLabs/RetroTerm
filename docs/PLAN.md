@@ -72,7 +72,9 @@ clean-room rewrite in C#.
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
 - [ ] 3270 double-click: ASK AGAIN. Ronny chose "move the cursor and press Enter, as wc3270" on a wrong description; wc3270 (select.c, SE_DOUBLE_CLICK) and x3270 (SelectUp) both select a word on a double-click and never press Enter
-- [ ] TN3270E built now from RFC 2355, checked against the oracle code (x3270, tnz) and recorded-byte tests, since TK5 cannot test it (Ronny, 23 November 2026)
+- [ ] TN3270E RESPONSES function (RFC 2355 s.10.4): needs a path from the emulator back to the connection with the outcome of each host record, since x3270 answers after processing (positive, negative on error, held until the next output when the record produced one). Basic TN3270E (no functions) is built, 23 November 2026
+- [ ] TN3270E BIND-IMAGE, SYSREQ (suspended mode, SSCP-LU-DATA) and NVT-DATA mode, then the 3287 printer (ASSOCIATE): not built; with BIND-IMAGE, Attn sends IAC IP when bound (x3270 Attn_action)
+- [ ] Show the user the LU name a TN3270E host granted (Tn3270Connection.GrantedLuName; TN3270-NEGOTIATION.md section 10 item 8)
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages

@@ -171,6 +171,61 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Equal(new byte[] { 0x01, 0x6C, 0x61, 0x02, 0x11, 0x40, 0xC6, 0x88, 0x89 }, sent[0]);
         }
 
+        [Fact]
+        public async Task InTn3270eAttnIsMinusFunctionAndSysReqSendsNothing()
+        {
+            // x3270 Attn_action: with TN3270E and no SNA session bound, Minus Function, no PA1 and
+            // no telnet command. SysReq_action: net_abort sends IAC AO only when SYSREQ was agreed,
+            // and basic TN3270E agrees none. The session hands the connection's state over.
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new Tn3270ECountingConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(Screen);
+            connection.Agree(true);
+            await session.FlushAsync();
+            Assert.True(emulator.InTn3270E);
+            connection.ClearSentData();
+
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("SYSREQ", out _));
+            await session.FlushAsync();
+            Assert.Empty(connection.GetSentData());
+            Assert.Equal(KeyboardLock.None, emulator.Display.Lock);
+
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+            Assert.Empty(connection.GetSentData());
+            Assert.Equal(0, connection.Breaks);
+            Assert.Equal(KeyboardLock.MinusFunction, emulator.Display.Lock);
+            Assert.Contains("X -f", await RowAsync(session, 24));
+
+            // TN3270E ends (the host backed off): Attn is plain TN3270's again.
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("RESET", out _));
+            connection.Agree(false);
+            await session.FlushAsync();
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+            Assert.Equal(new byte[] { Aid.PA1 }, Assert.Single(connection.GetSentData()));
+            Assert.Equal(1, connection.Breaks);
+        }
+
+        // A connection whose TN3270E state the test sets, and which counts breaks.
+        private sealed class Tn3270ECountingConnection : InMemoryConnection, IBreakConnection, ITn3270EConnection
+        {
+            public event System.Action<bool>? Tn3270EChanged;
+
+            public bool InTn3270E { get; private set; }
+
+            public int Breaks { get; private set; }
+
+            public void SendBreak() => Breaks++;
+
+            public void Agree(bool on)
+            {
+                InTn3270E = on;
+                Tn3270EChanged?.Invoke(on);
+            }
+        }
         // A connection that can send a break, and remembers how many records went before it.
         private sealed class BreakCountingConnection : InMemoryConnection, IBreakConnection
         {
