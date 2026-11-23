@@ -77,6 +77,7 @@ clean-room rewrite in C#.
 - [ ] 3287 PDF of a TK5 job: JRP sends no Form Feed, so a two-page job (112 lines) becomes ONE tall PDF sheet; the text file is right (the same lines). Whether the PDF should break pages by itself is Ronny's call
 - [ ] JRP console screen differs from what it should be? (BUGS.md B11): compare RetroTerm and s3270 on the same JRP keys
 - [ ] 3287 PDF: a 'Lines per page' box on the Printer tab (empty = new sheet only on a form feed); TK5 needs 56, since JRP pads pages with new lines and never sends FF (Ronny, 23 November 2026)
+- [ ] 3287 PDF 'tractor paper' look (Ronny, 23 November 2026): a checkbox on the Printer tab that draws each PDF sheet like old continuous form paper - bands of white and pale blue behind the lines (classic sheets were green bar; offer the colour), and the round sprocket holes down both edges where the tractor feed pulled it. Draws only in the PDF; the text file is unchanged. Band height to follow lines per inch (6 per inch on a 1403-style sheet, bands of 3 lines on most greenbar - check a real sheet's measurements before drawing)
 - [ ] Move the 3287 printer code to RetroIO together with the rest of RetroTerm's 3270 code, in one planned step (Ronny, 23 November 2026: keep it in RetroTerm until then)
 - [ ] BUGS.md B12: connect to every address a host name resolves to at the same time (IPv6 and IPv4) and keep the first that answers, in the shared connect step (Ronny, 23 November 2026)
 - [ ] Implicit TLS on port 992 (low priority)
