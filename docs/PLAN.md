@@ -70,7 +70,6 @@ clean-room rewrite in C#.
 - [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
-- [ ] Tn3270Client (plain TN3270 against TK5), with a replay test of the TK5 handshake
 - [ ] TN3270E
 - [ ] Code page 310 (APL) and other EBCDIC code pages
 - [ ] 3270 Backspace: waits on Ronny's choice, move left as IBM's 3278 does or erase left as wc3270 does (`docs\spec\IBM3270\KEYBOARD.md`, open question 3)
@@ -94,7 +93,6 @@ clean-room rewrite in C#.
 - [ ] BEFORE THE NEXT RELEASE: switch RetroTerm from the local folder feed (`src\nuget.config`, `..\..\localfeed`) to GitHub Packages (`https://nuget.pkg.github.com/retrocorelabs/index.json`, `0.1.0-alpha.*`). Needs a read:packages token on this PC (environment variable, never in git) and, in the release workflow, GITHUB_TOKEN with `packages: read` after RetroIO's package settings grant RetroTerm access. Until then a tag build cannot restore the 3270 packages (Ronny, 22 November 2026: stay local for now)
 - [ ] Align the 3270 with wc3270 (Ronny, 22 November 2026): run the same steps in RetroTerm and in `s3270.exe` (the window-less wc3270, in the Hercules wc3270 folder) against TK5 and compare screen text and cursor after each step; then the layout, colours and keys against wc3270
 - [ ] Move RetroTerm's own telnet client and telnet server onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
-- [ ] A RetroTerm connection type for TN3270 that uses the RetroIO TN3270 client (waits for the `retroio` session's Tn3270Client): fill in `ProtocolType.TN3270` in `ConnectionFactory`, which throws today, and create `Ibm3270Emulator` for it. The screen (`src\RetroTerm.Ibm3270\Ibm3270Emulator.cs`) and the local keys are built
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
@@ -107,7 +105,6 @@ clean-room rewrite in C#.
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons
   - [ ] Block copy and cut: select a rectangle; copy takes the text, cut also erases it but only in unprotected fields; paste puts it back field by field
   - [ ] Macros: record and replay keys and text, built on RetroTerm's existing script language so MCP and scripts get them too
-  - [ ] IND$FILE file transfer from the menu: a dialog for HOSTSEND / HOSTRECEIVE (the commands, for scripts and MCP, are done and tested live on TK5, 23 November 2026)
   - [ ] Several sessions to one host: each tab its own TN3270 connection, with an optional LU name per connection (RFC 1646 / RFC 2355) so each tab can get a set terminal
 - [ ] From ZOC (commercial terminal, emtec.com/zoc/features.html; chosen by Ronny 22 November 2026):
   - [ ] Automatic replies: when set text appears on screen, type an answer or run a script; built on the script language so MCP gets it too

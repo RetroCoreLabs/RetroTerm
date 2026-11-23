@@ -3101,9 +3101,73 @@ public partial class MainWindow : Window
         return (FileCollisionMode)Themes.ThemeManager.Instance.KermitFileCollision;
     }
 
+    // The running IND transfer of a 3270 tab, so Cancel Transfer can stop it. Null when none.
+    private CancellationTokenSource? _hostTransferCancel;
+
+    /// <summary>
+    /// Transfer, Send or Receive, on a 3270 tab: IND instead of Kermit. The dialog collects
+    /// the fields and the registered HOSTSEND or HOSTRECEIVE command does the work, the same
+    /// command a .rts script and MCP run.
+    /// </summary>
+    /// <param name="upload">
+    /// True for Send (IND PUT), false for Receive (GET).
+    /// </param>
+    /// <returns>
+    /// True when the tab is a 3270 tab and the request was handled here.
+    /// </returns>
+    private bool TryHostFileTransfer(bool upload)
+    {
+        TabSession? tab = _activeTab;
+        if (tab == null || tab.Session.Emulator is not Core.Transfer.IHostFileTransfer)
+        {
+            return false;
+        }
+
+        _ = RunHostFileTransferAsync(tab, upload);
+        return true;
+    }
+
+    private async Task RunHostFileTransferAsync(TabSession tab, bool upload)
+    {
+        if (_hostTransferCancel != null)
+        {
+            UpdateStatus("A host file transfer is already running.");
+            return;
+        }
+
+        var dialog = new Views.HostFileTransferDialog(upload);
+        Core.Commands.CommandArgs? args = await dialog.AskAsync(this).ConfigureAwait(true);
+        if (args == null)
+        {
+            return;
+        }
+
+        _hostTransferCancel = new CancellationTokenSource();
+        CancelTransferMenuItem.IsEnabled = true;
+        UpdateStatus((upload ? "Sending " : "Receiving ") + args.GetString("path") + " ...");
+        try
+        {
+            var result = await GetOrCreateCommandRegistry()
+                .ExecuteAsync(dialog.CommandName, tab.Session, args, _hostTransferCancel.Token)
+                .ConfigureAwait(true);
+            UpdateStatus(result.Success ? result.Output ?? "Transfer complete" : "Transfer failed: " + result.Error);
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus("Transfer failed: " + ex.Message);
+        }
+        finally
+        {
+            _hostTransferCancel.Dispose();
+            _hostTransferCancel = null;
+            CancelTransferMenuItem.IsEnabled = false;
+        }
+    }
+
     private async void OnSendFileClick(object? sender, RoutedEventArgs e)
     {
         if (_activeTab == null || !_activeTab.Session.IsConnected) return;
+        if (TryHostFileTransfer(true)) return;
 
         try
         {
@@ -3147,6 +3211,7 @@ public partial class MainWindow : Window
     private async void OnReceiveFileClick(object? sender, RoutedEventArgs e)
     {
         if (_activeTab == null || !_activeTab.Session.IsConnected) return;
+        if (TryHostFileTransfer(false)) return;
 
         try
         {
@@ -3185,6 +3250,12 @@ public partial class MainWindow : Window
 
     private void OnCancelTransferClick(object? sender, RoutedEventArgs e)
     {
+        if (_hostTransferCancel != null)
+        {
+            _hostTransferCancel.Cancel();
+            return;
+        }
+
         _activeTab?.Session.CancelFileTransfer();
     }
 
