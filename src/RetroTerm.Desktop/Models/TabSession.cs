@@ -57,6 +57,13 @@ public sealed class TabSession : IDisposable
             // and a VT sends BS without the connection having to say so.
             Control.BackspaceSendsDel = value?.BackspaceSendsDel;
             Control.DeleteSendsDel = value?.DeleteSendsDel ?? false;
+
+            // The 3270 code page, through the same ONE behaviour the CODEPAGE command uses, on the
+            // session's thread (SessionPump.cs, the thread rule). Null leaves the terminal on 037.
+            if (value?.CodePage is int codePage && Session.Emulator is Core.Terminal.Input.ICodePageTerminal terminal)
+            {
+                _ = Session.RunOnSessionThreadAsync(() => terminal.SetCodePage(codePage));
+            }
         }
     }
 

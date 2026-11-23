@@ -159,6 +159,11 @@ public static class ConnectionFactory
         public bool? BackspaceSendsDel { get; set; }
 
         /// <summary>
+        /// The EBCDIC code page of a 3270 connection by its IBM number, or null for 037.
+        /// </summary>
+        public int? CodePage { get; set; }
+
+        /// <summary>
         /// Whether the Delete key sends DEL (0x7F) rather than its terminal's own sequence.
         /// </summary>
         public bool DeleteSendsDel { get; set; }

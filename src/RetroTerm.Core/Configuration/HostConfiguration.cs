@@ -80,6 +80,12 @@ public class HostConfiguration
     public bool? FollowWindowSize { get; set; }
 
     /// <summary>
+    /// The EBCDIC code page of a 3270 connection by its IBM number (277 for Denmark and Norway),
+    /// or null for the terminal's own default, 037. Ignored by every other terminal.
+    /// </summary>
+    public int? CodePage { get; set; }
+
+    /// <summary>
     /// Maximum scrollback lines
     /// </summary>
     public int MaxScrollback { get; set; } = 1000;
@@ -287,6 +293,7 @@ public class HostConfiguration
             GatewaySelectFirstFree = GatewaySelectFirstFree,
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
+            CodePage = CodePage,
             NewLineReceive = NewLineReceive,
             NewLineTransmit = NewLineTransmit,
             LocalEcho = LocalEcho,
@@ -329,6 +336,7 @@ public class HostConfiguration
             Language = Language,
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
+            CodePage = CodePage,
             NewLineReceive = string.IsNullOrWhiteSpace(NewLineReceive) ? "AUTO" : NewLineReceive,
             NewLineTransmit = string.IsNullOrWhiteSpace(NewLineTransmit) ? "CR" : NewLineTransmit,
             LocalEcho = LocalEcho,

@@ -94,3 +94,19 @@ cannot reflow history or pull anything back. Ours is in the buffer. Not decided:
 Windows Terminal or a real DEC terminal fill a screen from history like this. DEC terminals could not
 resize at all, and no capture of the others is held here. If a capture of xterm shows it keeps the
 rows in place, this entry becomes a real defect and the old rule comes back.
+
+## B7 - `TerminalSession_ShouldSendTDV2215SecondaryDA_WithCorrectFirmwareID` fails inside the full suite
+
+`src\tests\RetroTerm.Tests\Session\TerminalSessionRealConnectionTests.cs`, the test of that name.
+
+- **Seen:** red once, 23 November 2026, in a full run (`Category!=Hercules`; 1 of 7,256, reported
+  time 2 ms). Run alone three times straight after, it passed each time. The run printed only the
+  name, not the message, so the cause is NOT known.
+- **What is known:** the test talks over a real socket on fixed port 9991 (no other test uses it)
+  and waits with `Task.Delay(200)` and `Task.Delay(500)` before it asserts that a reply arrived.
+  That is the shape CLAUDE.md ("Never wait on the clock and then assert") says fails on a busy
+  machine. But a 2 ms failure did not reach those waits, so the sleep may not be the whole story.
+- **Not done:** not reproduced, not fixed. The next step is to catch the message: run the file
+  repeatedly in the full suite with `--logger "console;verbosity=normal"` until it fails. Then
+  replace the sleeps with a deadline poll on the received replies, as
+  `TerminalSessionTestServerIntegrationTests.WaitForResponseAsync` does.
