@@ -72,6 +72,36 @@ public sealed class CommandRegistry
     }
 
     /// <summary>
+    /// Gives a registered command a second name that a script may use, for example IND$PUT for
+    /// HOSTSEND.
+    /// </summary>
+    /// <remarks>
+    /// The alias is only a way to look the command up: it is not added to <see cref="Commands"/>,
+    /// so HELP and the MCP tool list show the command once, under its own name. That matters for
+    /// MCP, whose tool names may hold only letters, digits, underscore and hyphen, so a name with
+    /// a dollar sign could not be a tool at all. A step parsed from an alias carries the command's
+    /// own name.
+    /// </remarks>
+    /// <param name="alias">
+    /// The second name.
+    /// </param>
+    /// <param name="name">
+    /// The registered command it stands for.
+    /// </param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="name"/> is not registered or <paramref name="alias"/> is taken.
+    /// </exception>
+    public void RegisterAlias(string alias, string name)
+    {
+        if (!_byName.TryGetValue(name, out ISessionCommand? command))
+            throw new ArgumentException($"Alias '{alias}' names '{name}', which is not registered", nameof(name));
+        if (_byName.ContainsKey(alias))
+            throw new ArgumentException($"'{alias}' is already a command or an alias", nameof(alias));
+
+        _byName.Add(alias, command);
+    }
+
+    /// <summary>
     /// Looks a command up by name (case-insensitive).
     /// </summary>
     public bool TryGet(string name, out ISessionCommand command)

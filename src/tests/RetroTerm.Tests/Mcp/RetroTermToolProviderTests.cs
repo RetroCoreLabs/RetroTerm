@@ -110,6 +110,24 @@ public class RetroTermToolProviderTests : IDisposable
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
+    public void EveryToolNameIsOneMcpAccepts()
+    {
+        // MCP tool names may hold only letters, digits, underscore and hyphen, at most 64. A
+        // command alias such as IND$PUT must therefore never become a tool of its own.
+        var tools = _provider.BuildToolList();
+        for (int i = 0; i < tools.Count; i++)
+        {
+            string name = tools[i].Name;
+            Assert.InRange(name.Length, 1, 64);
+            for (int c = 0; c < name.Length; c++)
+            {
+                char ch = name[c];
+                bool ok = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-';
+                Assert.True(ok, "tool name '" + name + "' holds '" + ch + "'");
+            }
+        }
+    }
+    [Fact]
     public void ToolList_ContainsSessionToolsAndOneToolPerCommand()
     {
         var tools = _provider.BuildToolList();

@@ -73,8 +73,7 @@ clean-room rewrite in C#.
 - [ ] Code page 310 (APL) and other EBCDIC code pages
 - [ ] 3270 Backspace erases left, as wc3270 does (Ronny, 23 November 2026)
 - [ ] 3270 double-click moves the cursor there and presses Enter, as wc3270 does (Ronny, 23 November 2026)
-- [ ] IND$PUT and IND$GET as aliases of HOSTSEND and HOSTRECEIVE (Ronny, 23 November 2026: keep the names, add the IBM ones)
-- [ ] Terminal Size box follows the chosen terminal (Ronny, 23 November 2026): only the sizes that terminal really had; a 3270 shows IBM 3278 in Terminal Type and the four models in the size box; DEC sizes checked against DEC's manuals first
+- [ ] Terminal Size box follows the chosen terminal (Ronny, 23 November 2026): only the sizes that terminal really had; a 3270 shows IBM 3278 in Terminal Type and the four models in the size box; DEC sizes checked against DEC's manuals first; a terminal that may follow the window (xterm and the others with the HostResize flag) takes any width and height typed in, not a fixed list (Ronny, 23 November 2026: "some terminals allow free-size, like xterm")
 - [ ] TN3270E built now from RFC 2355, checked against the oracle code (x3270, tnz) and recorded-byte tests, since TK5 cannot test it (Ronny, 23 November 2026)
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
