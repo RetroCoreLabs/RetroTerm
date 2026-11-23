@@ -127,6 +127,38 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public async Task EveryNamedKeyButBackspaceIsPressedBySendKey()
+        {
+            // The plan's two MCP items: every attention key and every local key over SENDKEY.
+            // Generated over the emulator's own name list, so a key added later is covered too.
+            // Backspace waits on a decision (docs\spec\IBM3270\KEYBOARD.md, open question 3).
+            var emulator = new Ibm3270Emulator();
+            var (session, connection) = await Open(emulator);
+            var failed = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < emulator.KeyNames.Count; i++)
+            {
+                string name = emulator.KeyNames[i];
+                if (name == "BACKSPACE")
+                {
+                    continue;
+                }
+
+                // A fresh screen each time, so a key that locks the keyboard cannot hide the next.
+                connection.SimulateReceive(Screen);
+                await session.FlushAsync();
+                await session.RunOnSessionThreadAsync(() => emulator.Display.Reset());
+
+                var result = await SendKey(session, "IBM." + name);
+                if (!result.Success)
+                {
+                    failed.Add(name + ": " + result.Error);
+                }
+            }
+
+            Assert.Empty(failed);
+        }
+
+        [Fact]
         public async Task AKeyThatIsNotBuiltFailsAndSendsNothing()
         {
             var (session, connection) = await Open(new Ibm3270Emulator());

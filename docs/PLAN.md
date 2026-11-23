@@ -121,8 +121,6 @@ clean-room rewrite in C#.
   - [ ] Overview of all open tabs as small live pictures
   - [ ] LOW PRIORITY: Telnet over TLS (no TLS code exists in RetroTerm or RetroIO today); for client and server, so the emulators can offer TLS too. Build implicit TLS first: TLS starts straight after the TCP connect, then all telnet negotiation runs inside it, on a configurable port with 992 (IANA "telnets") as the secure default, and the server certificate is checked. The telnet reader and encoder already work on bytes and own no socket, so TLS is a wrapper around the stream. Telnet START-TLS (a plain-text start, then a switch to TLS, from an IETF draft that expired) comes only when a host needs it. Sources from Ronny, 22 November 2026: Boston University and UCLA require TN3270 over TLS on port 992; IBM z/OS supports both forms. The IBM page was not fetched here
 - [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
-  - [ ] Send every attention key: Enter, PF1-PF24, PA1-PA3, Clear, Attn, SysReq (extend `terminal_sendkey`)
-  - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys
   - [ ] Choose the code page, the model and the screen size per connection
 - [ ] Oracle tests: run `s3270` on the same recorded host stream and compare screens
 - [ ] Second oracle: drive IBM's Python tnz library the same way, and mine its `test\` folder for known-good byte streams
