@@ -1324,6 +1324,7 @@ public partial class MainWindow : Window
     private async void CloseTab(TabSession tab)
     {
         StopSessionLogging(tab);
+        EndRecordingForTab(tab);
 
         // Remove from tab list FIRST — prevents event handlers from showing dialogs
         _tabs.Remove(tab);
@@ -1394,6 +1395,7 @@ public partial class MainWindow : Window
         for (int i = 0; i < tabsToClose.Length; i++)
         {
             StopSessionLogging(tabsToClose[i]);
+            EndRecordingForTab(tabsToClose[i]);
             if (tabsToClose[i].Session.IsConnected)
             {
                 try { await tabsToClose[i].Session.DisconnectAsync(); }
@@ -1461,6 +1463,9 @@ public partial class MainWindow : Window
     private void OnPopoutWindowClosed(TerminalPopoutWindow window, TabSession tab)
     {
         _popoutWindows.Remove(window);
+
+        // A popped-out tab closes with its window; its film is finished like any closed tab's.
+        EndRecordingForTab(tab);
     }
 
     // ───────────────────────────────────────────────────────────────────
@@ -4080,6 +4085,7 @@ public partial class MainWindow : Window
         for (int i = 0; i < _tabs.Count; i++)
         {
             StopSessionLogging(_tabs[i]);
+            EndRecordingForTab(_tabs[i]);
             if (_tabs[i].Session.IsConnected)
             {
                 try { await _tabs[i].Session.DisconnectAsync(); }

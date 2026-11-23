@@ -80,7 +80,7 @@ public class EveryRegisteredCommandReachesMcpTests : IDisposable
     }
 
     /// <summary>
-    /// The same six registration calls the desktop makes, with stub dependencies.
+    /// The same seven registration calls the desktop makes, with stub dependencies.
     /// </summary>
     /// <param name="tempRoot">
     /// A scratch directory for the configuration file, so the user's real connection list is never
@@ -110,6 +110,10 @@ public class EveryRegisteredCommandReachesMcpTests : IDisposable
         RetroTerm.Core.Protocols.WebSocket.Gateway.GatewayCommand.RegisterAll(registry, () => null);
 
         ScreenshotCommand.RegisterAll(registry, (session, area, path) => null);
+
+        RecordCommands.RegisterAll(registry,
+            (session, area, path, interval) => null,
+            session => ScreenRecordingOutcome.Refused("stub"));
 
         LocalInputCommands.RegisterAll(registry,
             (TerminalSession session, string key, bool shift) => null,
@@ -160,6 +164,8 @@ public class EveryRegisteredCommandReachesMcpTests : IDisposable
         ("KermitCommands", "SENDFILE"),
         ("GatewayCommand", "GATEWAY"),
         ("ScreenshotCommand", "SCREENSHOT"),
+        ("RecordCommands", "RECORDSTART"),
+        ("RecordCommands", "RECORDSTOP"),
         ("LocalInputCommands", "LOCALKEY"),
         ("LocalInputCommands", "ZOOM"),
         ("LocalInputCommands", "PASTE"),

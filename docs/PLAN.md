@@ -141,13 +141,18 @@ clean-room rewrite in C#.
 
 ---
 
-## Screenshots and screen recording — asked for by Ronny, 22 November 2026
+## Screen recording — why the film is an animated PNG and not MP4 (23 November 2026)
 
-No machine needed. Each command is declared once on the command metadata so the script DSL and
-MCP get the same behaviour (the two-surface rule in CLAUDE.md).
+RECORDSTART / RECORDSTOP are built; nothing is left open here. Kept only because the plan item
+asked for MP4 and the reason it is not MP4 has to be written down. MP4 needs a video encoder
+(H.264 or similar), and .NET has none: the choices are shipping ffmpeg (a native program per
+platform; its builds with an H.264 encoder are GPL) or a different operating system encoder on
+each of Windows, macOS and Linux. An animated PNG (APNG) needs nothing beyond .NET itself - deflate
+plus two small checksums - is lossless so terminal text stays sharp, stores each frame's own
+duration, and plays in Chrome, Edge, Firefox and Safari. GIF was rejected because 256 colours per
+frame means changing the picture. If MP4 is ever wanted, it is a conversion of the APNG with
+ffmpeg outside RetroTerm, not a change to the recorder.
 
-- [ ] RECORD START command: start recording the screen as a film, with the same whole-window or terminal-only option (take it from `ScreenCaptureAreaParameter` and draw each frame through `MainWindow.FindCaptureTarget`, as SCREENSHOT does); MP4 preferred, but another format is fine if it is much easier (decide after checking what can be written without a big dependency); script and MCP
-- [ ] RECORD STOP command: stop the recording and close the file, reporting its path; script and MCP
 ## Gateway Ethernet — code lands, the UI needs a real look
 
 The gateway now carries the emulated machine's Ethernet (frame types `0x30`/`0x31`/`0x32`),

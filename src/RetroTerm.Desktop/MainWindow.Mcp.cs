@@ -66,6 +66,11 @@ public partial class MainWindow
             Core.Commands.Builtin.ScreenshotCommand.RegisterAll(
                 _commandRegistry, CaptureSessionScreenshot);
 
+            // RECORDSTART / RECORDSTOP film the screen, each frame drawn the way SCREENSHOT draws
+            // (MainWindow.Recording.cs). Same shape: Core declares, the desktop does.
+            Core.Commands.Builtin.RecordCommands.RegisterAll(
+                _commandRegistry, StartRecording, StopRecording);
+
             // LOCALKEY, ZOOM and PASTE act on the WINDOW rather than the connection. Everything
             // else here ends at TerminalSession.SendInputAsync, which cannot reach what the
             // terminal decides for itself - the ReGIS graphics input cursor, the magnification and
@@ -329,8 +334,8 @@ public partial class MainWindow
     /// The visual to draw, or null.
     /// </returns>
     /// <remarks>
-    /// Kept apart from the PNG writing so RECORD START (planned in docs\PLAN.md, same option) can
-    /// draw its frames from the same choice. Runs on the UI thread.
+    /// Kept apart from the PNG writing so RECORDSTART (MainWindow.Recording.cs, same option) draws
+    /// its frames from the same choice. Runs on the UI thread.
     /// </remarks>
     private global::Avalonia.Visual? FindCaptureTarget(TerminalSession session, ScreenCaptureArea area,
         out string? problem)
@@ -404,17 +409,48 @@ public partial class MainWindow
 
         try
         {
-            using var target = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
-                new global::Avalonia.PixelSize(width, height),
-                new global::Avalonia.Vector(96, 96));
-
-            target.Render(visual);
+            using var target = RenderVisual(visual, width, height);
             target.Save(path, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             return null;
         }
         catch (Exception ex)
         {
             return "render failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Draws one visual into an offscreen bitmap, one pixel per layout unit. The one drawing route
+    /// for SCREENSHOT and for every frame of a RECORDSTART film.
+    /// </summary>
+    /// <param name="visual">
+    /// The control or window to draw.
+    /// </param>
+    /// <param name="width">
+    /// Width in pixels, from the visual's laid-out bounds.
+    /// </param>
+    /// <param name="height">
+    /// Height in pixels.
+    /// </param>
+    /// <returns>
+    /// The drawn bitmap; the caller disposes it.
+    /// </returns>
+    private static global::Avalonia.Media.Imaging.RenderTargetBitmap RenderVisual(
+        global::Avalonia.Visual visual, int width, int height)
+    {
+        var target = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
+            new global::Avalonia.PixelSize(width, height),
+            new global::Avalonia.Vector(96, 96));
+
+        try
+        {
+            target.Render(visual);
+            return target;
+        }
+        catch
+        {
+            target.Dispose();
+            throw;
         }
     }
 

@@ -203,6 +203,11 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
         var registry = new CommandRegistry();
         BuiltinCommands.RegisterAll(registry);
         ScreenshotCommand.RegisterAll(registry, (session, area, path) => null);
+
+        // RECORDSTART shares SCREENSHOT's area word list, so it is checked by the same rows.
+        RecordCommands.RegisterAll(registry,
+            (session, area, path, interval) => null,
+            session => ScreenRecordingOutcome.Refused("stub"));
         return registry;
     }
 

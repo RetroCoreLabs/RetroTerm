@@ -105,7 +105,7 @@ public sealed class ScreenshotCommand : ISessionCommand
             "Wait for the screen to be quiet this many milliseconds before drawing, so the picture is "
             + "not one change out of date; 0 takes the frame immediately"),
 
-        // Declared by the shared helper so RECORD START (planned) takes the same words.
+        // Declared by the shared helper so RECORDSTART takes the same words.
         ScreenCaptureAreaParameter.CreateParameter()
     };
 

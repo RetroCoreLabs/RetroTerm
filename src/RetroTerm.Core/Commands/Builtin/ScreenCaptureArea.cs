@@ -13,11 +13,11 @@ namespace RetroTerm.Core.Commands.Builtin;
 /// Which part of the program a picture is taken of.
 /// </summary>
 /// <remarks>
-/// <para><b>Shared by SCREENSHOT and the planned RECORD START</b></para>
-/// docs\PLAN.md asks for both commands with "the same whole-window or terminal-only option", so the
+/// <para><b>Shared by SCREENSHOT and RECORDSTART</b></para>
+/// docs\PLAN.md asked for both commands with "the same whole-window or terminal-only option", so the
 /// choice, its spelling in a script and its MCP enum are declared once here and both commands use
-/// <see cref="CreateParameter"/> and <see cref="Parse"/>. RECORD can then take its frames through the
-/// same desktop renderer SCREENSHOT uses, one per tick, without a second idea of what "window" means.
+/// <see cref="CreateParameter"/> and <see cref="Parse"/>. RECORDSTART takes its frames through the
+/// same desktop renderer SCREENSHOT uses, one per look, without a second idea of what "window" means.
 /// </remarks>
 public enum ScreenCaptureArea
 {
