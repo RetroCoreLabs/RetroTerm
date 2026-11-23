@@ -29,4 +29,13 @@ public interface ITn3270EConnection
     /// Gets a value indicating whether TN3270E is in force now.
     /// </summary>
     bool InTn3270E { get; }
+
+    /// <summary>
+    /// Gets the LU name the host gave in TN3270E (DEVICE-TYPE IS ... CONNECT), or null.
+    /// </summary>
+    /// <remarks>
+    /// Set before <see cref="Tn3270EChanged"/> is raised with true, and cleared before it is
+    /// raised with false.
+    /// </remarks>
+    string? GrantedLuName { get; }
 }

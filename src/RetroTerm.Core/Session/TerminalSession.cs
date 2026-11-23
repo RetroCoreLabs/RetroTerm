@@ -302,7 +302,8 @@ public partial class TerminalSession : IDisposable
     {
         if (Emulator is ITn3270EAware aware)
         {
-            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on));
+            string? luName = on && _connection is ITn3270EConnection tn3270e ? tn3270e.GrantedLuName : null;
+            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on, luName));
         }
     }
 

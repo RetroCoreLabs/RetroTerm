@@ -72,6 +72,9 @@ namespace RetroTerm.Ibm3270
         // True while the connection runs TN3270E (set by the session through ITn3270EAware).
         private bool _inTn3270E;
 
+        // The LU name the TN3270E host gave, shown on line 25; null when there is none.
+        private string? _luName;
+
         // The PC side of IND$FILE (IHostFileTransfer). Fed by the display's X'D0' fields.
         private readonly IndFileTransfer _transfer;
 
@@ -184,7 +187,7 @@ namespace RetroTerm.Ibm3270
             get
             {
                 Span<char> line = stackalloc char[AlternateColumns(Model)];
-                StatusLine3270.Build(_display, _connection, null, line);
+                StatusLine3270.Build(_display, _connection, _luName, _inTn3270E, line);
                 return new string(line);
             }
         }
@@ -239,7 +242,15 @@ namespace RetroTerm.Ibm3270
         /// <param name="on">
         /// True when TN3270E is in force.
         /// </param>
-        public void Tn3270EChanged(bool on) => _inTn3270E = on;
+        /// <param name="luName">
+        /// The LU name the host gave, or null.
+        /// </param>
+        public void Tn3270EChanged(bool on, string? luName)
+        {
+            _inTn3270E = on;
+            _luName = on ? luName : null;
+            Refresh();
+        }
 
         /// <summary>
         /// Copies the operator's local change (typing, cursor moves) to the screen.
@@ -1081,7 +1092,7 @@ namespace RetroTerm.Ibm3270
             }
 
             Span<char> line = stackalloc char[columns];
-            StatusLine3270.Build(_display, _connection, null, line);
+            StatusLine3270.Build(_display, _connection, _luName, _inTn3270E, line);
             for (int column = 0; column < columns; column++)
             {
                 CharacterAttributes flags = column switch

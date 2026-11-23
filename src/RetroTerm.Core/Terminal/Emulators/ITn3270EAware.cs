@@ -22,6 +22,9 @@ namespace RetroTerm.Core.Terminal.Emulators
         /// <param name="on">
         /// True when TN3270E is in force now.
         /// </param>
-        void Tn3270EChanged(bool on);
+        /// <param name="luName">
+        /// The LU name the host gave, or null; shown on the 3270's line 25 as wc3270 shows it.
+        /// </param>
+        void Tn3270EChanged(bool on, string? luName);
     }
 }

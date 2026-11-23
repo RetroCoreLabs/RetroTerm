@@ -185,6 +185,9 @@ namespace RetroTerm.Tests.Ibm3270
             connection.Agree(true);
             await session.FlushAsync();
             Assert.True(emulator.InTn3270E);
+            string line25 = await RowAsync(session, 24);
+            Assert.Equal('B', line25[1]);
+            Assert.Equal("TCP00034", line25.Substring(54, 8));
             connection.ClearSentData();
 
             Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("SYSREQ", out _));
@@ -203,6 +206,9 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("RESET", out _));
             connection.Agree(false);
             await session.FlushAsync();
+            line25 = await RowAsync(session, 24);
+            Assert.Equal('A', line25[1]);
+            Assert.Equal("        ", line25.Substring(54, 8));
             Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
             await session.FlushAsync();
             Assert.Equal(new byte[] { Aid.PA1 }, Assert.Single(connection.GetSentData()));
@@ -216,6 +222,8 @@ namespace RetroTerm.Tests.Ibm3270
 
             public bool InTn3270E { get; private set; }
 
+            public string? GrantedLuName { get; private set; }
+
             public int Breaks { get; private set; }
 
             public void SendBreak() => Breaks++;
@@ -223,6 +231,7 @@ namespace RetroTerm.Tests.Ibm3270
             public void Agree(bool on)
             {
                 InTn3270E = on;
+                GrantedLuName = on ? "TCP00034" : null;
                 Tn3270EChanged?.Invoke(on);
             }
         }
