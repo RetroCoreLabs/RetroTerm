@@ -43,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -924,6 +924,40 @@ namespace RetroTerm.Ibm3270
         /// has opened ends with the host's message, which is the only way IND$FILE ends (section
         /// 3.13).
         /// </summary>
+        /// <inheritdoc/>
+        int ICodePageTerminal.CodePage => _display.CodePage.Number;
+
+        /// <inheritdoc/>
+        IReadOnlyList<string> ICodePageTerminal.CodePages
+        {
+            get
+            {
+                IReadOnlyList<CodePage> all = CodePage.All;
+                var names = new List<string>(all.Count);
+                for (int i = 0; i < all.Count; i++)
+                {
+                    names.Add(all[i].Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + all[i].Name);
+                }
+
+                return names;
+            }
+        }
+
+        /// <inheritdoc/>
+        string? ICodePageTerminal.SetCodePage(int number)
+        {
+            // Code page 310 is the Graphic Escape set beside every base page, never a base page
+            // itself (Display3270.CodePage refuses it), and CodePage.All holds base pages only.
+            if (number == CodePage.Cp310.Number || !CodePage.TryGet(number, out CodePage page))
+            {
+                return "no base code page " + number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "; CODEPAGE with no number lists them";
+            }
+
+            _display.CodePage = page;
+            Refresh();
+            return null;
+        }
+
         public void CancelHostFileTransfer()
         {
             if (_transfer.State == FileTransferState.Armed)

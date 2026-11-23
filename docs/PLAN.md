@@ -98,7 +98,7 @@ clean-room rewrite in C#.
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-  - [ ] Any EBCDIC code page, chosen per connection (tnz uses whatever Python has; we ship our own tables — the list comes from A2)
+  - [ ] The EBCDIC code page stored per connection and set when the tab opens (it can be changed live with the CODEPAGE command since 23 November 2026; every tab starts on 037)
 - [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)

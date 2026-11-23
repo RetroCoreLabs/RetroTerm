@@ -42,6 +42,7 @@ public static class BuiltinCommands
         registry.Register(new CursorCommand());
         registry.Register(new HostSendCommand());
         registry.Register(new HostReceiveCommand());
+        registry.Register(new CodePageCommand());
         TerminalControlCommands.RegisterAll(registry);
         TraceCommands.RegisterAll(registry);
         registry.Register(new OpcomDebugCommand());
