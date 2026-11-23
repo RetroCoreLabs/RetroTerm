@@ -137,6 +137,21 @@ What is not known: whether RetroTerm's printer, Hercules or JRP holds the job. N
 Hercules console (which only Ronny can type into): `t+00C7` before a run, `t-00C7` after; the CCW
 trace then shows whether VTAM issued a write to 00C7 for the job that hung, and what came back.
 
+**Traced 23 November 2026 (Ronny typed `t+00C7` in the Hercules console; four runs of
+`Tk5PrinterTests`, one lost a job). From `mvs-tk5\log\3033.log`:**
+
+- Job 716, 19:38:39: `JRPI400 HERC03P1 JOB00716 BEGINNING ON PRT4`, then at once
+  `HHC01334I 0:00C7 CHAN: ORB ... CCW:00813010`, the write (`ccw 0D813048 ... C8D9E3E3...`,
+  "HRTT PRINTER JOB"), `stat 0C00` and the I/O interrupt, then `JRPI403 ... ENDED`.
+- Job 717, 19:38:49: `JRPI400 HERC03P2 JOB00717 BEGINNING ON PRT4` and then NOTHING for 00C7:
+  no ORB, no CCW, no interrupt, until the test drained PRT4 at 19:40:47.
+- At the next start, 19:41:10, job 717 begins again and its writes go out at once.
+
+So MVS never started a channel program for the lost job. No byte was ever offered to the device,
+so neither RetroTerm nor Hercules' 3287 code is involved: the job is held inside JRP (or the MVS
+I/O path below it) before any I/O is issued. Why JRP stops there is not known; JRP is TK5's own
+printer program and its source is not in this repository. RetroTerm cannot fix it; the test
+reports it when it happens.
 ## B11 - JRP console screen: message pieces in odd places, not compared with s3270
 
 While the JRP console showed messages as they happened (PF1), RetroTerm's screen had pieces of
@@ -186,3 +201,12 @@ The TN3270 and telnet connections use the same kind of connect and very likely w
 that is NOT measured. The fix is a decision on how every RetroTerm connection picks between the
 addresses a name resolves to (try them in turn with a short timeout, or both at once as browsers
 do), not a SUBMIT-only change.
+
+## B13 - Over MCP, a misspelled parameter name is ignored without a word
+
+Found 23 November 2026 while extending SCREENSHOT: `SCREENSHOT ... aera=window` over MCP gets the
+default (the terminal) with no warning, while the script language refuses the unknown name.
+The same command has two behaviours on the two surfaces, which is what CLAUDE.md's
+"one behaviour, one place" rule forbids. Where: `src\RetroTerm.Mcp\RetroTermToolProvider.cs`,
+argument binding. Fix: refuse an argument name the command does not declare, on both surfaces,
+from the command's metadata, and add the case to `CommandSurfaceEquivalenceTests`.
