@@ -57,7 +57,7 @@ namespace RetroTerm.Desktop.Rendering
                 var gridPos = enumerator.Current;
                 try
                 {
-                    var uri = new Uri($"avares://RetroTerm.Desktop/Assets/KeySymbols/{gridPos}.svg");
+                    var uri = new Uri($"avares://RetroTerm/Assets/KeySymbols/{gridPos}.svg");
                     using var stream = AssetLoader.Open(uri);
                     if (stream == null) continue;
 

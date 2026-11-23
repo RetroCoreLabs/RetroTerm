@@ -19,12 +19,12 @@ if not exist "%PUBLISH_DIR%" mkdir "%PUBLISH_DIR%"
 
 :: Kill any running instances silently
 taskkill /F /IM RetroTerm.TestServer.exe >nul 2>&1
-taskkill /F /IM RetroTerm.Desktop.exe >nul 2>&1
+taskkill /F /IM RetroTerm.exe >nul 2>&1
 timeout /t 1 /nobreak >nul
 echo.
 
 :: Build RetroTerm.Desktop
-echo [1/2] Building RetroTerm.Desktop.exe...
+echo [1/2] Building RetroTerm.exe...
 echo ========================================================================
 dotnet publish "%CLIENT_PROJ%" -r win-x64 -c Release --self-contained true -o "%PUBLISH_DIR%"
 if %ERRORLEVEL% NEQ 0 (
@@ -41,7 +41,7 @@ if %ERRORLEVEL% NEQ 0 (
 :: three files from 2024 and 2025 next to every new exe that never loaded them.
 
 echo.
-echo [OK] RetroTerm.Desktop.exe published successfully
+echo [OK] RetroTerm.exe published successfully
 echo.
 
 :: Build RetroTerm.TestServer
@@ -66,12 +66,12 @@ echo.
 echo Published to: %PUBLISH_DIR%
 echo.
 echo Files created:
-echo   - RetroTerm.Desktop.exe
+echo   - RetroTerm.exe
 echo   - RetroTerm.TestServer.exe
 echo.
 echo To test:
 echo   1. Terminal 1: cd publish ^&^& RetroTerm.TestServer.exe 2323
-echo   2. Terminal 2: cd publish ^&^& RetroTerm.Desktop.exe
+echo   2. Terminal 2: cd publish ^&^& RetroTerm.exe
 echo   3. Connect to localhost:2323
 echo.
 echo ========================================================================

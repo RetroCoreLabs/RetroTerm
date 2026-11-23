@@ -31,7 +31,7 @@ machine.
 
 | File | What it is |
 |---|---|
-| `RetroTerm.Desktop.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release the same file is named `RetroTerm-win-x64.exe`; the Linux and macOS builds are separate files, see above). Nothing to install and no .NET runtime needed. |
+| `RetroTerm.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release the same file is named `RetroTerm-win-x64.exe`; the Linux and macOS builds are separate files, see above). Nothing to install and no .NET runtime needed. |
 | `README.md` | This file. |
 | `.mcp.json` | A ready-made Claude Code project configuration that points at RetroTerm's MCP server. Copy it into the folder you run Claude Code from. |
 | `add-mcp-to-claude-code.ps1` | The same thing as a one-line script: registers the server with Claude Code for your user. |
@@ -42,7 +42,7 @@ start.
 
 ## Running it
 
-Double-click `RetroTerm.Desktop.exe`, or start it from a prompt. There are no command-line
+Double-click `RetroTerm.exe`, or start it from a prompt. There are no command-line
 arguments.
 
 On first start it creates a settings folder at `%APPDATA%\RetroTerm` and writes to it as you

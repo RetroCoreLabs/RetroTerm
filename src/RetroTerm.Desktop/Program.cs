@@ -61,7 +61,7 @@ class Program
                             $"Type: {ex.GetType().Name}\n\n" +
                             $"Details logged to:\n{errorLog}\n\n" +
                             $"If native DLLs are missing (libSkiaSharp.dll, libHarfBuzzSharp.dll, av_libglesv2.dll),\n" +
-                            $"make sure they are in the same folder as RetroTerm.Desktop.exe";
+                            $"make sure they are in the same folder as RetroTerm.exe";
 
                 // Use Avalonia's cross-platform dialog system
                 ShowErrorDialog(message);

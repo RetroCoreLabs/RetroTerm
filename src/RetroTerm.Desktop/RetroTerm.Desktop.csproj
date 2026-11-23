@@ -46,6 +46,21 @@
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- The program is RetroTerm.exe (Ronny, 23 November 2026), not RetroTerm.Desktop.exe as the
+         project name would give it. The avares:// resource addresses follow this name. -->
+    <AssemblyName>RetroTerm</AssemblyName>
+  </PropertyGroup>
+
+  <Target Name="DropPackageSymbolsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <!-- SkiaSharp 3.119.4 and HarfBuzzSharp ship libSkiaSharp.pdb and libHarfBuzzSharp.pdb beside
+         their native DLLs, and DebugType=none (Directory.Build.props) only covers our own projects,
+         so the publish copied them next to the exe. A release is one exe: no .pdb at all. -->
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>RetroTerm.Tests</_Parameter1>

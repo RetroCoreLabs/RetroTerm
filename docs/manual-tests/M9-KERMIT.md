@@ -30,7 +30,7 @@ still to come.
 
 ## Prerequisites
 
-- RetroTerm built and running (`src\tools\build-release.bat`, then `src\publish\RetroTerm.Desktop.exe`)
+- RetroTerm built and running (`src\tools\build-release.bat`, then `src\publish\RetroTerm.exe`)
 - A Telnet/SSH host available for connection testing (or TestServer)
 - A host running Kermit (nd-kermit, C-Kermit, or G-Kermit) for end-to-end tests
 - A few test files of varying sizes (e.g., small.txt 100B, medium.bin 50KB, large.dat 5MB)

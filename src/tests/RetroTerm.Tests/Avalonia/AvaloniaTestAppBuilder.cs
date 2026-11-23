@@ -77,19 +77,27 @@ public class TestApp : Application
     public override void Initialize()
     {
         Styles.Add(new global::Avalonia.Themes.Fluent.FluentTheme());
+        // Load the app assembly (RetroTerm.dll) before anything asks for an avares://RetroTerm/
+        // address. In the real app it is the program itself, so it is always loaded; in a test
+        // run it is only loaded once some test has touched one of its types. Measured
+        // 23 November 2026, after the assembly was renamed from RetroTerm.Desktop to RetroTerm:
+        // run on their own, the WindowIcon and HostFiles tests failed with "No precompiled XAML
+        // found for avares://RetroTerm/Styles/FluentTheme.axaml", and passed with this line. Why
+        // the old name was found without it is not known.
+        System.GC.KeepAlive(typeof(RetroTerm.Desktop.App).Assembly);
         // BOTH of RetroTerm's stylesheets, in App.axaml's order. Until 27 September 2026 only
         // DarkTheme.axaml was loaded here, so every class defined in the app's own
         // FluentTheme.axaml - dialog-primary, dialog-secondary, dialog-danger, fluent-button,
         // fkey, the dialog footer - was invisible to every headless test: a button carrying
         // one of them rendered as a stock grey Fluent button and nothing went red. Found when a
         // test asserting the Close RetroTerm dialog's Close All button is red read back grey.
-        Styles.Add(new StyleInclude(new System.Uri("avares://RetroTerm.Desktop/Styles/"))
+        Styles.Add(new StyleInclude(new System.Uri("avares://RetroTerm/Styles/"))
         {
-            Source = new System.Uri("avares://RetroTerm.Desktop/Styles/FluentTheme.axaml")
+            Source = new System.Uri("avares://RetroTerm/Styles/FluentTheme.axaml")
         });
-        Styles.Add(new StyleInclude(new System.Uri("avares://RetroTerm.Desktop/Styles/"))
+        Styles.Add(new StyleInclude(new System.Uri("avares://RetroTerm/Styles/"))
         {
-            Source = new System.Uri("avares://RetroTerm.Desktop/Styles/DarkTheme.axaml")
+            Source = new System.Uri("avares://RetroTerm/Styles/DarkTheme.axaml")
         });
     }
 

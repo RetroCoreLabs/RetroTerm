@@ -8,7 +8,7 @@
         <FluentTheme />
         <!-- The suite's shared look first (tokens + fluent-* vocabulary), then RetroTerm's
              own control styles on top. Order matters: the later include wins. -->
-        <StyleInclude Source="avares://RetroTerm.Desktop/Styles/FluentTheme.axaml"/>
-        <StyleInclude Source="avares://RetroTerm.Desktop/Styles/DarkTheme.axaml"/>
+        <StyleInclude Source="avares://RetroTerm/Styles/FluentTheme.axaml"/>
+        <StyleInclude Source="avares://RetroTerm/Styles/DarkTheme.axaml"/>
     </Application.Styles>
 </Application>

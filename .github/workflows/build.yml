@@ -71,7 +71,7 @@ jobs:
           # asset is the one file each runner hands to the release job.
           - os: windows-latest
             rid: win-x64
-            binary: RetroTerm.Desktop.exe
+            binary: RetroTerm.exe
             asset: RetroTerm-win-x64.exe
           - os: ubuntu-latest
             rid: linux-x64
@@ -102,7 +102,7 @@ jobs:
           cd out/${{ matrix.rid }}
           ls -la
           if [ "${{ matrix.rid }}" = "win-x64" ]; then
-            mv RetroTerm.Desktop.exe RetroTerm-${{ matrix.rid }}.exe
+            mv RetroTerm.exe RetroTerm-${{ matrix.rid }}.exe
           else
             mv RetroTerm.Desktop RetroTerm-${{ matrix.rid }}
             chmod +x RetroTerm-${{ matrix.rid }}

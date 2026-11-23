@@ -18,7 +18,7 @@ Nothing outside the app for M8.1 to M8.5. M8.6 wants a real host that goes quiet
 SINTRAN login left sitting does the job.
 
     Build:   src\tools\build-release.bat   (closes a running RetroTerm and TestServer first)
-    Run:     src\publish\RetroTerm.Desktop.exe
+    Run:     src\publish\RetroTerm.exe
 
 ---
 

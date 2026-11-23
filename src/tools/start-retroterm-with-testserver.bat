@@ -28,5 +28,5 @@ echo   Port: 8080
 echo.
 
 REM Start RetroTerm (this will block until RetroTerm closes)
-start publish\RetroTerm.Desktop.exe
+start publish\RetroTerm.exe
 

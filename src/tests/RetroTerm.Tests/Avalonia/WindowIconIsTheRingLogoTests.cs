@@ -28,7 +28,7 @@ namespace RetroTerm.Tests.Avalonia;
 [Collection("Avalonia")]
 public class WindowIconIsTheRingLogoTests
 {
-    private static readonly Uri RingLogo = new("avares://RetroTerm.Desktop/Assets/RetroTerm-512.png");
+    private static readonly Uri RingLogo = new("avares://RetroTerm/Assets/RetroTerm-512.png");
 
     [AvaloniaFact]
     public void TheRingLogoShipsInsideTheExecutableAt512Pixels()
@@ -55,7 +55,7 @@ public class WindowIconIsTheRingLogoTests
     [AvaloniaFact]
     public void NoFileFromARetiredLookIsShippedAnyMore()
     {
-        var assets = AssetLoader.GetAssets(new Uri("avares://RetroTerm.Desktop/Assets/"), null);
+        var assets = AssetLoader.GetAssets(new Uri("avares://RetroTerm/Assets/"), null);
         var list = new List<Uri>(assets);
         for (int i = 0; i < list.Count; i++)
         {
