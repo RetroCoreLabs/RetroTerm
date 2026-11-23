@@ -292,6 +292,18 @@ public partial class TerminalSession : IDisposable
     }
 
     /// <summary>
+    /// Hands the host's end-of-print-job signal to a printer emulator, on the pump thread, after
+    /// every record that arrived before it. Raised by the connection on its own thread.
+    /// </summary>
+    private void OnConnectionEndOfJobReceived()
+    {
+        if (Emulator is IPrintJobEndAware aware)
+        {
+            _ = _pump.RunAsync(aware.EndOfJobReceived);
+        }
+    }
+
+    /// <summary>
     /// Hands the connection's TN3270E state to an emulator whose keys depend on it, on the pump
     /// thread. Raised by the connection on its own thread.
     /// </summary>
@@ -393,6 +405,11 @@ public partial class TerminalSession : IDisposable
         {
             tn3270e.Tn3270EChanged += OnConnectionTn3270EChanged;
             OnConnectionTn3270EChanged(tn3270e.InTn3270E);
+        }
+
+        if (_connection is IPrintJobEndConnection printJobEnd)
+        {
+            printJobEnd.EndOfJobReceived += OnConnectionEndOfJobReceived;
         }
 
         try
@@ -596,6 +613,11 @@ public partial class TerminalSession : IDisposable
         {
             tn3270eConn.Tn3270EChanged -= OnConnectionTn3270EChanged;
             OnConnectionTn3270EChanged(false);
+        }
+
+        if (conn is IPrintJobEndConnection printJobEndConn)
+        {
+            printJobEndConn.EndOfJobReceived -= OnConnectionEndOfJobReceived;
         }
 
         _connection = null;
@@ -912,6 +934,11 @@ public partial class TerminalSession : IDisposable
         if (_connection is ITn3270EConnection tn3270e)
         {
             tn3270e.Tn3270EChanged -= OnConnectionTn3270EChanged;
+        }
+
+        if (_connection is IPrintJobEndConnection printJobEnd)
+        {
+            printJobEnd.EndOfJobReceived -= OnConnectionEndOfJobReceived;
         }
 
         // Dispose connection

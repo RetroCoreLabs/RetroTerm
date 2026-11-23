@@ -185,7 +185,35 @@ users (HERC01 to HERC04) and their passwords.
 
 If the keyboard stops responding at any point, look at line 25 and press **Reset** (Alt+R).
 
-## 11. Where to read more
+## 11. Printing: the 3287 printer
+
+A 3270 printer (the IBM 3287) is a second connection, next to the terminal. The mainframe writes
+to it the same way it writes to a screen, and the printer prints what it was sent.
+
+1. In **Manage Connections** make a new connection: protocol **TN3270**, host `localhost`, port
+   `3270`, terminal **IBM-3287-1**. That name is the only printer name Hercules takes; it gives
+   such a connection its printer device (on TK5 that is device `00C7`).
+2. On the **Printer** tab pick the output: **Text file**, **PDF**, or **Printer**. Printer makes the
+   PDF and hands it to the system's print command (the default printer on Windows, `lp` on Linux
+   and macOS). With Printer you can tick **Delete the PDF after printing**; unticked, the PDF stays
+   in the folder.
+3. Pick the output folder. Empty means `Documents\RetroTerm\Printer`.
+4. Connect. The tab shows the printer's state instead of a screen: connected or not, whether a job
+   is coming in, and every job printed with its file name.
+
+**One file per print job.** A job ends when the host sends telnet Abort Output, when the connection
+closes, or when no data has come for the number of seconds set on the Printer tab (5 unless you
+change it; 0 turns this off). The quiet time is the same idea as x3270's `pr3287 -eojtimeout`.
+The End of Message code (EM) is not a job end: it only ends one printout.
+
+**What has not been measured yet.** On TK5 the printer is driven by JRP, a program that copies JES2
+output class G to device `00C7` (the TK4- manual, "JRP on TK4-"). JRP's printer starts switched off,
+and switching it on needs a logon to the JRP console (`logon applid=cjrp` at the TK5 logon screen)
+with a user allowed to use JRP; the manual names HERC01 and HERC02. With HERC03, JRP answers
+`JRP005T - NOT AUTHORIZED FOR JRP`. So what TK5 really sends to a printer, and whether it marks the
+end of a job at all, has not been seen. Until it has, the quiet time is what ends a job from TK5.
+
+## 12. Where to read more
 
 - The Hercules guides in the TK5 folder, numbered 01 to 14, go on from here: data sets, the editor,
   batch jobs, compiling programs. RetroTerm's own test suite runs guides 01 to 09 against TK5.

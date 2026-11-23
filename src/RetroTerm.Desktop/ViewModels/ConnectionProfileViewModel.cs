@@ -47,6 +47,14 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private int? _codePage;
     private bool? _snapshotDoubleClickPressesEnter;
     private bool? _doubleClickPressesEnter;
+    private string? _snapshotPrinterOutput;
+    private string? _printerOutput;
+    private string? _snapshotPrinterFolder;
+    private string? _printerFolder;
+    private bool? _snapshotPrinterDeletePdf;
+    private bool? _printerDeletePdf;
+    private int? _snapshotPrinterQuietSeconds;
+    private int? _printerQuietSeconds;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
     private string _snapshotNewLineTransmit = ConnectionFactory.NewLineModes.Cr;
@@ -311,6 +319,42 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 3287 printer: where each job goes ("Text", "PDF" or "Printer"); null is a text file.
+    /// </summary>
+    public string? PrinterOutput
+    {
+        get => _printerOutput;
+        set { if (_printerOutput != value) { _printerOutput = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// 3287 printer: the folder for the job files; null for the default folder.
+    /// </summary>
+    public string? PrinterFolder
+    {
+        get => _printerFolder;
+        set { if (_printerFolder != value) { _printerFolder = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// 3287 printer with printer output: true deletes the PDF after printing.
+    /// </summary>
+    public bool? PrinterDeletePdf
+    {
+        get => _printerDeletePdf;
+        set { if (_printerDeletePdf != value) { _printerDeletePdf = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// 3287 printer: seconds with no data that end a job; null for 5, 0 for never.
+    /// </summary>
+    public int? PrinterQuietSeconds
+    {
+        get => _printerQuietSeconds;
+        set { if (_printerQuietSeconds != value) { _printerQuietSeconds = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// Whether Delete sends DEL (0x7F) instead of its terminal's own sequence.
     /// </summary>
     public bool DeleteSendsDel
@@ -443,6 +487,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _backspaceSendsDel != _snapshotBackspaceSendsDel
                 || _codePage != _snapshotCodePage
                 || _doubleClickPressesEnter != _snapshotDoubleClickPressesEnter
+                || _printerOutput != _snapshotPrinterOutput
+                || _printerFolder != _snapshotPrinterFolder
+                || _printerDeletePdf != _snapshotPrinterDeletePdf
+                || _printerQuietSeconds != _snapshotPrinterQuietSeconds
                 || _deleteSendsDel != _snapshotDeleteSendsDel
                 || _newLineReceive != _snapshotNewLineReceive
                 || _newLineTransmit != _snapshotNewLineTransmit
@@ -494,6 +542,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _backspaceSendsDel = config.BackspaceSendsDel;
         _codePage = config.CodePage;
         _doubleClickPressesEnter = config.DoubleClickPressesEnter;
+        _printerOutput = config.PrinterOutput;
+        _printerFolder = config.PrinterFolder;
+        _printerDeletePdf = config.PrinterDeletePdf;
+        _printerQuietSeconds = config.PrinterQuietSeconds;
         _deleteSendsDel = config.DeleteSendsDel;
         // A file written before these existed has null here, and the fallbacks are the
         // behaviour that build had - so an old connection opens behaving exactly as it did.
@@ -576,6 +628,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
+            PrinterOutput = _printerOutput,
+            PrinterFolder = _printerFolder,
+            PrinterDeletePdf = _printerDeletePdf,
+            PrinterQuietSeconds = _printerQuietSeconds,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -620,6 +676,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
+            PrinterOutput = _printerOutput,
+            PrinterFolder = _printerFolder,
+            PrinterDeletePdf = _printerDeletePdf,
+            PrinterQuietSeconds = _printerQuietSeconds,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -670,6 +730,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotBackspaceSendsDel = _backspaceSendsDel;
         _snapshotCodePage = _codePage;
         _snapshotDoubleClickPressesEnter = _doubleClickPressesEnter;
+        _snapshotPrinterOutput = _printerOutput;
+        _snapshotPrinterFolder = _printerFolder;
+        _snapshotPrinterDeletePdf = _printerDeletePdf;
+        _snapshotPrinterQuietSeconds = _printerQuietSeconds;
         _snapshotDeleteSendsDel = _deleteSendsDel;
         _snapshotNewLineReceive = _newLineReceive;
         _snapshotNewLineTransmit = _newLineTransmit;

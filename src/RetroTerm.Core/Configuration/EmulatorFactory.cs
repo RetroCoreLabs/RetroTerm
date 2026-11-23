@@ -111,6 +111,10 @@ public static class EmulatorFactory
             "IBM-3278-3" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 3),
             "IBM-3278-4" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 4),
             "IBM-3278-5" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 5),
+
+            // The IBM 3287 printer: a TN3270 connection that answers IBM-3287-1 and prints what the
+            // host writes; its tab shows the printer's state, not a host screen.
+            "IBM-3287-1" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3287PrinterEmulator, RetroTerm.Ibm3270"),
             _ => throw new NotSupportedException($"Emulator type '{configuration.EmulatorType}' is not supported")
         };
     }
@@ -332,6 +336,14 @@ public static class EmulatorFactory
     /// <returns>
     /// The emulator, made with its parameterless constructor.
     /// </returns>
+    private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName)
+    {
+        var type = Type.GetType(assemblyQualifiedName)
+            ?? throw new InvalidOperationException($"Emulator type '{assemblyQualifiedName}' not found. Is its assembly shipped with the app?");
+        return Activator.CreateInstance(type) as TerminalEmulatorBase
+            ?? throw new InvalidOperationException($"'{assemblyQualifiedName}' is not a TerminalEmulatorBase.");
+    }
+
     private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName, int model)
     {
         var type = Type.GetType(assemblyQualifiedName)

@@ -169,6 +169,29 @@ public static class ConnectionFactory
         public bool? DoubleClickPressesEnter { get; set; }
 
         /// <summary>
+        /// Where a 3287 printer connection puts each print job: one of <see cref="PrinterOutputs"/>;
+        /// null means a text file.
+        /// </summary>
+        public string? PrinterOutput { get; set; }
+
+        /// <summary>
+        /// The folder a 3287 printer connection writes its files to; null for the default
+        /// (Documents\RetroTerm\Printer).
+        /// </summary>
+        public string? PrinterFolder { get; set; }
+
+        /// <summary>
+        /// For printer output: true deletes the PDF once it has been handed to the printer; null or
+        /// false keeps it in the folder.
+        /// </summary>
+        public bool? PrinterDeletePdf { get; set; }
+
+        /// <summary>
+        /// Seconds with no data from the host that end a 3287 print job; null for 5, 0 for never.
+        /// </summary>
+        public int? PrinterQuietSeconds { get; set; }
+
+        /// <summary>
         /// Whether the Delete key sends DEL (0x7F) rather than its terminal's own sequence.
         /// </summary>
         public bool DeleteSendsDel { get; set; }
@@ -574,6 +597,62 @@ public static class ConnectionFactory
     public static readonly string[] Ibm3278Models = { "IBM-3278-2", "IBM-3278-3", "IBM-3278-4", "IBM-3278-5" };
 
     /// <summary>
+    /// The three places a 3287 print job can go (Ronny, 23 November 2026).
+    /// </summary>
+    public static class PrinterOutputs
+    {
+        /// <summary>
+        /// A text file per job.
+        /// </summary>
+        public const string Text = "Text";
+
+        /// <summary>
+        /// A PDF file per job.
+        /// </summary>
+        public const string Pdf = "PDF";
+
+        /// <summary>
+        /// A PDF per job, handed to the system's print command.
+        /// </summary>
+        public const string Printer = "Printer";
+
+        /// <summary>
+        /// The choices in the order the connection form lists them.
+        /// </summary>
+        public static readonly string[] Choices = { Text, Pdf, Printer };
+
+        /// <summary>
+        /// The stored value for any text: one of <see cref="Choices"/>, or <see cref="Text"/> for
+        /// null or anything else.
+        /// </summary>
+        /// <param name="value">
+        /// The stored or typed value; case does not matter.
+        /// </param>
+        /// <returns>
+        /// One of <see cref="Choices"/>.
+        /// </returns>
+        public static string Normalise(string? value)
+        {
+            for (int i = 0; i < Choices.Length; i++)
+            {
+                if (string.Equals(value, Choices[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return Choices[i];
+                }
+            }
+
+            return Text;
+        }
+    }
+
+    /// <summary>
+    /// The IBM 3287 printer, the one other terminal a TN3270 connection can be. The name is also
+    /// what goes on the wire: Hercules takes "IBM-3287-1" and no other printer name (hyperion
+    /// console.c, negotiate_ttype: "The only supported 3270 printer type is IBM-3287-1").
+    /// </summary>
+    public const string Ibm3287 = "IBM-3287-1";
+
+    /// <summary>
     /// The screen of each entry of <see cref="Ibm3278Models"/>, in the same order, as columns x
     /// rows: 24 x 80, 32 x 80, 43 x 80 and 27 x 132 (RFC 1576 section 4; x3270 include\3270ds.h,
     /// MODEL_n_ROWS and MODEL_n_COLS).
@@ -587,8 +666,8 @@ public static class ConnectionFactory
 
     /// <summary>
     /// The terminal a connection must use, whatever was picked. TN3270 carries 3270 records,
-    /// not a character stream, so only an IBM 3278 can sit on it: the model picked, or the model 2
-    /// when anything else was picked. Every other protocol keeps the choice. ONE rule for the
+    /// not a character stream, so only an IBM 3278 or the 3287 printer can sit on it: the one
+    /// picked, or the 3278 model 2 when anything else was picked. Every other protocol keeps the choice. ONE rule for the
     /// connect dialog and for MCP (the two-surface trap in CLAUDE.md): both entry points call
     /// this before they pick a tab.
     /// </summary>
@@ -605,6 +684,11 @@ public static class ConnectionFactory
     {
         if (protocol == ProtocolType.TN3270)
         {
+            if (string.Equals(chosen, Ibm3287, StringComparison.OrdinalIgnoreCase))
+            {
+                return Ibm3287;
+            }
+
             for (int i = 0; i < Ibm3278Models.Length; i++)
             {
                 if (string.Equals(chosen, Ibm3278Models[i], StringComparison.OrdinalIgnoreCase))
@@ -632,6 +716,13 @@ public static class ConnectionFactory
         if (type == null || emulator == null)
         {
             throw new InvalidOperationException("Tn3270Connection type not found. Ensure RetroTerm.Ibm3270 is loaded.");
+        }
+
+        // The printer sends its own name; it has no model number.
+        if (string.Equals(emulatorType, Ibm3287, StringComparison.Ordinal))
+        {
+            return Activator.CreateInstance(type, host, port, Ibm3287) as IConnection
+                ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
         }
 
         // The name sent to the host comes from Ibm3270Emulator.TerminalTypeFor, the ONE place that

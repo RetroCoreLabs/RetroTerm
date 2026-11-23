@@ -71,10 +71,38 @@ public sealed class TabSession : IDisposable
             {
                 pointer.DoubleClickPressesEnter = value?.DoubleClickPressesEnter ?? true;
             }
+
+            // A 3287 printer connection: where its jobs go and when a job ends, from the
+            // connection's Printer tab. Applied on the session thread, like the code page.
+            if (value != null && Session.Emulator is RetroTerm.Ibm3270.Ibm3287PrinterEmulator printer)
+            {
+                RetroTerm.Ibm3270.IPrintJobOutput output = Printing.PrinterJobOutputFactory.Create(value);
+                int? quietSeconds = value.PrinterQuietSeconds;
+                _ = Session.RunOnSessionThreadAsync(() => printer.Configure(output, quietSeconds));
+                StartQuietTimeCheck(printer);
+            }
         }
     }
 
     private ConnectionFactory.ConnectionParameters? _lastConnectionParameters;
+
+    // Ticks once a second while this tab is a 3287 printer, so a print job ends after the quiet
+    // time. A thread-pool timer: it only posts the check to the session thread, which does the work.
+    private System.Threading.Timer? _quietTimeTimer;
+
+    private void StartQuietTimeCheck(RetroTerm.Ibm3270.Ibm3287PrinterEmulator printer)
+    {
+        if (_quietTimeTimer != null)
+        {
+            return;
+        }
+
+        _quietTimeTimer = new System.Threading.Timer(
+            _ => _ = Session.RunOnSessionThreadAsync(() => { printer.CheckQuietTime(DateTime.UtcNow); }),
+            null,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+    }
 
     /// <summary>
     /// The currently applied color preset name (session-only, not saved to config).
@@ -141,6 +169,9 @@ public sealed class TabSession : IDisposable
 
     public void Dispose()
     {
+        _quietTimeTimer?.Dispose();
+        _quietTimeTimer = null;
+
         if (Logger != null)
         {
             Session.DataLogger = null;

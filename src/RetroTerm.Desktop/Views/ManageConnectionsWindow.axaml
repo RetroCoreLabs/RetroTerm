@@ -122,6 +122,9 @@
                     <Button Name="ScriptsTabBtn"
                             Content="Scripts"
                             Classes="ConnectionTab"/>
+                    <Button Name="PrinterTabBtn"
+                            Content="Printer"
+                            Classes="ConnectionTab"/>
                 </StackPanel>
 
                 <!-- Tab Content Area. It scrolls: a tab taller than the window (the Keyboard tab

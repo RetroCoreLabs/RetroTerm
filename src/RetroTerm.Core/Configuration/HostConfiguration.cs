@@ -93,6 +93,30 @@ public class HostConfiguration
     public bool? DoubleClickPressesEnter { get; set; }
 
     /// <summary>
+    /// IBM 3287 printer connections only: where each print job goes, "Text", "PDF" or "Printer"
+    /// (the PDF handed to the system print command). Null is a text file. Ronny, 23 November 2026.
+    /// </summary>
+    public string? PrinterOutput { get; set; }
+
+    /// <summary>
+    /// IBM 3287 printer connections only: the folder for the job files; null for
+    /// Documents\RetroTerm\Printer.
+    /// </summary>
+    public string? PrinterFolder { get; set; }
+
+    /// <summary>
+    /// IBM 3287 printer connections with printer output only: true deletes the PDF after it was
+    /// handed to the printer; null or false keeps it in the folder.
+    /// </summary>
+    public bool? PrinterDeletePdf { get; set; }
+
+    /// <summary>
+    /// IBM 3287 printer connections only: seconds with no data that end a print job (as pr3287
+    /// -eojtimeout); null for 5, 0 for never.
+    /// </summary>
+    public int? PrinterQuietSeconds { get; set; }
+
+    /// <summary>
     /// Maximum scrollback lines
     /// </summary>
     public int MaxScrollback { get; set; } = 1000;
@@ -302,6 +326,10 @@ public class HostConfiguration
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
             DoubleClickPressesEnter = DoubleClickPressesEnter,
+            PrinterOutput = PrinterOutput,
+            PrinterFolder = PrinterFolder,
+            PrinterDeletePdf = PrinterDeletePdf,
+            PrinterQuietSeconds = PrinterQuietSeconds,
             NewLineReceive = NewLineReceive,
             NewLineTransmit = NewLineTransmit,
             LocalEcho = LocalEcho,
@@ -346,6 +374,10 @@ public class HostConfiguration
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
             DoubleClickPressesEnter = DoubleClickPressesEnter,
+            PrinterOutput = PrinterOutput,
+            PrinterFolder = PrinterFolder,
+            PrinterDeletePdf = PrinterDeletePdf,
+            PrinterQuietSeconds = PrinterQuietSeconds,
             NewLineReceive = string.IsNullOrWhiteSpace(NewLineReceive) ? "AUTO" : NewLineReceive,
             NewLineTransmit = string.IsNullOrWhiteSpace(NewLineTransmit) ? "CR" : NewLineTransmit,
             LocalEcho = LocalEcho,

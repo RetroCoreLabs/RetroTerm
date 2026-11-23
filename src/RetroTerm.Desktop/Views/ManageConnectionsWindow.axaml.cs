@@ -48,6 +48,13 @@ public partial class ManageConnectionsWindow : Window
     private StackPanel? _keyboardPanel;
     private StackPanel? _scriptsPanel;
 
+    // Printer tab: where an IBM 3287 printer connection puts its print jobs (Ronny, 23 November 2026).
+    private StackPanel? _printerPanel;
+    private ComboBox? _printerOutputCombo;
+    private TextBox? _printerFolderBox;
+    private CheckBox? _printerDeletePdfCheck;
+    private TextBox? _printerQuietBox;
+
     // Protocol-specific sub-panels within Protocol tab
     private StackPanel? _telnetProtocolPanel;
     private StackPanel? _sshProtocolPanel;
@@ -210,6 +217,8 @@ public partial class ManageConnectionsWindow : Window
         if (terminalTabBtn != null) terminalTabBtn.Click += (_, _) => SelectTab(2);
         if (keyboardTabBtn != null) keyboardTabBtn.Click += (_, _) => SelectTab(3);
         if (scriptsTabBtn != null) scriptsTabBtn.Click += (_, _) => SelectTab(4);
+        var printerTabBtn = this.FindControl<Button>("PrinterTabBtn");
+        if (printerTabBtn != null) printerTabBtn.Click += (_, _) => SelectTab(5);
 
         // Dirty tracking => update save button
         _viewModel.CurrentProfile.PropertyChanged += (_, args) =>
@@ -442,6 +451,7 @@ public partial class ManageConnectionsWindow : Window
 
         // Scripts tab: connection event hooks
         BuildScriptsPanel();
+        BuildPrinterPanel();
     }
 
     /// <summary>
@@ -674,6 +684,123 @@ public partial class ManageConnectionsWindow : Window
             };
         }
     }
+
+    /// <summary>
+    /// Printer tab: what an IBM 3287 printer connection (terminal type IBM-3287-1 on TN3270) does
+    /// with each print job. Ignored by every other terminal.
+    /// </summary>
+    private void BuildPrinterPanel()
+    {
+        _printerPanel = new StackPanel { Spacing = 16 };
+
+        _printerPanel.Children.Add(new TextBlock
+        {
+            Text = "For an IBM 3287 printer connection (TN3270, terminal type " + ConnectionFactory.Ibm3287 + "). " +
+                   "Each print job becomes one file in the output folder.",
+            Foreground = TextSecondary,
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        _printerPanel.Children.Add(CreateLabeledComboBox("Output", out _printerOutputCombo, new[] { PrinterOutputTextText, PrinterOutputPdfText, PrinterOutputPrinterText }));
+        if (_printerOutputCombo != null)
+        {
+            _printerOutputCombo.Name = "PrinterOutputCombo";
+            _printerOutputCombo.MinWidth = 280;
+            _printerOutputCombo.SelectionChanged += (_, _) =>
+            {
+                UpdatePrinterDeleteEnabled();
+                if (_suppressSelectionChange) return;
+                int index = _printerOutputCombo.SelectedIndex;
+                _viewModel.CurrentProfile.PrinterOutput = index <= 0 ? null : ConnectionFactory.PrinterOutputs.Choices[index];
+            };
+        }
+
+        _printerPanel.Children.Add(CreateLabeledTextBox("Output folder (empty: " + RetroTerm.Ibm3270.PrintJobFiles.DefaultFolder + ")", out _printerFolderBox));
+        if (_printerFolderBox != null)
+        {
+            _printerFolderBox.Name = "PrinterFolderBox";
+
+            // Watched through the property, because TextChanged does not fire on a set from code.
+            _printerFolderBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TextBox.TextProperty || _suppressSelectionChange) return;
+                string text = _printerFolderBox.Text ?? "";
+                _viewModel.CurrentProfile.PrinterFolder = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            };
+        }
+
+        _printerDeletePdfCheck = new CheckBox
+        {
+            Name = "PrinterDeletePdfCheck",
+            Content = "Delete the PDF after printing",
+            Foreground = TextPrimary,
+            FontSize = 13,
+            IsEnabled = false,
+        };
+        _printerDeletePdfCheck.IsCheckedChanged += (_, _) =>
+        {
+            if (_suppressSelectionChange) return;
+            _viewModel.CurrentProfile.PrinterDeletePdf = _printerDeletePdfCheck.IsChecked == true ? true : null;
+        };
+        _printerPanel.Children.Add(_printerDeletePdfCheck);
+
+        _printerPanel.Children.Add(CreateLabeledTextBox("Seconds with no data that end a print job (0: never)", out _printerQuietBox,
+            RetroTerm.Ibm3270.Ibm3287PrinterEmulator.DefaultQuietSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        if (_printerQuietBox != null)
+        {
+            _printerQuietBox.Name = "PrinterQuietBox";
+            _printerQuietBox.Width = 120;
+            _printerQuietBox.HorizontalAlignment = HorizontalAlignment.Left;
+            _printerQuietBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TextBox.TextProperty || _suppressSelectionChange) return;
+                string text = (_printerQuietBox.Text ?? "").Trim();
+                if (text.Length == 0)
+                {
+                    _viewModel.CurrentProfile.PrinterQuietSeconds = null;
+                }
+                else if (int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int seconds))
+                {
+                    _viewModel.CurrentProfile.PrinterQuietSeconds = seconds;
+                }
+
+                // Anything else is not a number of seconds; the stored value stays as it was.
+            };
+        }
+
+        _printerPanel.Children.Add(new TextBlock
+        {
+            Text = "A job also ends when the host sends telnet Abort Output or the connection closes. " +
+                   "Printer output makes the PDF and hands it to the system's print command " +
+                   "(the default printer on Windows, lp on Linux and macOS).",
+            Foreground = TextSecondary,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap
+        });
+    }
+
+    // "Delete the PDF after printing" only means something when the PDF goes to a printer.
+    private void UpdatePrinterDeleteEnabled()
+    {
+        if (_printerDeletePdfCheck == null || _printerOutputCombo == null) return;
+        _printerDeletePdfCheck.IsEnabled = _printerOutputCombo.SelectedIndex == 2;
+    }
+
+    /// <summary>
+    /// The Output box's entry for a text file per job (the default).
+    /// </summary>
+    public const string PrinterOutputTextText = "Text file";
+
+    /// <summary>
+    /// The Output box's entry for a PDF per job.
+    /// </summary>
+    public const string PrinterOutputPdfText = "PDF";
+
+    /// <summary>
+    /// The Output box's entry for a PDF sent to the printer.
+    /// </summary>
+    public const string PrinterOutputPrinterText = "Printer (via PDF)";
 
     /// <summary>
     /// "(none)" followed by every script in the library, in list order.
@@ -918,6 +1045,11 @@ public partial class ManageConnectionsWindow : Window
 
     // The Keyboard tab, for a headless test: its panel is only in the window while it is shown.
     internal void ShowKeyboardTabForTesting() => SelectTab(3);
+
+    /// <summary>
+    /// Shows the Printer tab, for the tests.
+    /// </summary>
+    internal void ShowPrinterTabForTesting() => SelectTab(5);
 
     /// <summary>The Terminal Color list entry that is selected.</summary>
     internal string? SelectedColourItemForTesting => _colorPresetCombo?.SelectedItem as string;
@@ -1192,10 +1324,11 @@ public partial class ManageConnectionsWindow : Window
         var terminalTabBtn = this.FindControl<Button>("TerminalTabBtn");
         var keyboardTabBtn = this.FindControl<Button>("KeyboardTabBtn");
         var scriptsTabBtn = this.FindControl<Button>("ScriptsTabBtn");
+        var printerTabBtn = this.FindControl<Button>("PrinterTabBtn");
         var tabContent = this.FindControl<ContentControl>("TabContent");
 
-        Button?[] buttons = { generalTabBtn, protocolTabBtn, terminalTabBtn, keyboardTabBtn, scriptsTabBtn };
-        StackPanel?[] panels = { _generalPanel, _protocolPanel, _terminalPanel, _keyboardPanel, _scriptsPanel };
+        Button?[] buttons = { generalTabBtn, protocolTabBtn, terminalTabBtn, keyboardTabBtn, scriptsTabBtn, printerTabBtn };
+        StackPanel?[] panels = { _generalPanel, _protocolPanel, _terminalPanel, _keyboardPanel, _scriptsPanel, _printerPanel };
 
         for (int i = 0; i < buttons.Length; i++)
         {
@@ -1351,6 +1484,15 @@ public partial class ManageConnectionsWindow : Window
         if (_newLineReceiveCombo != null) _newLineReceiveCombo.SelectedItem = profile.NewLineReceive;
         if (_newLineTransmitCombo != null) _newLineTransmitCombo.SelectedItem = profile.NewLineTransmit;
         if (_localEchoCheck != null) _localEchoCheck.IsChecked = profile.LocalEcho;
+
+        // Printer tab.
+        if (_printerOutputCombo != null)
+            _printerOutputCombo.SelectedIndex = System.Array.IndexOf(ConnectionFactory.PrinterOutputs.Choices, ConnectionFactory.PrinterOutputs.Normalise(profile.PrinterOutput));
+        if (_printerFolderBox != null) _printerFolderBox.Text = profile.PrinterFolder ?? "";
+        if (_printerDeletePdfCheck != null) _printerDeletePdfCheck.IsChecked = profile.PrinterDeletePdf == true;
+        if (_printerQuietBox != null)
+            _printerQuietBox.Text = profile.PrinterQuietSeconds?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        UpdatePrinterDeleteEnabled();
         _suppressSelectionChange = false;
 
         // Scripts tab: hook selections follow the profile
@@ -1428,12 +1570,18 @@ public partial class ManageConnectionsWindow : Window
         {
             TerminalChoiceBox.Apply(_emulatorCombo, _terminalChoice, ConnectionFactory.ParseProtocolType(protocol));
 
-            // On TN3270 the box shows the family; the model it picked moves to the size box.
+            // On TN3270 the box shows the 3278 family and the 3287 printer; a 3278 model it picked
+            // moves to the size box.
             if (_emulatorCombo.SelectedItem is string chosen && TerminalSizeChoices.Is3278(chosen))
             {
                 _viewModel.CurrentProfile.EmulatorType = chosen;
-                _emulatorCombo.ItemsSource = new[] { TerminalSizeChoices.Ibm3278 };
+                _emulatorCombo.ItemsSource = new[] { TerminalSizeChoices.Ibm3278, ConnectionFactory.Ibm3287 };
                 _emulatorCombo.SelectedItem = TerminalSizeChoices.Ibm3278;
+            }
+            else if (_emulatorCombo.SelectedItem is string printer && string.Equals(printer, ConnectionFactory.Ibm3287, StringComparison.OrdinalIgnoreCase))
+            {
+                _emulatorCombo.ItemsSource = new[] { TerminalSizeChoices.Ibm3278, ConnectionFactory.Ibm3287 };
+                _emulatorCombo.SelectedItem = ConnectionFactory.Ibm3287;
             }
 
             RefreshSizeBox();

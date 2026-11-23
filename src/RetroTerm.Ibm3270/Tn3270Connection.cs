@@ -20,7 +20,7 @@ namespace RetroTerm.Ibm3270
     /// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
     /// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
     /// </summary>
-    public sealed class Tn3270Connection : IConnection, IBreakConnection, ITn3270EConnection
+    public sealed class Tn3270Connection : IConnection, IBreakConnection, ITn3270EConnection, IPrintJobEndConnection
     {
         private readonly string _host;
         private readonly int _port;
@@ -68,6 +68,7 @@ namespace RetroTerm.Ibm3270
             _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
             _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
             _protocol.Tn3270EChanged += on => Tn3270EChanged?.Invoke(on);
+            _protocol.AbortOutputReceived += () => EndOfJobReceived?.Invoke();
             _protocol.ProtocolError += message =>
             {
                 ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
@@ -84,6 +85,12 @@ namespace RetroTerm.Ibm3270
         /// Raised when TN3270E comes into force or ends, on the receive thread.
         /// </summary>
         public event Action<bool>? Tn3270EChanged;
+
+        /// <summary>
+        /// Raised when the host sends telnet Abort Output in plain TN3270, which ends a 3287 print
+        /// job (see <see cref="Tn3270Protocol.AbortOutputReceived"/>). On the receive thread.
+        /// </summary>
+        public event Action? EndOfJobReceived;
 
         /// <summary>
         /// Gets a value indicating whether TN3270E is in force now.

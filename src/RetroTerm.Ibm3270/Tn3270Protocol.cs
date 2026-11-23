@@ -127,6 +127,13 @@ namespace RetroTerm.Ibm3270
         public event Action<bool>? Tn3270EChanged;
 
         /// <summary>
+        /// Raised when the host sends telnet Abort Output (IAC AO) in plain TN3270: the end of a
+        /// print job for a 3287 (x3270 Common\pr3287\telnet.c, telnet_fsm, case AO: print_eoj when
+        /// in 3270 mode and not in TN3270E).
+        /// </summary>
+        public event Action? AbortOutputReceived;
+
+        /// <summary>
         /// Gets a value indicating whether 3270 records flow: in TN3270E once the function list is
         /// agreed, otherwise when BINARY and EOR are on in both directions (RFC 1576 section 3).
         /// </summary>
@@ -284,6 +291,15 @@ namespace RetroTerm.Ibm3270
         /// </param>
         void ITelnetReaderHandler.OnCommand(byte command)
         {
+            // Abort Output ends a print job on a plain TN3270 printer session (pr3287 telnet.c, case
+            // AO). In TN3270E the job end has its own data types (PRINT-EOJ, UNBIND), so AO there
+            // is not a job end and falls through to the report below.
+            if (command == TelnetCommand.AbortOutput && In3270Mode && !InTn3270E)
+            {
+                AbortOutputReceived?.Invoke();
+                return;
+            }
+
             // NOP and the like carry nothing for a 3270. Anything else is said out loud.
             if (command != TelnetCommand.NoOperation)
             {
