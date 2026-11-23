@@ -43,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware, IRuledRowTerminal
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -177,6 +177,12 @@ namespace RetroTerm.Ibm3270
             KeyboardLock.SystemLock => Ibm3270LockReasons.SystemLock,
             _ => Ibm3270LockReasons.OperatorError,
         };
+
+        /// <summary>
+        /// Gets the row the thin rule above line 25 is drawn on top of (IRuledRowTerminal), or -1
+        /// when the buffer was cut below line 25 and there is no line 25 to set off.
+        /// </summary>
+        public int RuleAboveRow => Buffer.Height > _statusRow ? _statusRow : -1;
 
         /// <summary>
         /// Gets line 25 as drawn (IStatusLineTerminal), built by the same StatusLine3270 call the

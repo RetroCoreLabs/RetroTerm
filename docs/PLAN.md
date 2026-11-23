@@ -771,5 +771,4 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
   exercises the shipping path, and it repoints `publish\current` while the old build is still
   running so nothing has to be closed.
 
-- [ ] Line 25 (the 3270 status line): the thin line above it. wc3270 draws it as a blank row underlined across the screen (wc3270\screen.c, draw_oia, status_skip); Ronny's decision of 22 Nov 2026 was a thin rule inside the picture. Line 25 itself is built (RetroIO StatusLine3270, x3270 as the oracle, Ronny 23 Nov 2026)
 - [ ] Line 25: the reason symbol for a mandatory-fill or mandatory-entry lock. Only "X" is shown, because neither x3270 (no such fields) nor GA23-0059-4, GA23-0061-2 or GA27-2890-4 names one

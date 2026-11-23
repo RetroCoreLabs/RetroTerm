@@ -392,6 +392,7 @@ public class TerminalRenderer
             // per frame for the feature and nothing else.
             if (TryRenderFromCache(context, availableSize, scrollOffset, scale))
             {
+                DrawRowRule(context, scrollOffset, scale);
                 return;
             }
 
@@ -400,6 +401,7 @@ public class TerminalRenderer
                 RenderAtNaturalSize(context, availableSize, scrollOffset);
             }
 
+            DrawRowRule(context, scrollOffset, scale);
             return;
         }
 
@@ -418,9 +420,56 @@ public class TerminalRenderer
             }
 
             DrawRowAboveTop(context, scale);
+            DrawRowRule(context, scrollOffset, scale);
         }
     }
 
+    /// <summary>
+    /// Draws the thin rule a terminal asks for above one of its rows (IRuledRowTerminal: the
+    /// line above the 3270's line 25).
+    /// </summary>
+    /// <param name="context">
+    /// Where to draw.
+    /// </param>
+    /// <param name="scrollOffset">
+    /// How many lines the view is scrolled back; the rule moves down with its row.
+    /// </param>
+    /// <param name="scale">
+    /// The magnification the rest of the screen is drawn at.
+    /// </param>
+    /// <remarks>
+    /// Drawn after the screen, outside the row cache, so it never has to be part of a cached row.
+    /// One pixel at natural size across the whole width, in the text colour of the ruled row's own
+    /// last cell (on the 3270, line 25's neutral white), so the rule matches the line it sets off
+    /// rather than the theme's text colour.
+    /// </remarks>
+    private void DrawRowRule(DrawingContext context, int scrollOffset, double scale)
+    {
+        if (_emulator is not IRuledRowTerminal ruled)
+        {
+            return;
+        }
+
+        int row = ruled.RuleAboveRow;
+        ScreenFrame? frame = _emulator.LatestFrame;
+        if (row <= 0 || frame == null)
+        {
+            return;
+        }
+
+        int viewRow = row + scrollOffset;
+        if (viewRow <= 0 || viewRow >= frame.Height)
+        {
+            return;
+        }
+
+        using (context.PushTransform(Matrix.CreateScale(scale, scale)))
+        {
+            double y = (viewRow * _charHeight) + 0.5;
+            var pen = new Pen(GetCellForeground(frame[viewRow, frame.Width - 1]), 1);
+            context.DrawLine(pen, new Point(0, y), new Point(frame.Width * _charWidth, y));
+        }
+    }
     /// <summary>
     /// Draws the line that has just scrolled off, in the gap a sliding screen leaves at the top.
     /// </summary>

@@ -385,6 +385,30 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
+        public void AThinRuleSetsLine25OffFromTheHostScreen()
+        {
+            // Ronny, 22 November 2026: a thin rule inside the picture (wc3270 spends a blank,
+            // underlined row on it). Column 45 is blank on row 24 and on line 25, so any ink
+            // there is the rule; one row higher there must be none.
+            var emulator = new Ibm3270Emulator();
+            emulator.ProcessData(Screen);
+
+            using var shot = RenderedScreenshot.Capture(emulator, "ibm3270-line25-rule");
+
+            int x = (int)(45.5 * shot.CellWidth);
+            var background = shot.PixelAt(x, (int)(22.5 * shot.CellHeight));
+            bool ruled = false;
+            int top = (int)(24 * shot.CellHeight);
+            for (int y = top - 1; y <= top + 1; y++)
+            {
+                ruled |= !RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y), background, 24);
+            }
+
+            Assert.True(ruled, "no rule at the top of line 25");
+            Assert.True(RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, (int)(23 * shot.CellHeight)), background, 24), "a rule above row 24 too");
+        }
+
+        [AvaloniaFact]
         public void TheRendered3270ScreenColoursFieldsByTheirAttributes()
         {
             var emulator = new Ibm3270Emulator();
@@ -411,7 +435,21 @@ namespace RetroTerm.Tests.Avalonia
             Assert.False(RenderedScreenshot.ApproximatelyEqual(shot.DominantColorInCell(24, 2), background, 40), "the box is not in reverse video");
             Assert.True(RenderedScreenshot.ApproximatelyEqual(shot.DominantColorInCell(24, 1), background, 40), "the A should not be in reverse video");
             Assert.True(shot.CellHasInk(24, 7));
-            Assert.False(shot.CellHasInk(24, 4));
+
+            // The gap holds no character. Its top edge carries the thin rule above line 25, so the
+            // cell is checked from two pixels below its top: every pixel there is background.
+            int left = (int)(4 * shot.CellWidth) + 1;
+            int right = (int)(5 * shot.CellWidth) - 1;
+            int below = (int)(24 * shot.CellHeight) + 2;
+            int bottom = (int)(25 * shot.CellHeight) - 1;
+            SKColor gapBackground = shot.PixelAt(left, bottom);
+            for (int y = below; y < bottom; y++)
+            {
+                for (int x = left; x < right; x++)
+                {
+                    Assert.True(RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y), gapBackground, 24), "ink in the gap at " + x + "," + y);
+                }
+            }
         }
 
         // ---------------------------------------------------------------- Manage Connections
