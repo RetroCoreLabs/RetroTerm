@@ -374,10 +374,34 @@ What was checked:
 - What tnz does on the wire to give the host APL is the GE support above: ALT flag
   plus a second descriptor for code page 310.
 
-What was not checked: "3278T" is, as far as I remember, one of the terminal types
-the user picks **inside ISPF** (ISPF Settings, "Terminal Type"), and it tells ISPF
-it may use the Text/APL symbols (box corners and lines through GE). That is
-NOT VERIFIED; no ISPF manual is in this repository.
+What the ISPF manuals say (checked 23 November 2026, z/OS V2R1 editions,
+downloaded from IBM's site; not added to the repository, see below):
+
+- **"3278T" is a value the user picks inside ISPF**, on the ISPF Settings panel
+  (option 0), "Terminal Type" choice 6. The full list is 1 3277, 2 3277A, 3 3278,
+  4 3278A, 5 3290A, 6 3278T, 7 3278CF, 8 3277KN, ... 17 BE190, 18 3278TH,
+  19 3278CU, 20 DEU78 (SC19-3628-00 *ISPF User's Guide Vol II*, fig. 23, p. 23-24).
+  ISPF keeps it in the profile variable ZTERM, 8 bytes, "Terminal type as defined
+  by option 0" (SC19-3619-00 *ISPF Dialog Developer's Guide and Reference*,
+  Appendix E).
+- **It never reaches the wire.** It only chooses which translate-table load module
+  ISPF loads: 3278T -> ISP3278T, 3278A and 3290A -> ISP3278A, 3278 -> ISP3278
+  (GC19-3623-00 *ISPF Planning and Customizing*, p. 100-101, the TRANS(&ZTERM ...)
+  table). The manual says the table "allows ISPF to recognize valid (displayable)
+  characters" and that the value "might not be the actual terminal type"
+  (SC19-3628-00 p. 28).
+- **What the T means: a 3278 with the Text keyboard** (the APL/Text feature with a
+  Typewriter/Text keyboard); A = APL keyboard. The manual does not spell the letter
+  out, but it groups them: "ISPF permits use of APL keyboards for all models ... and
+  text keyboards for 3278 and 3279 terminals. The 2-byte transmission codes for APL
+  and text characters are translated by ISPF into 1-byte codes for internal
+  storage", fig. 89 "for APL keyboards", fig. 90 "for text keyboards"
+  (SC19-3619-00 Appendix A, p. 373-375). The 2-byte code is GE X'08' + a code
+  page 310 byte. ISPF's own APL2 interface maps 3278A and 3278T both to APL2
+  terminal code 32791 (SC19-3619-00 p. 34). The letter meaning is my reading of
+  those passages, not a sentence in the manual.
+- Side effect documented: with 3278T ISPF "cannot set the number of keys to 24"
+  (SC19-3628-00 p. 50).
 
 ### The box-drawing characters ISPF uses
 
@@ -398,9 +422,42 @@ seen in fig. 10-41):
 | X'C7' | Middle Box Bottom | ┴ U+2534 |
 | X'D3' | Box Intersection | ┼ U+253C |
 
-**Which of these ISPF actually sends is NOT VERIFIED.** Neither oracle says, and
-no ISPF document or host trace is in this repository. A trace from a real ISPF
-session with GE support turned on would settle it. Note that X'85' is in the group
+**What the ISPF manual says about box lines** (SC19-3619-00, `)ATTR` GE keyword,
+p. 190, and character attributes in dynamic areas, p. 152-153):
+
+- A panel asks for GE with the attribute keyword `GE(ON)`. It is allowed on
+  TYPE(CHAR) in a dynamic area, action-bar separator lines TYPE(ABSL), work-area
+  separator lines TYPE(WASL) and column headings TYPE(CH). ISPF then puts a
+  Graphic Escape order (X'08') before the character. "The GE order indicates that
+  the character comes from the APL/TEXT character set."
+- On ABSL, WASL and CH: if the panel text is dashes `-` or bars `|`, "the
+  appropriate APL character will be used", so they show as solid lines instead of
+  broken ones. Which code page 310 byte that is, is NOT stated; X'A2' (horizontal)
+  and X'85' (vertical) from the table above are the obvious candidates but that is
+  NOT VERIFIED.
+- If the terminal does not support GE (system variable ZGE = NO), or ISPF runs
+  under GDDM, the elements are shown "as coded": plain `-` and `|`. A TYPE(CHAR)
+  GE(ON) character outside X'40'-X'FE', or on a terminal without GE, is shown as a
+  blank.
+- IBM's own shipped panels use it: ISRFPA (the PDF primary option menu) has
+  `04 TYPE(ABSL) GE(ON)` and `22 TYPE(WASL) SKIP(ON) GE(ON)` (GC19-3623-00 fig. 64,
+  p. 140).
+- **How ISPF decides ZGE (from the terminal type setting, from the query reply, or
+  both) is NOT stated** in the three manuals read. Not found.
+- The manuals do not tie GE use to the terminal type setting in any sentence I
+  found; whether 3278 (not T or A) still gets GE is NOT VERIFIED.
+
+The manuals: SC19-3619-00 `https://www.ibm.com/docs/SSLTBW_2.1.0/pdf/isp2dg00.pdf`,
+SC19-3628-00 `.../isp2u200.pdf`, GC19-3623-00 `.../isp2pc00.pdf` (same folder).
+They are © IBM with no redistribution permission in their notices, so they are not
+committed to `IBM-manuals\`.
+
+**TK5:** the five TK5 recordings of 23 November 2026 have no X'08' byte at all; its
+ISPF boxes are plain `|` `_` `/` (PLAN.md). What ISPF-like program TK5 ships and
+whether it has a terminal type setting was NOT checked: no TK5 document is in this
+repository and the web search found none.
+
+Note that X'85' is in the group
 fig. 10-41 note 4 calls "graphic plot characters" that "cannot be entered from
 either the APL or the Text keyboard" (X'81'-X'85' and X'91'-X'95').
 

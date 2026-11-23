@@ -64,7 +64,7 @@ clean-room rewrite in C#.
 - [ ] Read the parts of GA23-0059-4 the data stream spec lists as not read yet: Character Sets reply layout, Create Partition, Field Validation / Outlining / Transparency replies, Usable Area extra parameters (p. 6-90 to 6-94), Appendix C reset table
 - [ ] Settle the open questions at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE) — most need one of the traces below
 - [ ] 3270 PC keys, what is still open (the keys themselves are written up in `docs\spec\IBM3270\3270-PC-WORKSTATION-KEYS.md` from SC23-0103-2 and 84X0982): what ExSel / Entry Assist does and whether it sends anything (needs the Entry Assist RPQ BK1147 User's Guide, not found yet); whether Print in a host window reaches the host; plain/Shift/Alt legends for the keys other than Jump and WS Ctrl (the summary card SX23-0231-02 is image only)
-- [ ] Find an ISPF manual: which characters ISPF sends for boxes, and what its "3278T" terminal setting means
+- [ ] ISPF box lines (EBCDIC.md, "The box-drawing characters ISPF uses"): find which code page 310 byte ISPF sends for a GE(ON) dash or bar, and how ISPF sets ZGE (GE supported yes/no) - needs a trace from a real z/OS ISPF, the manuals do not say
 
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
@@ -97,7 +97,7 @@ clean-room rewrite in C#.
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-- [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3
+- [ ] TK5: which ISPF-like program it ships and whether it has a terminal type setting (3278T is an ISPF option 0 setting, never sent on the wire; EBCDIC.md)
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons
