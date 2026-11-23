@@ -166,30 +166,36 @@ step: run the same JRP keys in s3270 and RetroTerm and compare the screens, as t
 
 ## B9 - 3270 Attn at TSO's READY: the screen after the next Enter differs from s3270
 
-`src\tests\RetroTerm.Tests\Hercules\Tk5AttnTests.cs` (category Hercules, needs TK5) logs in,
+`src	ests\RetroTerm.Tests\Hercules\Tk5AttnTests.cs` (category Hercules, needs TK5) logs in,
 goes to READY, presses Clear, Attn, then Enter, in s3270 and in RetroTerm, and compares every
-screen. Found 23 November 2026. It is red.
+screen. Found 23 November 2026. It is red. Cause found the same day: the two terminals send
+different bytes for Attn, and the two x3270 sources disagree about which is right.
 
-What is known:
+Measured, 23 November 2026, same steps, s3270 run with `-trace -tracefile`:
 
-- RetroTerm sends what x3270 sends for Attn on plain TN3270: PA1 alone, then IAC BREAK
-  (x3270 `Common\kybd.c` Attn_action lines 994-998, `Common\telnet.c` net_break; RetroTerm
-  `Ibm3270Emulator` ATTN, `Tn3270Protocol.SendBreak`).
-- RetroTerm's records after Attn: sent `6C` (PA1), no host record, sent `7D 40 40` (Enter),
-  then host `F1 C1 11 5D 7F 1D 40 1D C8 4F 1D 40 11 C1 50 13` (a Write: an intensified field
-  holding `4F`, shown as a vertical bar, keyboard NOT restored) and host
-  `F1 C3 11 C1 50 1D C8 D9 C5 C1 C4 E8 ...` (READY on row 2, keyboard restored).
-- RetroTerm's screen at the end of the step: row 1 a bar, row 2 empty, line 25 X SYSTEM.
-  s3270's: row 1 empty, row 2 READY. The Clear after it differs too (RetroTerm shows
-  INVALID COMMAND NAME SYNTAX and READY).
-- One code difference, not shown to be the cause: x3270 sends Attn's PA1 directly
-  (`ctlr_read_modified(AID_PA1, false)`), without the keyboard lock its attention keys set;
-  RetroTerm's Attn locks the keyboard like any attention key.
+- s3270 (`s3270 v4.5ga6`, the copy named in tk5-tests.json) sends for Attn only `FF F3`
+  (IAC BREAK). No PA1. Its Enter then sends `7D 40 40` and the host answers
+  `F1 C3 11 C1 50 1D C8 D9 C5 C1 C4 E8 40 1D 40 11 C2 60 13`: Write, WCC C3 (reset, restore,
+  reset MDT), SBA row 2 col 1, SF intensified, `READY `, SF default, SBA row 3 col 1, IC.
+- RetroTerm sends `6C` (PA1, short read) and then IAC BREAK. Its Enter sends `7D 40 40`, and the
+  host answers with TWO records: `F1 C1 11 5D 7F 1D 40 1D C8 4F 1D 40 11 C1 50 13` (Write, WCC C1:
+  reset and reset MDT but NOT restore; SBA 1919, SF, SF intensified, `4F` = a bar at row 1
+  col 2, SF, SBA row 2 col 1, IC) - this is TSO answering the PA1 - and then the same READY
+  record s3270 got.
+- RetroTerm applies both records correctly: the second Write does not erase, so the bar from the
+  first stays on row 1. The screens differ because the HOST was sent different things.
 
-What is not known: what s3270 received in the same run. No byte trace of the s3270 side was
-taken, so it is not settled whether the host answered the two terminals differently, or answered
-the same and the screens were read at different moments. Next step: run s3270 with its trace
-(`-trace -tracefile`) in the same test and compare the records byte by byte.
+Why the bytes differ: x3270's `Common\kybd.c` Attn_action, plain TN3270 case, read
+23 November 2026 from github.com/pmattes/x3270:
+
+- tag `4.5ga6` (the installed s3270): `net_break(0)` only.
+- `master`: `ctlr_read_modified(AID_PA1, false); net_break(0);`, commented "This is what PCOMM
+  does in plain TN3270 mode: PA1, then TELNET BREAK". RetroTerm (`Ibm3270Emulator` ATTN,
+  RetroIO `Display3270.Attn`) follows master. The commit that added it was not found.
+
+No IBM manual held here describes Attn on a plain TN3270 connection, so neither version is the
+spec. Open: which one RetroTerm should follow is Ronny's decision. Following 4.5ga6 makes the
+test green; following master needs an s3270 built from master as the oracle.
 
 ## B12 - SSH to "localhost" still waits about 2 seconds when the host listens only on IPv4
 
