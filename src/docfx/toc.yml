@@ -29,6 +29,12 @@
       items:
         - name: "RetroCore Labs — Visual Identity System"
           href: "../../docs/LOGO-DESIGN-GUIDE.md"
+    - name: "Documents"
+      items:
+        - name: "Script language options for RetroTerm"
+          href: "../../docs/SCRIPTING-LANGUAGE-OPTIONS.md"
+        - name: "The IBM 3270 terminal - an introduction for people who have never used one"
+          href: "../../docs/IBM3270-INTRODUCTION.md"
 - name: Manuals and source material
   items:
     - name: "DEC VT Family and ANSI Terminal — Verified Validation Matrix"
@@ -37,6 +43,24 @@
       items:
         - name: "Standard ECMA-48"
           href: "../../docs/spec/ECMA/ECMA-48_5th_edition_june_1991.md"
+    - name: "IBM3270"
+      items:
+        - name: "3270 Data Stream - Specification for RetroTerm"
+          href: "../../docs/spec/IBM3270/3270-DATA-STREAM.md"
+        - name: "EBCDIC for the IBM 3270 emulation"
+          href: "../../docs/spec/IBM3270/EBCDIC.md"
+        - name: "IBM 3270 font sources"
+          href: "../../docs/spec/IBM3270/FONT-SOURCES.md"
+        - name: "IBM 3270 keyboard and local editing — specification for RetroTerm"
+          href: "../../docs/spec/IBM3270/KEYBOARD.md"
+        - name: "IBM 3270 PC workstation keys"
+          href: "../../docs/spec/IBM3270/3270-PC-WORKSTATION-KEYS.md"
+        - name: "IBM 3270 — sources for the emulation"
+          href: "../../docs/spec/IBM3270/README.md"
+        - name: "IND$FILE file transfer - specification for the RetroTerm 3270 emulation"
+          href: "../../docs/spec/IBM3270/IND-FILE-TRANSFER.md"
+        - name: "TN3270 and TN3270E - how a connection is set up"
+          href: "../../docs/spec/IBM3270/TN3270-NEGOTIATION.md"
     - name: "ND keyboards"
       items:
         - name: "Keyboard Geometry – Final Aligned Specification"

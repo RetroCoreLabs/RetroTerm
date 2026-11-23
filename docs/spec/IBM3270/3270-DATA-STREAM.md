@@ -915,6 +915,80 @@ Oracles:
 | x3270 `sf.c` | X'1' (12/14 only) | max cols x max rows | mm, canned 3279-2 values | canned 3279-2 values | cols x rows (16 bits, no overflow check) |
 | tnz `tnz.py` | X'1' | alternate cols x rows | inches, 1/96 and 1/96 | 6 x 12 | left off (21-byte base) |
 
+More from p. 6-90 (read from the page image, 23 November 2026):
+
+- BUFFSZ applies only to a device that does not support partitions. With partitions, the
+  Alphanumeric Partitions reply gives the buffer size and BUFFSZ is set to zero.
+- Printers: for LU type 1 BUFFSZ is not applicable and should be X'0000'. For LU type 3 and non-SNA
+  printers BUFFSZ is the same as the Alternate Printer Buffer Size in the Implicit Partition reply.
+- XMIN, YMIN, XMAX, YMAX: the limits of the cell size that Create Partition may ask for, when the
+  device supports a different cell size in each partition.
+
+### 9.4a Usable Area self-defining parameters (p. 6-90 to 6-94, from the images)
+
+Self-defining parameters follow the 27-byte base (see the length rules above). Each one is
+`length, ID, ...`.
+
+**On pels Limit, ID X'01' (p. 6-90).** Only needed when the device cannot have every pel on at once.
+
+| Byte | Content |
+|---|---|
+| 0 | X'03' (length) |
+| 1 | X'01' |
+| 2 | PERCENT - percent of pels that may be on at the same time, X'01' to X'64' (1 to 100). Example: 31% is X'1F' |
+
+Going over the limit "may result in the loss of displayed information" (p. 6-90).
+
+**Multiple Usable Area, ID X'03' (p. 6-91, 6-92, 6-93).** Only for a device with two or more separate
+display surfaces. Not for printers. Each data type may appear on only one surface; the base reply
+describes the surface for alphanumeric data and for every data type not listed here.
+
+| Byte | Bit | Content |
+|---|---|---|
+| 0 | | X'13' (length, 19) |
+| 1 | | X'03' |
+| 2 | | X'00' reserved, must be zero |
+| 3 | 0-1 | B'00' reserved |
+| | 2 | CELLUNITS: 0 = bytes 4-5 and 6-7 in cells, 1 = in pels |
+| | 3 | B'0' reserved |
+| | 4-7 | DATATYPE: B'0001' reserved (earlier it meant alphanumeric), B'0010' graphic, all others reserved |
+| 4-5 | | WG - width of this surface |
+| 6-7 | | HG - height of this surface |
+| 8 | | UNITS: X'00' inches, X'01' millimetres |
+| 9-12 | | Xr: 2-byte numerator, 2-byte denominator |
+| 13-16 | | Yr: same |
+| 17 | | AW - X units in the default cell |
+| 18 | | AH - Y units in the default cell |
+
+Xr and Yr X'FFFFFFFF' when they cannot be found; not allowed with Load PS (p. 6-93).
+
+**Alternate Usable Area, ID X'02' (p. 6-93, 6-94).** "Present only for devices that support more
+than one usable area size on one display surface", and "always required" for such a device (p. 6-93).
+IBM's example: a 3180 that can show 43 x 80 (Model 4) or 27 x 132 (Model 5), but not both at once,
+reports 43 rows by 80 columns in the base and 27 rows by 132 columns here. It is limited to a
+single-partition implementation. On Create Partition the device first tries to fit the viewport in
+the base usable area, then in the alternate one, and rejects the structured field if it fits in
+neither. Not for printers. With Load PS, bytes 8 to 18 must be supplied.
+
+| Byte | Content |
+|---|---|
+| 0 | X'13' (length, 19) |
+| 1 | X'02' |
+| 2 | X'00' reserved, must be zero |
+| 3 | AUAID - alternate usable area ID. The table prints "X'01' Identifier for the Alternate Usable Area" and "X'FE' Reserved values"; whether the reserved range is only X'FE' or more is not clear from the print |
+| 4-5 | WAUAi - width, in the base reply's CELLUNITS |
+| 6-7 | HAUAi - height, same units |
+| 8 | AUAUNITS: X'00' inches, X'01' millimetres |
+| 9-12 | AUAXr: 2-byte numerator, 2-byte denominator |
+| 13-16 | AUAYr: same |
+| 17 | AWAUAi - X units in the default cell |
+| 18 | AHAUAi - Y units in the default cell |
+
+X'FFFFFFFF' for both AUAXr and AUAYr when they cannot be found; not allowed with Load PS (p. 6-94).
+
+Whether x3270 or tnz ever sends one of these was not checked in their source for this pass
+(**NOT VERIFIED**); the oracle table above describes only their base bytes.
+
 ### 9.5 Color, X'86' (p. 6-29, 6-30, from the images)
 
 | Byte | Content |
@@ -936,7 +1010,9 @@ Example given by IBM for a colour display (p. 6-30): pairs 00/F4, F1/F1, F2/F2, 
 F5/F5, F6/F6, F7/F7. For a mono display: 00/F4, then every other value mapped to 00.
 
 x3270 `sf.c` sends 00/F4 (green), then F1 ... FF mapped to themselves (colour mode) or to 00, NP =
-16; no background subfield. tnz: not read in detail (**NOT VERIFIED**).
+16; no background subfield. tnz `tnz.py` sends the reply only when it is colour-capable: flags
+X'00', NP = 8, pairs 00/F4, F1/F1 ... F7/F7 - the same bytes as IBM's colour example; no background
+subfield. (Read 23 November 2026.)
 
 ### 9.6 Highlight, X'87' (p. 6-56)
 
@@ -1018,7 +1094,75 @@ Required for SAA. Base:
 | 12 | | DL - length of each descriptor |
 | 13-n | | descriptors (at least the first 3 bytes of one must be present) |
 
-The descriptor layout is on p. 6-24 onward; **NOT VERIFIED** here - not read.
+More on the base, p. 6-23, 6-24 (from the images, 23 November 2026):
+
+- EXT can be 1 only when LOADABLE is 1.
+- MS = 0: every set uses SDW x SDH; any SW/SH in the descriptors are ignored. MS = 1: each
+  descriptor carries SW and SH; a zero SW or SH means "use SDW/SDH".
+- A device with non-matrix characters (Usable Area byte 5 bit 1) sets SDW and SDH to zero.
+- CH2 = 0: no SUBSN bytes in the descriptors. CH2 = 1: SUBSN bytes in every descriptor.
+- GF: kept for old products that sent the reply without CGCSGID. "All new implementations must have
+  the CGCSGID present and have GF set to B'1'" (p. 6-23).
+- PSCS (byte 5 bit 1): 0 = a Load PS Sets character size must match the slot exactly; 1 = smaller
+  is accepted. Set to 0 by a device without Load PS.
+- FORM: 32 bits, bit i set means Load PS format type i is supported. Types 1 to 6 and 8 are
+  defined; bit 0 and bits 7 to 32 except 8 are reserved (p. 6-24, as printed - a 32-bit field has
+  no bit 32).
+- DL: the length of each descriptor.
+
+#### Character set descriptors (p. 6-24 to 6-28, from the images)
+
+At least one descriptor is required. Each is DL bytes long. **The table numbers the bytes from 1**,
+as printed:
+
+| Byte | Bit | Content |
+|---|---|---|
+| 1 | | SET - device-specific character set ID (PS store number) |
+| 2 | 0 | LOAD: 0 = non-loadable, 1 = loadable |
+| | 1 | TRIPLE: 0 = single-plane, 1 = triple-plane |
+| | 2 | CHAR: 0 = single-byte coded, 1 = double-byte coded |
+| | 3 | CB: 0 = LCID compare, 1 = no LCID compare |
+| | 4-7 | Reserved |
+| 3 | | LCID - local character set ID (alias) |
+| 4 | | SW - slot width. Present only if MS = 1 |
+| 5 | | SH - slot height. Present only if MS = 1 |
+| 6 | | SUBSN - starting subsection. Present only if CH2 = 1 |
+| 7 | | SUBSN - ending subsection. Present only if CH2 = 1 |
+| 8-11 | | CGCSGID. Present only if GF = 1 |
+
+Footnote (p. 6-25): the position of CGCSGID and SUBSN may move: "if SUBSNs and SW/SH were not
+present, the CGCSGID parameter would start at byte 4". So with MS = 0, CH2 = 0 and GF = 1 a
+descriptor is 7 bytes: SET, flags, LCID, CGCSGID.
+
+The numbering is not consistent in the manual itself: the text on p. 6-27 calls the flags "bit 0 of
+byte 0 (LOAD flag)" and the subsections "bytes 6 and 7", and says "Bytes 6 and 7 are not present
+when bit 2 of byte 2 is B'0'". Read as written, the table counts from 1 and some of the text from 0.
+The order of the fields is the same either way.
+
+Rules (p. 6-25 to 6-28):
+
+- SET: SET = X'01' is the alternate character page. Several base sets give several descriptors with
+  SET = X'00'; the first such descriptor is the device default set, the one used by the implicit
+  partition and the keyboard. Create Partition BASE picks a base set by counting down these
+  descriptors in order.
+- CHAR = 0: a character fills an AW x AH cell (Usable Area). CHAR = 1: a 2AW x AH cell.
+- CB: whether the set can be compared for copy (see Load PS, p. 5-18 - not read in this pass).
+- LCID: the ID used in SA, SFE and MF to pick this set. X'FF' means "free": it cannot be picked by
+  SA, SFE, MF or the PS keys. **Non-loadable sets have default LCIDs X'F0' to X'FE': X'F0'-X'F7'
+  for 1-byte sets, X'F8'-X'FE' for 2-byte sets** (p. 6-25, 6-26).
+- SW/SH: a character is placed as an SW x SH dot matrix at the top left of the cell; smaller leaves
+  background, larger is cut off on the right and bottom (p. 6-26). Load PS format types 3 to 6 use
+  LW/LH if given, else non-zero SW/SH, else SDW/SDH (p. 6-26, Figure 6-1 on p. 6-27).
+- SUBSN: subsection IDs must be consecutive in X'41' to X'FE'. The default starting subsection of a
+  loadable 2-byte set is X'41'. Both SUBSN bytes are X'00' when present on a 1-byte set (p. 6-27,
+  6-28).
+- CGCSGID: 2-byte character set number then 2-byte code page number. All four bytes zero for a set
+  with no CGCSGID, such as a user-defined programmed symbol set (p. 6-28).
+
+Oracles: x3270 `sf.c` sends flags X'82' (X'8E' with DBCS), SDW/SDH canned from the 3279-2, FORM 0,
+DL 7 (11 with DBCS). Set 0: flags X'10' (CB = 1, no LCID compare), LCID X'00', its CGCSGID. Set 1:
+flags X'00', LCID X'F1', CGCSGID X'03C30136' (character set 963, code page 310). With DBCS a third
+set X'80', flags X'20', LCID X'F8', SUBSN X'41' to X'7F'. (Read 23 November 2026.)
 
 ### 9.10 RPQ Names, X'A1' (p. 6-75)
 
@@ -1048,6 +1192,59 @@ The descriptor layout is on p. 6-24 onward; **NOT VERIFIED** here - not read.
 
 `X'0004'  X'81'  X'FF'`. Sent only when a Query List asked for nothing the device supports. Never
 listed in Summary (p. 6-81).
+
+### 9.13 Field Validation, X'8A' (p. 6-52, from the image)
+
+Sent for Query, or a Query List naming X'8A', Equivalent or All, when the device supports it.
+
+| Byte | Bit | Content |
+|---|---|---|
+| 0-1 | | X'0005' (length) |
+| 2 | | X'81' |
+| 3 | | X'8A' |
+| 4 | 0-4 | Reserved |
+| | 5 | 1 = mandatory fill supported (X'04') |
+| | 6 | 1 = mandatory entry supported (X'02') |
+| | 7 | 1 = trigger supported (X'01') |
+
+### 9.14 Field Outlining, X'8C' (p. 6-49, 6-50, from the images)
+
+Sent for Query, or a Query List naming X'8C', Equivalent or All, when supported.
+
+| Byte | Bit | Content |
+|---|---|---|
+| 0-1 | | X'000A' (length) |
+| 2 | | X'81' |
+| 3 | | X'8C' |
+| 4 | 0-7 | Flags, reserved |
+| 5 | 0 | SEP: 0 = underline and overline separation not supported, 1 = supported |
+| | 1-7 | Reserved |
+| 6 | | VPOS - where the vertical line is, across the cell |
+| 7 | | HPOS - where the overline/underline is, down the cell |
+| 8 | | HPOS0 - where the overline is, when separated |
+| 9 | | HPOS1 - where the underline is, when separated |
+
+SEP is about printers: without it an underline and the next row's overline print as one line
+(p. 6-49). HPOS0 and HPOS1 are zero on a device without separation. All four positions are 1-byte
+binary, measured from the top left corner of the cell (0,0), in the cell units of the Usable Area
+reply, "measured when the Skip Suppression is specified" (p. 6-50).
+
+### 9.15 Transparency, X'A8' (p. 6-84, from the image)
+
+Sent for a Query List naming X'A8', or All - the page does not list plain Query or Equivalent.
+
+| Byte | Content |
+|---|---|
+| 0-1 | L - total length |
+| 2 | X'81' |
+| 3 | X'A8' |
+| 4 | NP - number of pairs |
+| 5 | V(i) - background transparency attribute value accepted |
+| 6 | A(i) - what the device does for it |
+| 7-N | more V(i)/A(i) pairs |
+
+Action values: X'00' default (same as for the default attribute value), X'F0' normal (background
+transparent - OR), X'F1' background transparent - XOR, X'FF' not transparent (opaque).
 
 ---
 
@@ -1105,6 +1302,184 @@ For an emulator without partitions this is short, but the rules are here (p. 3-1
 
 ---
 
+## 13. Create Partition, X'0C' - and 16-bit addressing (p. 5-10 to 5-13, from the images)
+
+16-bit addressing exists only inside a partition made by this structured field (A-MODE B'0001').
+How 16-bit addresses look on the wire is in section 6 (p. D-1).
+
+What it does (p. 5-10):
+
+- In implicit partition state, partition 0 is destroyed, a partition with this PID is made, the
+  display goes to explicit partitioned state and the new partition is made active.
+- In explicit state, a partition with the same PID is destroyed and replaced; a new one is made
+  active if it is the only one with a window of non-zero size.
+- The structured field is rejected if: WV = 0 or HV = 0 and Modify Partition is not supported;
+  RV + HV is more than the screen height; CV + WV is more than the screen width; the viewport
+  overlaps another; or it does not fit in the usable area.
+- The new partition's buffer address is set to zero and its cursor to the window origin. Its
+  non-loadable character set is picked from the Character Sets reply by BASE, and the keyboard
+  follows that set while the partition is active. The window origin is RW, CW; a window not wholly
+  inside the presentation space is an error.
+
+Format (p. 5-11):
+
+| Byte | Bit | Content |
+|---|---|---|
+| 0-1 | | L - length |
+| 2 | | X'0C' |
+| 3 | | PID, X'00' to X'7E' |
+| 4 | 0-3 | UOM: B'0000' character cells, B'0001' addressable points (H through PH), B'0010' addressable points (RV and CV only), others reserved |
+| | 4-7 | A-MODE: B'0000' 12/14-bit binary, B'0001' 16-bit binary, B'0010' text, others reserved |
+| 5 | 0 | Reserved |
+| | 1 | PROT: 0 = unprotected partition, 1 = protected |
+| | 2 | COPY - host-started local copy of: 0 = the viewport, 1 = the presentation space |
+| | 3-4 | Reserved |
+| | 5-7 | BASE - base character set index |
+| 6-7 | | H - presentation space height |
+| 8-9 | | W - presentation space width |
+| 10-11 | | RV - viewport row origin, from the top of the usable area |
+| 12-13 | | CV - viewport column origin, from the left of the usable area |
+| 14-15 | | HV - viewport height |
+| 16-17 | | WV - viewport width |
+| 18-19 | | RW - window row origin in the presentation space |
+| 20-21 | | CW - window column origin in the presentation space |
+| 22-23 | | RS - units to scroll in a vertical multiple scroll |
+| 24-25 | | Reserved |
+| 26-27 | | PW - points across a character cell |
+| 28-29 | | PH - points down a character cell |
+
+"Working backwards from byte 29, the above parameters may be progressively omitted" by giving a
+shorter length (p. 5-12). Defaults for what is left off (p. 5-12):
+
+| Parameter | Default |
+|---|---|
+| PID | 0 |
+| UOM | B'0000' |
+| Address Mode | B'0000' |
+| Flags | X'00' |
+| H | default screen height in BIND |
+| W | default screen width in BIND |
+| RV | X'0000' (top screen row) |
+| CV | X'0000' (left-most screen column) |
+| HV | smaller of H and the usable area height |
+| WV | smaller of W and the usable area width |
+| RW | X'0000' |
+| CW | X'0000' |
+| RS | X'0001' if H.HV; X'0000' if H = HV (as printed) |
+| CS | X'0001' if W.WV; X'0000' if W = WV (as printed - CS is not in the format table) |
+| PW | AW (Usable Area cell width) |
+| PH | AH (Usable Area cell height) |
+
+The "H.HV" and "W.WV" in the RS and CS rows are printed that way; the symbol between the letters
+did not come through the scan. My reading is "not equal" (**NOT VERIFIED**).
+
+Further rules (p. 5-12, 5-13):
+
+- Which UOM values are allowed follows from the Usable Area CELLUNITS bit and the Alphanumeric
+  Partitions all-points-addressing bit: CELL 0 -> only B'0000'; CELL 1 and APA 0 -> B'0000' or
+  B'0010'; CELL 1 and APA 1 -> all three.
+- UOM B'0010': RV and CV are in points, HV and WV in rows and columns; the reject tests become
+  RV + (HV x PH) more than screen height in points, CV + (WV x PW) more than screen width in points.
+- A-MODE B'0010' sets up a default text environment (adjust off, no tabs, text width = W, left
+  margin = 1).
+- RS = X'FFFF': the device decides how far to scroll.
+- Errors reject the structured field (Table B-1, p. B-2). BIND, UNBIND, ACTLU, DACTLU, ACTPU and
+  DACTPU destroy every explicitly created partition. If at the end of a transmission the display is
+  in send or contention state and every partition has a zero-size window, the field is rejected.
+
+Appendix D (p. D-1) adds: in 16-bit mode bits 0 and 1 of the first byte are part of the address,
+outbound addresses are read as 16-bit binary and inbound addresses are made as 16-bit binary; with
+no partitions defined, 12- and 14-bit addressing is assumed.
+
+---
+
+## 14. Reset actions (GA23-0059-4 Appendix C, Table C-1, p. C-1 and C-2, from the images)
+
+What each event resets. Columns as printed: Partitions; Inbound Reply Mode; Highlighting, Color,
+Character Set - Selection and Indicators; INPID / INOP; PS Content / PS LCID.
+
+| Action | Partitions | Inbound Reply Mode | Selection | Indicators | INPID INOP | PS Content PS LCID |
+|---|---|---|---|---|---|---|
+| Jump Key | 6 | 1, 3 | NC | 7 | NC | NC |
+| CLEAR Key SSCP | 9 | 9 | 9 | 9 | NC | NC |
+| CLEAR Key Unowned | R | ID | R | 7 | NC | NC |
+| CLEAR Key LULU | R | R | ID | 7 | 9 | NC |
+| System Request Key SSCP (Unowned) | (see below) | 9 | 13 | 9 | 9 | NR |
+| System Request Key SSCP (LULU) | 9 | 9 | 9 | 9 | R | NC |
+| System Request Key Unowned | R | R | R | 7 | NR | NC |
+| Receipt of RU | R | R | R | 7 | NR | NC |
+| System Request Key LULU | R | R | ID | 7 | NR | NC |
+| Test Key ENTER | R | R | R | 7 | NR | NR |
+| Test Key EXIT | 9 | 9 | R | 7 | NR | 15 |
+| WCC in EW/EWA | R | R | ID | 7 | R | NC |
+| WCC Reset in 3270DS EW/EWA Only | NC | 12 | NC | 11 | 16 | NC |
+| Reset Partition | NC | 12 | NC | 11 | 16 | NC |
+| Power On | R | 13 | NR | R | NR | R |
+| Clear LULU | 10 | 10 | (blank) | NA, 10 | 10 | 10 |
+| DACTLU LULU | ID | ID | ID | ID | NR | NC |
+| DACTLU SSCP | ID | ID | ID | ID | NR | NC |
+| ACTLU SSCP | 9 | 9 | 9 | 9 | NR | NC |
+| DACTLU Unowned | ID | ID | ID | ID | NR | NC |
+| ACTLU Unowned | ID | ID | ID | ID | NR | NC |
+| Unbind LULU (8) | 17 | 13 | NC | 7 | NR | NC |
+| Unbind SSCP | 9 | 9 | 9 | 9 | NR | NC |
+| Bind SSCP | 9 | 9 | 9 | 9 | R | NC |
+| Bind Unowned | R | R | R | R | R | NC |
+| Set Inbound Reply Mode | NC | 2 | NC | 7 | NC | NC |
+| Clear Partition | 4 | 12 | NC | 7 | 16 | NC |
+| Destroy Active Partition | 6 | 1 | ID | 7 | 16 | NC |
+| Destroy Not-Active Partition | 5 | 5 | NC | NC | 16 | NC |
+| Clear Partition Key LULU | NC | NC | NC | NC | 9 | NC |
+| CD/EB Write Acknowledgment | NC | NC | NC | NC | R | NC |
+
+Print oddities, written down rather than guessed at:
+
+- On p. C-1 the row is printed as "System Request Key" in the Action column with "SSCP (Unowned)"
+  in the Partitions column, then 9, 13, 9, 9, NR. Directly under it is a row holding only "NC" in
+  the Action column, every other column empty. A likely reading is that "SSCP (Unowned)" belongs to
+  the action name and "NC" is the Partitions entry, pushed down by the layout - **NOT VERIFIED**.
+- "Unbind LULU" carries "(8)", and its Partitions entry is 17. The notes run 1 to 16; there is no
+  note 17 on p. C-2.
+- Note 14 ("reset when the test mode alters the programmed symbols") is defined but no cell on
+  either page uses it.
+- "Clear LULU" has nothing printed under Selection.
+
+Key: ID = implementation defined (effect visible on the external interface); NA = not applicable;
+NC = no change; NR = not relevant (a later action changes it); R = reset (effect visible on the
+external interface).
+
+Notes (p. C-2):
+
+1. The inbound reply mode is set to the mode of the newly activated partition.
+2. The inbound reply mode is changed to the mode described in the structured field.
+3. The alternate character set is changed to the mode of the newly activated partition.
+4. Add the partition name to the list along with its attributes.
+5. Delete the partition name from the list along with its attributes. Reset if it is the last
+   partition.
+6. Change the active partition to the next in the list. Reset if it is the last partition.
+7. Display exactly those attribute selection indicators that are honoured as a result of the inbound
+   reply mode in the current partition. If the inbound reply mode is reset, no operator selection is
+   displayed.
+8. In the unowned state, the last application write is still displayed (that is, the operator may be
+   able to add data and perform a local copy).
+9. The state will already be set.
+10. No change. SNA does not permit Clear in the FM layer.
+11. Reset if the active partition; otherwise, make no change.
+12. Reset the referenced partition only.
+13. Change the inbound reply mode to allow all selections.
+14. Reset when the test mode alters the programmed symbols.
+15. Reset if directed to INPID.
+16. Screen remains - operator interaction restricted to the active partition.
+
+"Note that a response of 082B also causes resetting of all the functions shown in the figure, except
+for PS LCID and PS CONTENT" (p. C-2).
+
+The table does not say whether "WCC in EW/EWA" means any EW/EWA or only one whose WCC has the reset
+bit; the next row, "WCC Reset in 3270DS EW/EWA Only", names the reset bit. Not settled
+(**NOT VERIFIED**).
+
+---
+
 ## Open questions
 
 1. **RMA channel code.** GA23-0061-2 Figure 1-8 lists no local channel code for Read Modified All;
@@ -1134,9 +1509,12 @@ For an emulator without partitions this is short, but the rules are here (p. 3-1
     alternate when there is no alternate (p. 6-60).
 11. **Sys Req: the ETX.** p. 9-3 ends the test request read with ETX; x3270 sends none over
     TN3270, and RetroIO follows x3270. Settled only when a host is seen answering one.
-12. **Not read in this pass:** Character Sets descriptor layout (p. 6-24 on), Create Partition
-    (16-bit mode), Field Validation and Field Outlining query reply layouts (p. 6-49, 6-52),
-    Transparency query reply, Usable Area self-defining parameters (p. 6-90 to 6-94), the Reset
-    Actions table (Appendix C), and tnz's Color reply.
+12. **Not read yet:** Load PS (p. 5-18 on), which the Character Sets CB flag and FORM bits refer
+    to; Table B-1 (p. B-2), the reject codes Create Partition points at; and the Erase/Reset page
+    (p. 5-15) was not re-read against Appendix C. Everything else once listed here (Character Sets
+    descriptors, Create Partition, Field Validation, Field Outlining, Transparency, the Usable Area
+    self-defining parameters, Appendix C and tnz's Color reply) was read on 23 November 2026 and is
+    in sections 9.4a, 9.5, 9.9, 9.13 to 9.15, 13 and 14. Print oddities found there are written in
+    those sections.
 13. **z/OS Basic Skills page.** Only a summary of the page was obtained through the fetch tool,
     not the full text, and its sibling pages were not read.
