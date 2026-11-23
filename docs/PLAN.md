@@ -76,7 +76,7 @@ clean-room rewrite in C#.
 - [ ] 3287 compared byte by byte with pr3287: not possible on this PC yet. The Windows pr3287 and wpr3287 (wc3270 folder) only print to a Windows printer (`-printer`), and every printer here either asks for a file name (Print to PDF, XPS) or is real paper; a pr3287 that writes to a file (the Linux build, or a "Generic / Text Only" printer on a file port) is needed
 - [ ] JRP console screen differs from what it should be? (BUGS.md B11): compare RetroTerm and s3270 on the same JRP keys
 - [ ] Move the 3287 printer code to RetroIO together with the rest of RetroTerm's 3270 code, in one planned step (Ronny, 23 November 2026: keep it in RetroTerm until then)
-- [ ] BUGS.md B12: connect to every address a host name resolves to at the same time (IPv6 and IPv4) and keep the first that answers, in the shared connect step (Ronny, 23 November 2026)
+- [ ] BUGS.md B12: SSH to "localhost" still waits about 2 s, because SSH.NET opens its own socket; every other connection now tries IPv6 and IPv4 together
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages

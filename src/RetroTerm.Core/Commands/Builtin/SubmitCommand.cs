@@ -13,6 +13,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Session;
 
 namespace RetroTerm.Core.Commands.Builtin;
@@ -207,25 +208,30 @@ public static class CardReader
 
         string after = " after " + timeoutMs.ToString(CultureInfo.InvariantCulture) + " ms";
 
-        // netstandard2.1 has no ConnectAsync with a token, so the deadline closes the socket,
-        // which ends a connect, a write or a read that is still waiting. Which of the three it
-        // was is in stage: 0 connecting, 1 sending, 2 waiting for the reader to close.
+        // The deadline covers the whole exchange. TcpConnector honours it while connecting (it
+        // closes every attempt still running); after that the deadline closes the socket, which
+        // ends a write or a read that is still waiting. Which of the three it was is in stage:
+        // 0 connecting, 1 sending, 2 waiting for the reader to close.
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        using var client = new TcpClient();
-        using CancellationTokenRegistration closeOnDeadline = deadline.Token.Register(client.Dispose);
         deadline.CancelAfter(timeoutMs);
         int stage = 0;
+        Socket? client = null;
+        CancellationTokenRegistration closeOnDeadline = default;
         try
         {
-            await client.ConnectAsync(host, port).ConfigureAwait(false);
+            // TcpConnector tries IPv6 and IPv4 together (RFC 8305): "localhost" against Hercules,
+            // which listens on IPv4 only, took about 2 s here before (BUGS.md B12).
+            client = await TcpConnector.ConnectAsync(host, port, deadline.Token).ConfigureAwait(false);
+            Socket connected = client;
+            closeOnDeadline = deadline.Token.Register(connected.Dispose);
             stage = 1;
-            NetworkStream stream = client.GetStream();
+            using var stream = new NetworkStream(client, ownsSocket: false);
             await stream.WriteAsync(deck, 0, deck.Length, deadline.Token).ConfigureAwait(false);
             await stream.FlushAsync(deadline.Token).ConfigureAwait(false);
 
             // The end of the deck (the reader's "eof" option): close our sending side only, so
             // the reader's close can still be seen.
-            client.Client.Shutdown(SocketShutdown.Send);
+            client.Shutdown(SocketShutdown.Send);
             stage = 2;
 
             // The reader never sends anything; the read ends when it closes the connection,
@@ -264,6 +270,11 @@ public static class CardReader
                     return (false, "sent " + what + " to the card reader at " + where + ", but it reset the connection instead of closing it: " + e.Message +
                         ". Hercules does this when another program is still connected to the reader", false);
             }
+        }
+        finally
+        {
+            closeOnDeadline.Dispose();
+            client?.Dispose();
         }
     }
 }

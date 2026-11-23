@@ -30,7 +30,7 @@ public sealed class RethTcpBackend : IEthernetBackend
     private readonly int _port;
 
     private readonly object _sendLock = new();
-    private TcpClient? _client;
+    private Socket? _client;
     private NetworkStream? _stream;
     private Thread? _worker;
     private volatile bool _stopRequested;
@@ -125,11 +125,12 @@ public sealed class RethTcpBackend : IEthernetBackend
         {
             try
             {
-                using var client = new TcpClient();
-                client.Connect(_host, _port);
+                // TcpConnector tries every address the name resolves to, IPv6 and IPv4 together
+                // (RFC 8305, BUGS.md B12). This loop runs on its own thread, so waiting here is fine.
+                using Socket client = TcpConnector.ConnectAsync(_host, _port).GetAwaiter().GetResult();
                 client.NoDelay = true;   // frames are already framed; batching only adds latency
 
-                var stream = client.GetStream();
+                var stream = new NetworkStream(client, ownsSocket: false);
 
                 lock (_sendLock)
                 {

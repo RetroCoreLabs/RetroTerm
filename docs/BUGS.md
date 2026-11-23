@@ -191,16 +191,23 @@ taken, so it is not settled whether the host answered the two terminals differen
 the same and the screens were read at different moments. Next step: run s3270 with its trace
 (`-trace -tracefile`) in the same test and compare the records byte by byte.
 
-## B12 - Connecting to "localhost" waits about 2 seconds when the host listens only on IPv4
+## B12 - SSH to "localhost" still waits about 2 seconds when the host listens only on IPv4
 
-Measured 23 November 2026 while building SUBMIT: a connection to `localhost:3505` (TK5's card
-reader) took about 2 s every time, one to `127.0.0.1:3505` took 3 ms. "localhost" resolves to the
-IPv6 address ::1 first; Hercules listens only on IPv4, and Windows waits about 2 s before it tries
-127.0.0.1. SUBMIT (`src\RetroTerm.Core\Commands\Builtin\SubmitCommand.cs`) is where it was measured.
-The TN3270 and telnet connections use the same kind of connect and very likely wait the same way;
-that is NOT measured. The fix is a decision on how every RetroTerm connection picks between the
-addresses a name resolves to (try them in turn with a short timeout, or both at once as browsers
-do), not a SUBMIT-only change.
+"localhost" resolves to ::1 first and 127.0.0.1 second here, and Windows reports a refused
+connect to ::1 only after about 2 s. Every connection RetroTerm opens itself now goes through
+`src\RetroTerm.Core.Protocols\TcpConnector.cs`, which tries IPv6 and IPv4 with a 100 ms head start
+each (RFC 8305) and keeps the first that answers: telnet, TN3270 (and the 3287 printer, which uses
+the same connection), SUBMIT's card reader and the RETH Ethernet backend. Measured 23 November
+2026 against TK5 on `localhost`: 3270 and 3505 took 2015 to 2069 ms before and 107 to 141 ms after
+(127.0.0.1 directly: under 1 ms both before and after).
+
+What is left is SSH. `src\RetroTerm.Core.Protocols.Net\SSHConnection.cs` hands the host name to
+SSH.NET, which opens the socket itself, and SSH.NET 2026.0.0 has no public way to give it a socket
+connected elsewhere (its constructors take only a ConnectionInfo or host, port and credentials).
+Measured the same day: SSH.NET against `localhost:3270` (an IPv4-only listener) failed after
+5083 and 5032 ms, against `127.0.0.1:3270` after 3015 and 3011 ms, with a 3 s read timeout set in
+both - the 2 s difference is the connect. Fixing it means either a change in SSH.NET or connecting
+the socket in RetroTerm and running SSH over it; neither is done.
 
 ## B13 - Over MCP, a misspelled parameter name is ignored without a word
 

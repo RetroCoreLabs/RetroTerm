@@ -27,7 +27,9 @@ namespace RetroTerm.Ibm3270
         private readonly object _gate = new object();
         private readonly Tn3270Protocol _protocol;
 
-        private TcpClient? _client;
+        // A plain socket rather than a TcpClient: TcpConnector picks it from every address the host
+        // name resolves to (BUGS.md B12), and TcpClient cannot adopt a socket connected elsewhere.
+        private Socket? _client;
         private NetworkStream? _stream;
         private CancellationTokenSource? _receiveCts;
         private Task? _receiveTask;
@@ -146,9 +148,10 @@ namespace RetroTerm.Ibm3270
             try
             {
                 SetStatus(ConnectionStatus.Connecting);
-                _client = new TcpClient();
-                await _client.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
-                _stream = _client.GetStream();
+                // TcpConnector tries IPv6 and IPv4 together (RFC 8305), so "localhost" against
+                // Hercules, which listens on IPv4 only, no longer waits ~2 s for ::1 (B12).
+                _client = await TcpConnector.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
+                _stream = new NetworkStream(_client, ownsSocket: true);
                 _receiveCts = new CancellationTokenSource();
                 _receiveTask = ReceiveLoopAsync(_receiveCts.Token);
                 SetStatus(ConnectionStatus.Connected);
