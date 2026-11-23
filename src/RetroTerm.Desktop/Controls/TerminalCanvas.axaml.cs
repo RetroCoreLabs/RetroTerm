@@ -410,6 +410,23 @@ public partial class TerminalCanvas : Control
             return;
         }
 
+        // A left click that did not drag, on a terminal whose cursor the mouse places (the 3270):
+        // the cursor goes there, and a double click also presses Enter. A drag is still a text
+        // selection, so the click only counts when the button came up on the cell it went down on,
+        // and only on the live screen - a click in scrolled-back lines points at no buffer address.
+        if (released == MouseButton.Left && _isSelecting && _selectionStart.HasValue && _scrollOffset == 0
+            && _emulator is IPointerCursorTerminal pointerCursor)
+        {
+            var (downRow, downCol) = PixelToCell(_selectionStart.Value);
+            var (upRow, upCol) = PixelToCell(e.GetPosition(this));
+            if (downRow == upRow && downCol == upCol && pointerCursor.PointerClick(upRow, upCol, _clickCount == 2))
+            {
+                _selectionManager?.ClearSelection();
+                InvalidateVisual();
+                e.Handled = true;
+            }
+        }
+
         _isPanning = false;
         _isSelecting = false;
         _selectionStart = null;
@@ -492,6 +509,26 @@ public partial class TerminalCanvas : Control
         if (properties.IsMiddleButtonPressed) return MouseButton.Middle;
         if (properties.IsRightButtonPressed) return MouseButton.Right;
         return MouseButton.None;
+    }
+
+    /// <summary>
+    /// The control point at the centre of a cell, the reverse of PixelToCell, so a headless test
+    /// can click a cell through the real pointer path.
+    /// </summary>
+    /// <param name="row">
+    /// The row, from 0.
+    /// </param>
+    /// <param name="column">
+    /// The column, from 0.
+    /// </param>
+    /// <returns>
+    /// The point in control coordinates.
+    /// </returns>
+    public Point CellCentreForTesting(int row, int column)
+    {
+        double charWidth = _renderer?.GetCharWidth() ?? 0.0;
+        double charHeight = _renderer?.GetCharHeight() ?? 0.0;
+        return new Point(_offsetX + ((column + 0.5) * charWidth * _scale), _offsetY + ((row + 0.5) * charHeight * _scale));
     }
 
     private (int Row, int Col) PixelToCell(Point point)

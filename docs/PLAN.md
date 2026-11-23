@@ -104,8 +104,6 @@ clean-room rewrite in C#.
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-  - [ ] Mouse click moves the 3270 cursor there
-  - [ ] Mouse double-click moves the cursor and sends Enter
   - [ ] Any EBCDIC code page, chosen per connection (tnz uses whatever Python has; we ship our own tables — the list comes from A2)
   - [ ] Paste a multi-line block: each line goes into the next unprotected field / next line, never through a protected field
 - [ ] Code page 310 is tied to a "3278T" terminal type (tnz README line 28). Find out what that name is on the wire and what the host does with it — part of A3

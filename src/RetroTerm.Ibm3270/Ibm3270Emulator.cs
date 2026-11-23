@@ -42,7 +42,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -463,6 +463,47 @@ namespace RetroTerm.Ibm3270
         /// Null (no session, a test) runs the change at once.
         /// </summary>
         public SessionThreadRunner? SessionThread { get; set; }
+
+        /// <summary>
+        /// A mouse click on the screen: the cursor goes to that cell; a double click also presses
+        /// Enter (IPointerCursorTerminal, as tnz does).
+        /// </summary>
+        /// <remarks>
+        /// Line 25 and anything below the host's rows is not a buffer address, so a click there is
+        /// not taken. While the keyboard is locked Display3270.MoveCursor refuses the move, as it
+        /// refuses the arrow keys, and the Enter is refused the same way.
+        /// </remarks>
+        /// <param name="row">
+        /// The row, from 0.
+        /// </param>
+        /// <param name="column">
+        /// The column, from 0.
+        /// </param>
+        /// <param name="doubleClick">
+        /// True for the second click of a double click.
+        /// </param>
+        /// <returns>
+        /// True when the click was on the host's screen.
+        /// </returns>
+        public bool PointerClick(int row, int column, bool doubleClick)
+        {
+            int columns = _display.Columns;
+            if (row < 0 || column < 0 || column >= columns || row >= _display.Size / columns)
+            {
+                return false;
+            }
+
+            int address = (row * columns) + column;
+            Local(() =>
+            {
+                _display.MoveCursor(address);
+                if (doubleClick)
+                {
+                    _display.Attention(Aid.Enter);
+                }
+            });
+            return true;
+        }
 
         private bool Attention(byte aid)
         {
