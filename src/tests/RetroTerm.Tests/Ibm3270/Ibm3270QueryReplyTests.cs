@@ -20,7 +20,7 @@ namespace RetroTerm.Tests.Ibm3270;
 /// The Usable Area and Character Sets query replies of every 3278 model, checked byte by byte
 /// against GA23-0059-4. The replies are built in RetroIO (Display3270.AppendQueryReply); these
 /// tests pin what RetroTerm actually sends. See docs/spec/IBM3270/3270-DATA-STREAM.md sections
-/// 9.4, 9.4a and 9.9, and docs/BUGS.md B15.
+/// 9.4, 9.4a and 9.9 (BUGS.md B15, fixed in RetroIO on 24 November 2026).
 /// </summary>
 public class Ibm3270QueryReplyTests
 {
@@ -71,8 +71,8 @@ public class Ibm3270QueryReplyTests
         // p. 6-26: "Nonloadable character sets will have default LCID assigned to them
         // (X'F0' to X'FE'), where: X'F0' to X'F7' = 1-byte character sets". p. 4-19 gives the
         // same range for the SA/SFE character set value, and keeps X'00' for "Default character
-        // set" - a value a host sends, not an ID a set carries. RetroIO sends X'00' for the base
-        // set (docs/BUGS.md B15), so this test is RED until RetroIO is changed. Which of X'F0' to
+        // set" - a value a host sends, not an ID a set carries. RetroIO sent X'00' for the base
+        // set until 24 November 2026 (BUGS.md B15, closed) and sends X'F0' now. Which of X'F0' to
         // X'F7' is not given by the manual; X'F1' is taken by the Graphic Escape set.
         byte[] reply = ReplyFor(model, 0x85);
 

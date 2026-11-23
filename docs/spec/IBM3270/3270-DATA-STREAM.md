@@ -992,9 +992,11 @@ X'FFFFFFFF' for both AUAXr and AUAYr when they cannot be found; not allowed with
 p. 6-89 says W x H is "the maximum number of characters that can be presented", so W and H must be
 a size the screen can show. When neither size holds the other (43 x 80 and 27 x 132), the 3180
 example on p. 6-93 settles it: base = 43 x 80, Alternate Usable Area = 27 x 132, and the parameter
-is "always required"; the base then needs bytes 23-26 as zeros (p. 6-87). RetroIO reports 132 x 43
-instead: docs/BUGS.md B15 (RetroTerm's models never hit it, their default 24 x 80 always fits
-inside the alternate size). When one size holds the other (every RetroTerm model: 24 x 80 inside
+is "always required"; the base then needs bytes 23-26 as zeros (p. 6-87). RetroIO does exactly
+that since 24 November 2026 (it reported 132 x 43 before; BUGS.md B15, now closed): base = the
+default size, BUFFSZ = the larger of the two cell counts, then `13 02 00 01`, WAUA, HAUA,
+`00 FF FF FF FF FF FF FF FF`, AW, AH. RetroTerm's models never reach that case, their default
+24 x 80 always fits inside the alternate size. When one size holds the other (every RetroTerm model: 24 x 80 inside
 32 x 80, 43 x 80 or 27 x 132), W x H = the larger size meets p. 6-89. Whether such a screen also
 "supports more than one usable area size" and so must send an Alternate Usable Area is **left open
 by the manual**: it does not say whether a smaller implicit partition size on the same surface is a
@@ -1173,7 +1175,10 @@ Rules (p. 6-25 to 6-28):
   for 1-byte sets, X'F8'-X'FE' for 2-byte sets** (p. 6-25, 6-26).
   p. 4-19 keeps X'00' in the character set attribute for "Default character set", a value a host
   sends. So the base set, being non-loadable and 1-byte, must carry an ID in X'F0' to X'F7'; the
-  manual does not say which one. RetroIO sends X'00': a defect, docs/BUGS.md B15.
+  manual does not say which one. RetroIO sends X'F0' since 24 November 2026 (X'F1' is the Graphic
+  Escape set; X'F0' is the lowest free ID, Ronny's choice, not the manual's). It sent X'00' before
+  (BUGS.md B15, now closed). SA and SFE values are stored as sent, so X'00' and X'F0' both mean the
+  base set to whoever draws the screen.
 - SW/SH: a character is placed as an SW x SH dot matrix at the top left of the cell; smaller leaves
   background, larger is cut off on the right and bottom (p. 6-26). Load PS format types 3 to 6 use
   LW/LH if given, else non-zero SW/SH, else SDW/SDH (p. 6-26, Figure 6-1 on p. 6-27).
@@ -1286,9 +1291,18 @@ transparent - OR), X'F1' background transparent - XOR, X'FF' not transparent (op
   Reset (p. 3-21).
 - Mandatory-fill, mandatory-entry and negative trigger replies raise input-inhibit conditions that
   only Reset clears (p. 4-21, 4-22, 4-24).
-- x3270 `sf.c` locks the keyboard after sending query replies (`kybd_inhibit(true)` at the end of a
-  query reply). The manual says a Query is acknowledged by any outbound transmission except a read
-  (p. 3-23); it does not say "lock". See Open questions.
+- After a query reply the keyboard is locked (TWAIT) until the host acknowledges. The SNA chapter
+  does not say so: it only puts the device in retry-read state, where an enter action is rejected
+  (p. 3-17, 3-18). The BSC and the locally attached non-SNA chapters do: Read Partition Query
+  processing starts with "The TWAIT indicator is displayed" and ends in retry-read state (p. 9-9,
+  10-8), and their indicator tables give TWAIT for Retry read (p. 9-6, 10-5). TWAIT means no
+  keystroking and Reset does not clear it (p. 3-20). A Query is acknowledged by any outbound
+  transmission except one with a read command: a WSF even with an error in its structured fields,
+  an EAU, an EW, EWA or Write with or without a WCC unless its data has an error (p. 3-23, 10-5);
+  keyboard restore is not needed. x3270 locks too (`sf.c`, `query_reply_end`: `kybd_inhibit(true)`,
+  shown "X Wait") and unlocks on the next Write, EW, EWA or EAU (`ctlr.c`); its Reset key also
+  unlocks, which the TWAIT rule does not allow. RetroIO follows the manual since 24 November 2026
+  (`KeyboardLock.QueryReplySent`; BUGS.md B16, now closed).
 
 Read acknowledgment for an enter on partition 0 (p. 3-23): an EW, EWA or W with keyboard restore,
 or an EAU.
@@ -1520,9 +1534,13 @@ bit; the next row, "WCC Reset in 3270DS EW/EWA Only", names the reset bit. Not s
    there and what to show is not in the sources I read.
 6. **PID range in Set Reply Mode.** The table says X'00'-X'7F' (p. 5-61); every other structured
    field says X'00'-X'7E'. Possibly a misprint; not settled.
-7. **Keyboard after a query reply.** x3270 locks the keyboard after sending query replies. The
-   manual only describes the retry state and acknowledgment; it does not say the keyboard locks.
-   What a real 3274/3279 does is not settled.
+7. **Keyboard after a query reply.** Settled 24 November 2026 from GA23-0059-4 itself: the SNA
+   chapter is silent, but the BSC and non-SNA chapters display TWAIT for the whole retry-read state
+   after a Read Partition Query (p. 9-6, 9-9, 10-5, 10-8), and TWAIT means no keystroking and no
+   Reset (p. 3-20). x3270 locks too (`sf.c`, `query_reply_end`) but lets Reset unlock, which the
+   manual does not; RetroIO follows the manual there. Still not settled: whether a TN3270 session is
+   meant to follow the SNA or the non-SNA chapter where they differ, and what a real SNA 3274/3279
+   showed; the SNA chapter alone does not say the keyboard locks.
 8. **SFE without an X'C0' pair.** The manual does not say what field attribute is stored when SFE
    gives no X'C0' pair. Oracle code for this was not read.
 9. **Very large screens.** Usable Area BUFFSZ is 2 bytes; the manual does not say what to report

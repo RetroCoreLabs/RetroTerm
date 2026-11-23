@@ -151,7 +151,7 @@ namespace RetroTerm.Tests.Oracle
                 // list), so the two are not compared byte for byte; that both answered at the
                 // same point is still checked by the counts and the AID. What RetroTerm's reply
                 // should hold is checked against GA23-0059-4 by Ibm3270QueryReplyTests (BUGS.md
-                // B15).
+                // B15, fixed in RetroIO on 24 November 2026).
                 bool bothQueryReplies = ours.Records[i].Length > 0 && reference.Records[i].Length > 0
                     && ours.Records[i][0] == 0x88 && reference.Records[i][0] == 0x88;
                 if (mine != theirs && !bothQueryReplies)
