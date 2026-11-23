@@ -27,7 +27,7 @@ namespace RetroTerm.Tests.Hercules
             @"\d\d:\d\d(:\d\d)?|\d\d\.\d\d\.\d\d|CUU0C\w|ON [A-Z]+ \d\d?, \d{4}|TERMINAL : \w+",
             RegexOptions.Compiled);
 
-        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes)
+        public Tk5Screen(string[] lines, int cursorRow, int cursorColumn, List<int> fieldAddresses, List<byte> fieldAttributes, string status = "", string line25 = "")
         {
             Lines = new string[Rows];
             for (int r = 0; r < Rows; r++)
@@ -40,6 +40,8 @@ namespace RetroTerm.Tests.Hercules
             CursorColumn = cursorColumn;
             FieldAddresses = fieldAddresses;
             FieldAttributes = fieldAttributes;
+            Status = status;
+            Line25 = line25;
         }
 
         public string[] Lines { get; }
@@ -51,6 +53,26 @@ namespace RetroTerm.Tests.Hercules
         public List<int> FieldAddresses { get; }
 
         public List<byte> FieldAttributes { get; }
+
+        /// <summary>
+        /// Line 25, the status line, as the first eight fields of s3270's status: keyboard (U
+        /// unlocked, L locked for any reason), screen formatted (F) or
+        /// not (U), field at the cursor protected (P) or not (U), connection C(host), mode (I =
+        /// 3270), model, rows, columns. Empty when the terminal gave none.
+        /// </summary>
+        /// <remarks>
+        /// s3270 has no drawn status line; these fields are the same state the 3278's line 25
+        /// shows (GA27-2890-4 p. 2-19 to 2-23: readiness and connection, Do Not Enter and its
+        /// reason). That manual gives the meaning of each symbol but not its column, so the
+        /// state is compared here, not the drawing.
+        /// </remarks>
+        public string Status { get; }
+
+        /// <summary>
+        /// Line 25 as drawn: RetroTerm's real row 25, or for s3270 (which draws nothing) the text
+        /// wc3270 draws for the state s3270 reports. Empty when there is none.
+        /// </summary>
+        public string Line25 { get; }
 
         public bool Contains(string text)
         {
@@ -73,6 +95,13 @@ namespace RetroTerm.Tests.Hercules
                 sb.Append(Lines[r].TrimEnd()).Append('\n');
             }
 
+            sb.Append("[line 25: ").Append(Status).Append("]\n");
+            if (Line25.Length > 0)
+            {
+                sb.Append('|').Append(Line25).Append("|\n");
+            }
+
+
             return sb.ToString();
         }
 
@@ -91,6 +120,16 @@ namespace RetroTerm.Tests.Hercules
                 {
                     found.Add("row " + (r + 1) + ":\n  RetroTerm: [" + mine.TrimEnd() + "]\n  " + theirName + ": [" + theirs.TrimEnd() + "]");
                 }
+            }
+
+            if (Status.Length > 0 && other.Status.Length > 0 && Status != other.Status)
+            {
+                found.Add("line 25: RetroTerm [" + Status + "], " + theirName + " [" + other.Status + "]");
+            }
+
+            if (Line25.Length > 0 && other.Line25.Length > 0 && Line25 != other.Line25)
+            {
+                found.Add("line 25 as drawn:\n  RetroTerm: |" + Line25 + "|\n  " + theirName + ": |" + other.Line25 + "|");
             }
 
             if (CursorRow != other.CursorRow || CursorColumn != other.CursorColumn)

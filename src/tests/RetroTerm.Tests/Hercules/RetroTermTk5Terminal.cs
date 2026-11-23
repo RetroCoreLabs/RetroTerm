@@ -27,14 +27,16 @@ namespace RetroTerm.Tests.Hercules
     {
         private readonly TerminalSession _session;
         private readonly Ibm3270Emulator _emulator;
+        private readonly string _host;
 
         // Every record in both directions, in order, printed when a wait fails so a failure says
         // what crossed the wire instead of only what the screen ended up as. Written from the
         // network and session threads, so it is locked.
         private readonly List<string> _wire = new List<string>();
 
-        private RetroTermTk5Terminal(TerminalSession session, Ibm3270Emulator emulator)
+        private RetroTermTk5Terminal(TerminalSession session, Ibm3270Emulator emulator, string host)
         {
+            _host = host;
             _session = session;
             _emulator = emulator;
         }
@@ -52,7 +54,7 @@ namespace RetroTerm.Tests.Hercules
                 Port = settings.Port,
                 EmulatorType = "IBM-3278-2",
             });
-            var terminal = new RetroTermTk5Terminal(session, emulator);
+            var terminal = new RetroTermTk5Terminal(session, emulator, settings.Host);
             connection.DataReceived += data => terminal.Note("host", data.Span);
             emulator.DataToSend += data => terminal.Note("sent", data);
             await session.ConnectAsync(connection, Xunit.TestContext.Current.CancellationToken);
@@ -114,9 +116,31 @@ namespace RetroTerm.Tests.Hercules
                     }
                 }
 
-                return new Tk5Screen(snapshot.Text.Split('\n'), snapshot.CursorRow, snapshot.CursorColumn, addresses, attributes);
+                return new Tk5Screen(snapshot.Text.Split('\n'), snapshot.CursorRow, snapshot.CursorColumn, addresses, attributes, Line25(display), DrawnLine25(snapshot));
             });
             return screen;
+        }
+
+        // RetroTerm's line 25 state in s3270's status format (see Tk5Screen.Status), read from
+        // the same Display3270 the status line will be drawn from. Called on the session thread.
+        private string Line25(Display3270 display)
+        {
+            // x3270 writes L for any lock, whatever the reason (Common\task.c, status_string and
+            // task_kbwait_state: kybdlock != 0).
+            string keyboard = display.Lock == KeyboardLock.None ? "U" : "L";
+            int field = display.GetFieldAttributeFor(display.CursorAddress);
+            string formatted = field < 0 ? "U" : "F";
+            string protectedField = field >= 0 && (display.GetByte(field) & 0x20) != 0 ? "P" : "U";
+            string connection = _session.IsConnected ? "C(" + _host + ")" : "N";
+            return keyboard + " " + formatted + " " + protectedField + " " + connection + " I 2 " + Tk5Screen.Rows + " " + Tk5Screen.Columns;
+        }
+
+        // Row 25 of RetroTerm's real screen: what the operator sees as line 25.
+        private static string DrawnLine25(ScreenSnapshot snapshot)
+        {
+            string[] rows = snapshot.Text.Split('\n');
+            string line = rows.Length > Tk5Screen.Rows ? rows[Tk5Screen.Rows] : string.Empty;
+            return line.Length >= Tk5Screen.Columns ? line.Substring(0, Tk5Screen.Columns) : line.PadRight(Tk5Screen.Columns);
         }
 
         private void Note(string direction, ReadOnlySpan<byte> data)

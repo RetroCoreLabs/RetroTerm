@@ -247,6 +247,21 @@ public partial class TerminalSession : IDisposable
         {
             localKeyboard.SessionThread = job => _ = _pump.RunAsync(() => job());
         }
+
+        // An emulator that shows the connection on its screen (the 3270's line 25) starts from
+        // the state the connection is in now.
+        TellEmulatorConnectionStatus(Status);
+    }
+
+    /// <summary>
+    /// Hands a connection state change to an emulator that shows it, on the pump thread.
+    /// </summary>
+    private void TellEmulatorConnectionStatus(ConnectionStatus status)
+    {
+        if (Emulator is IConnectionStatusAware aware)
+        {
+            _ = _pump.RunAsync(() => aware.ConnectionStatusChanged(status));
+        }
     }
 
     /// <summary>
@@ -528,6 +543,10 @@ public partial class TerminalSession : IDisposable
         _connection = null;
         Title = "Terminal - Disconnected";
 
+        // The StatusChanged event was unsubscribed above, so tell an emulator that shows the
+        // connection (the 3270's line 25) here.
+        TellEmulatorConnectionStatus(ConnectionStatus.Disconnected);
+
         try
         {
             await conn.DisconnectAsync();
@@ -680,6 +699,7 @@ public partial class TerminalSession : IDisposable
     {
         // Raise event for UI
         StatusChanged?.Invoke(status);
+        TellEmulatorConnectionStatus(status);
 
         // Handle automatic cleanup on disconnection
         if (status == ConnectionStatus.Disconnected)

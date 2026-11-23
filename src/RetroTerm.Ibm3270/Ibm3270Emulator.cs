@@ -10,6 +10,8 @@ using System.Collections.Generic;
 
 using RetroIO.Protocols.Tn3270;
 
+using RetroTerm.Core.Protocols;
+
 using RetroTerm.Core.Terminal.Buffer;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Input;
@@ -35,8 +37,14 @@ namespace RetroTerm.Ibm3270
     /// the base class's DataToSend event as one record without telnet framing; the 3270 connection
     /// adds IAC EOR.
     /// </para>
+    /// <para>
+    /// The picture is 25 rows: the host's 24, and line 25, the operator information area, built
+    /// by RetroIO's <see cref="StatusLine3270"/> in the layout x3270's wc3270 draws (decided by
+    /// Ronny, 22 and 23 November 2026). The host never writes line 25; the model 2 is still 24 by
+    /// 80 to the host.
+    /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -47,15 +55,21 @@ namespace RetroTerm.Ibm3270
             keyboardLayout: "IBM3270",
             transportEncoding: TransportEncoding.EightBit,
             columns: 80,
-            rows: 24);
+            rows: StatusRow + 1);
+
+        // Line 25: the row under the host's 24.
+        private const int StatusRow = 24;
 
         private readonly Display3270 _display;
 
+        // Where the connection is, for line 25. Set on the session thread by the session.
+        private StatusLineConnection _connection = StatusLineConnection.NotConnected;
+
         /// <summary>
-        /// Creates a model 2 (24 x 80) display.
+        /// Creates a model 2 (24 x 80) display, with line 25 under it.
         /// </summary>
         public Ibm3270Emulator()
-            : base(80, 24, maxScrollback: 0)
+            : base(80, StatusRow + 1, maxScrollback: 0)
         {
             _display = new Display3270(24, 80, 24, 80);
             _display.InboundRecord += OnInboundRecord;
@@ -76,7 +90,7 @@ namespace RetroTerm.Ibm3270
         public event Ibm3270Alarm? Alarm;
 
         /// <summary>
-        /// The 3278 model 2 screen: 24 rows of 80 columns.
+        /// The 3278 model 2 screen: 24 rows of 80 columns, and line 25.
         /// </summary>
         public override TerminalProfile Profile => Model2Profile;
 
@@ -104,6 +118,23 @@ namespace RetroTerm.Ibm3270
             {
                 EndBatch();
             }
+        }
+
+        /// <summary>
+        /// Shows the new connection state on line 25.
+        /// </summary>
+        /// <param name="status">
+        /// The connection's new state.
+        /// </param>
+        public void ConnectionStatusChanged(ConnectionStatus status)
+        {
+            _connection = status switch
+            {
+                ConnectionStatus.Connected => StatusLineConnection.Connected,
+                ConnectionStatus.Connecting => StatusLineConnection.Connecting,
+                _ => StatusLineConnection.NotConnected,
+            };
+            Refresh();
         }
 
         /// <summary>
@@ -430,8 +461,35 @@ namespace RetroTerm.Ibm3270
                 Buffer.SetCell(row, column, CellFor(address));
             }
 
+            PaintStatusLine(columns);
+
             int cursor = _display.CursorAddress;
             Cursor.MoveTo(cursor / columns, cursor % columns);
+        }
+
+        // Line 25. wc3270 draws the "4" and the box in reverse video and the "A" underlined
+        // (wc3270\screen.c, draw_oia); the rest is plain. A buffer cut below 25 rows (a resize
+        // from outside) has no line 25 to draw.
+        private void PaintStatusLine(int columns)
+        {
+            if (Buffer.Height <= StatusRow)
+            {
+                return;
+            }
+
+            Span<char> line = stackalloc char[columns];
+            StatusLine3270.Build(_display, _connection, null, line);
+            for (int column = 0; column < columns; column++)
+            {
+                CharacterAttributes flags = column switch
+                {
+                    StatusLine3270.ReadyColumn => CharacterAttributes.Reverse,
+                    StatusLine3270.BoxColumn => CharacterAttributes.Reverse,
+                    StatusLine3270.OnlineColumn => CharacterAttributes.Underline,
+                    _ => CharacterAttributes.None,
+                };
+                Buffer.SetCell(StatusRow, column, new TerminalCell(line[column], flags, TerminalColor.Default, TerminalColor.Default));
+            }
         }
 
         private TerminalCell CellFor(int address)

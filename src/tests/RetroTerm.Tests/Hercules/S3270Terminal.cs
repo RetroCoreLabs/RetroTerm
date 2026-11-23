@@ -111,6 +111,32 @@ namespace RetroTerm.Tests.Hercules
             return screen;
         }
 
+        // What wc3270 draws on line 25 for the state s3270 reports, written from wc3270\screen.c
+        // (draw_oia and status_connect) and NOT from RetroIO's StatusLine3270, so the comparison is
+        // not RetroTerm against itself. rmargin is 79 on an 80-column screen: "4" at 0, "A" at 1,
+        // the box at 2 (blank in 3270 mode), the message from 7, the cursor "%03d/%03d" (from 1) at
+        // 72. A locked keyboard (field 1 "L") does not say which message; the steps only compare
+        // unlocked screens, so a lock here is reported rather than guessed.
+        private static string Wc3270Line25(string[] status)
+        {
+            char[] line = new string(' ', 80).ToCharArray();
+            line[0] = '4';
+            line[1] = 'A';
+            bool in3270 = status[3].StartsWith("C(", StringComparison.Ordinal) && status[4] == "I";
+            line[2] = in3270 ? ' ' : '?';
+            string message = !status[3].StartsWith("C(", StringComparison.Ordinal) ? "X Not Connected"
+                : status[0] == "L" ? "(s3270 reports a lock but not its reason)" : string.Empty;
+            message.CopyTo(0, line, 7, Math.Min(message.Length, 35));
+            if (in3270)
+            {
+                string cursor = (int.Parse(status[8], CultureInfo.InvariantCulture) + 1).ToString("000", CultureInfo.InvariantCulture) + "/" +
+                    (int.Parse(status[9], CultureInfo.InvariantCulture) + 1).ToString("000", CultureInfo.InvariantCulture);
+                cursor.CopyTo(0, line, 72, cursor.Length);
+            }
+
+            return new string(line);
+        }
+
         public async Task<Tk5Screen> ReadAsync()
         {
             Reply text = await RunAsync("Ascii()");
@@ -148,7 +174,8 @@ namespace RetroTerm.Tests.Hercules
             _unlocked = status[0] == "U";
             int row = int.Parse(status[8], CultureInfo.InvariantCulture);
             int column = int.Parse(status[9], CultureInfo.InvariantCulture);
-            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes);
+            string line25 = string.Join(' ', status, 0, 8);
+            return new Tk5Screen(text.Data.ToArray(), row, column, addresses, attributes, line25, Wc3270Line25(status));
         }
 
         public async ValueTask DisposeAsync()

@@ -335,6 +335,17 @@ namespace RetroTerm.Tests.Avalonia
             SKColor typed = shot.BrightestColorInCell(0, 6);
             Assert.True(name.Blue > name.Red && name.Blue > name.Green - 40, "protected field is not blue: " + name);
             Assert.True(typed.Green > typed.Red + 40 && typed.Green > typed.Blue + 40, "unprotected field is not green: " + typed);
+
+            // Line 25 (row index 24), not connected: "4" and "?" in reverse video, so the main
+            // colour of their cells is the lit foreground, not the background of the plain "X" of
+            // "X Not Connected" at column 7; the gap at 3..6 is empty (wc3270\screen.c, draw_oia).
+            // Looked at 23 November 2026.
+            SKColor background = shot.DominantColorInCell(24, 7);
+            Assert.False(RenderedScreenshot.ApproximatelyEqual(shot.DominantColorInCell(24, 0), background, 40), "the 4 is not in reverse video");
+            Assert.False(RenderedScreenshot.ApproximatelyEqual(shot.DominantColorInCell(24, 2), background, 40), "the box is not in reverse video");
+            Assert.True(RenderedScreenshot.ApproximatelyEqual(shot.DominantColorInCell(24, 1), background, 40), "the A should not be in reverse video");
+            Assert.True(shot.CellHasInk(24, 7));
+            Assert.False(shot.CellHasInk(24, 4));
         }
 
         // ---------------------------------------------------------------- Manage Connections

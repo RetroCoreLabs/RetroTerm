@@ -80,5 +80,55 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Single(sent);
             Assert.Equal(new byte[] { 0x7D, 0x40, 0xC8, 0x11, 0x40, 0xC6, 0x88, 0x89 }, sent[0]);
         }
+
+        [Fact]
+        public async Task Line25ShowsTheConnectionTheLockAndTheCursorAsWc3270Does()
+        {
+            // wc3270\screen.c, draw_oia: "4" at 0, "A" at 1, the box at 2 (blank in 3270 mode, "?"
+            // otherwise), the message from 7, the cursor "%03d/%03d" at 72.
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new InMemoryConnection();
+            await session.FlushAsync();
+            Assert.Equal(Line25("?", "X Not Connected", string.Empty), await RowAsync(session, 24));
+
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(Screen);
+            await session.FlushAsync();
+            Assert.Equal(Line25(" ", string.Empty, "001/007"), await RowAsync(session, 24));
+
+            // Enter: waiting for the host. A Write without keyboard restore: System Lock.
+            Assert.True(emulator.HandleKey("Enter", false, false, false));
+            await session.FlushAsync();
+            Assert.Equal(Line25(" ", "X Wait", "001/007"), await RowAsync(session, 24));
+            connection.SimulateReceive(new byte[] { Command3270.Write, Wcc.ResetMdt });
+            await session.FlushAsync();
+            Assert.Equal(Line25(" ", "X SYSTEM", "001/007"), await RowAsync(session, 24));
+
+            // The host still sees 24 rows: row 24 is the host's, untouched by line 25.
+            Assert.Equal(new string(' ', 80), await RowAsync(session, 23));
+
+            await session.DisconnectAsync();
+            await session.FlushAsync();
+            Assert.Equal(Line25("?", "X Not Connected", string.Empty), await RowAsync(session, 24));
+        }
+
+        private static string Line25(string box, string message, string cursor)
+        {
+            char[] line = new string(' ', 80).ToCharArray();
+            line[0] = '4';
+            line[1] = 'A';
+            line[2] = box[0];
+            message.CopyTo(0, line, 7, message.Length);
+            cursor.CopyTo(0, line, 72, cursor.Length);
+            return new string(line);
+        }
+
+        private static async Task<string> RowAsync(TerminalSession session, int row)
+        {
+            ScreenSnapshot snapshot = await session.ReadScreenAsync(stripTrailingBlanks: false);
+            string[] rows = snapshot.Text.Split('\n');
+            return rows[row].PadRight(80);
+        }
     }
 }

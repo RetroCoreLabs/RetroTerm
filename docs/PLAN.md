@@ -101,7 +101,6 @@ clean-room rewrite in C#.
 - [ ] Models 2-5 (24x80, 32x80, 43x80, 27x132) and the 3279 colours
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
-- [ ] Operator information area (status line under the screen)
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
@@ -793,4 +792,5 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
   exercises the shipping path, and it repoints `publish\current` while the old build is still
   running so nothing has to be closed.
 
-- [ ] **3270 status line (operator information area), decided by Ronny 22 Nov 2026: a 25th line INSIDE the terminal picture under a thin rule**, same font and colour as the screen, as on the real 3278 and in wc3270. The host still writes 24 rows. Show connected/3270 mode, keyboard locked (X SYSTEM), insert mode and cursor row/column. Take the exact symbols and positions from GA27-2890-4 (the 3278 operator's guide), not from wc3270.
+- [ ] Line 25 (the 3270 status line): the thin line above it. wc3270 draws it as a blank row underlined across the screen (wc3270\screen.c, draw_oia, status_skip); Ronny's decision of 22 Nov 2026 was a thin rule inside the picture. Line 25 itself is built (RetroIO StatusLine3270, x3270 as the oracle, Ronny 23 Nov 2026)
+- [ ] Line 25: the reason symbol for a mandatory-fill or mandatory-entry lock. Only "X" is shown, because neither x3270 (no such fields) nor GA23-0059-4, GA23-0061-2 or GA27-2890-4 names one
