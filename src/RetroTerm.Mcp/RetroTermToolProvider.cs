@@ -58,6 +58,128 @@ public sealed class RetroTermToolProvider
     /// </summary>
     public const string SessionIdArgument = "sessionId";
 
+    /// <summary>
+    /// One MCP tool that is NOT a registry command: its name, what it does, and the argument
+    /// names it takes. This one declaration feeds both the tool's schema in tools/list and
+    /// the check that refuses any other name (BUGS.md B14), so the two cannot disagree.
+    /// </summary>
+    private sealed class HandWrittenTool
+    {
+        public HandWrittenTool(string name, string description, params CommandParameter[] arguments)
+        {
+            Name = name;
+            Description = description;
+            Arguments = arguments;
+        }
+
+        public string Name { get; }
+
+        public string Description { get; }
+
+        public CommandParameter[] Arguments { get; }
+    }
+
+    private static CommandParameter Text(string name, bool required, string description) =>
+        new CommandParameter(name, CommandParameterType.String, required, null, description);
+
+    private static CommandParameter Number(string name, string description) =>
+        new CommandParameter(name, CommandParameterType.Int, false, null, description);
+
+    // The tools with their own handlers in CallToolAsync. A name sent to one of them that is
+    // not in its list is refused before the handler runs: before this, a misspelled argument
+    // (terminal_open with "hots") was read as absent and the tool went on with its default.
+    private static readonly HandWrittenTool[] HandWrittenTools =
+    {
+        new HandWrittenTool("terminal_open",
+            "Open a PERSISTENT terminal session. Returns a sessionId used by every " +
+            "other tool. The session stays open across calls and turns — do not open-and-close " +
+            "per command; reconnecting mid-program can hang the line. Three ways to say where: " +
+            "name=<stored connection> (terminal_connlist shows them, serial included; other " +
+            "parameters are then ignored), host+port for ad-hoc telnet/ssh, or " +
+            "protocol=serial with port_name (+ baud, data_bits, parity, stop_bits) for ad-hoc serial.",
+            Text("name", false, "Stored connection name — opens it exactly as saved, serial included; " +
+                                "every other parameter is ignored"),
+            Text("protocol", false, "telnet, ssh or serial (default telnet)"),
+            Text("host", false, "Host name or IP address (telnet/ssh; serial uses port_name)"),
+            Number("port", "TCP port (RetroCore terminal ports are plain telnet)"),
+            Text("emulator", false, "Terminal emulator: VT100 (default) or TDV2200"),
+            Number("width", "Screen columns; default is the terminal's own (80)"),
+            Number("height", "Screen rows; default is the terminal's own (24 for a VT, 25 for a TDV)"),
+            Text("username", false, "SSH user name"),
+            Text("password", false, "SSH password"),
+            Text("port_name", false, "Serial port name, e.g. COM11 (required for ad-hoc serial)"),
+            Number("baud", "Serial speed in bits per second, default 9600"),
+            Number("data_bits", "Serial data bits 5-8, default 8"),
+            Text("parity", false, "Serial parity: none (default), odd, even, mark or space"),
+            Text("stop_bits", false, "Serial stop bits: 1 (default), 1.5 or 2")),
+
+        new HandWrittenTool("terminal_close",
+            "Close a terminal session opened with terminal_open.",
+            Text(SessionIdArgument, true, "The session to close")),
+
+        new HandWrittenTool("terminal_list",
+            "List open terminal sessions (id, title, connected, emulator) — lets a new turn " +
+            "find a session opened earlier."),
+
+        new HandWrittenTool("terminal_build",
+            "Which BUILD of RetroTerm this server is - version, git commit, branch, whether "
+            + "the tree was dirty, and when it was built. Check it before trusting a test "
+            + "result: more than one copy of RetroTerm can be running from the same folder "
+            + "and only the first one gets this port, so a caller can reach an old binary "
+            + "without noticing."),
+
+        new HandWrittenTool("terminal_run_script",
+            "Run a script against a session: either a stored script by name, or inline DSL text " +
+            "(one command per line, see terminal_help). Stops at the first failing step and " +
+            "returns the per-step transcript with timings — the session stays live for " +
+            "single-command poking afterwards.",
+            Text(SessionIdArgument, true, "The session to run against"),
+            Text("name", false, "Name of a stored script from the library"),
+            Text("script", false, "Inline script text (used when name is not given)")),
+
+        new HandWrittenTool("terminal_scripts",
+            "List the stored scripts in the script library, or save one (name + script).",
+            Text("save", false, "Script name to save under; omit to just list"),
+            Text("script", false, "Script text to save (required with save)")),
+    };
+
+    /// <summary>
+    /// The names of the MCP tools that are not registry commands, in tools/list order.
+    /// </summary>
+    /// <returns>
+    /// One name per hand-written tool.
+    /// </returns>
+    public static IReadOnlyList<string> HandWrittenToolNames()
+    {
+        var names = new string[HandWrittenTools.Length];
+        for (int i = 0; i < HandWrittenTools.Length; i++)
+        {
+            names[i] = HandWrittenTools[i].Name;
+        }
+        return names;
+    }
+
+    /// <summary>
+    /// The arguments a hand-written tool declares.
+    /// </summary>
+    /// <param name="toolName">
+    /// The tool's name.
+    /// </param>
+    /// <returns>
+    /// Its declared arguments, or null when it is not a hand-written tool.
+    /// </returns>
+    public static IReadOnlyList<CommandParameter>? DeclaredArguments(string toolName)
+    {
+        for (int i = 0; i < HandWrittenTools.Length; i++)
+        {
+            if (string.Equals(HandWrittenTools[i].Name, toolName, StringComparison.Ordinal))
+            {
+                return HandWrittenTools[i].Arguments;
+            }
+        }
+        return null;
+    }
+
     public RetroTermToolProvider(ITerminalSessionHost host, CommandRegistry registry, ScriptLibrary scriptLibrary,
         ConfigurationManager? configurationManager = null)
     {
@@ -77,81 +199,17 @@ public sealed class RetroTermToolProvider
     {
         var tools = new List<Tool>();
 
-        tools.Add(new Tool
+        // The hand-written tools, from the one declaration that also drives their name check.
+        for (int i = 0; i < HandWrittenTools.Length; i++)
         {
-            Name = "terminal_open",
-            Description = "Open a PERSISTENT terminal session. Returns a sessionId used by every " +
-                          "other tool. The session stays open across calls and turns — do not open-and-close " +
-                          "per command; reconnecting mid-program can hang the line. Three ways to say where: " +
-                          "name=<stored connection> (terminal_connlist shows them, serial included; other " +
-                          "parameters are then ignored), host+port for ad-hoc telnet/ssh, or " +
-                          "protocol=serial with port_name (+ baud, data_bits, parity, stop_bits) for ad-hoc serial.",
-            InputSchema = Schema(
-                ("name", "string", false, "Stored connection name — opens it exactly as saved, serial included; " +
-                                          "every other parameter is ignored"),
-                ("protocol", "string", false, "telnet, ssh or serial (default telnet)"),
-                ("host", "string", false, "Host name or IP address (telnet/ssh; serial uses port_name)"),
-                ("port", "integer", false, "TCP port (RetroCore terminal ports are plain telnet)"),
-                ("emulator", "string", false, "Terminal emulator: VT100 (default) or TDV2200"),
-                ("width", "integer", false, "Screen columns; default is the terminal's own (80)"),
-                ("height", "integer", false, "Screen rows; default is the terminal's own (24 for a VT, 25 for a TDV)"),
-                ("username", "string", false, "SSH user name"),
-                ("password", "string", false, "SSH password"),
-                ("port_name", "string", false, "Serial port name, e.g. COM11 (required for ad-hoc serial)"),
-                ("baud", "integer", false, "Serial speed in bits per second, default 9600"),
-                ("data_bits", "integer", false, "Serial data bits 5-8, default 8"),
-                ("parity", "string", false, "Serial parity: none (default), odd, even, mark or space"),
-                ("stop_bits", "string", false, "Serial stop bits: 1 (default), 1.5 or 2"))
-        });
-
-        tools.Add(new Tool
-        {
-            Name = "terminal_close",
-            Description = "Close a terminal session opened with terminal_open.",
-            InputSchema = Schema(
-                ("sessionId", "string", true, "The session to close"))
-        });
-
-        tools.Add(new Tool
-        {
-            Name = "terminal_list",
-            Description = "List open terminal sessions (id, title, connected, emulator) — lets a new turn " +
-                          "find a session opened earlier.",
-            InputSchema = Schema()
-        });
-
-        tools.Add(new Tool
-        {
-            Name = "terminal_build",
-            Description = "Which BUILD of RetroTerm this server is - version, git commit, branch, whether "
-                          + "the tree was dirty, and when it was built. Check it before trusting a test "
-                          + "result: more than one copy of RetroTerm can be running from the same folder "
-                          + "and only the first one gets this port, so a caller can reach an old binary "
-                          + "without noticing.",
-            InputSchema = Schema()
-        });
-
-        tools.Add(new Tool
-        {
-            Name = "terminal_run_script",
-            Description = "Run a script against a session: either a stored script by name, or inline DSL text " +
-                          "(one command per line, see terminal_help). Stops at the first failing step and " +
-                          "returns the per-step transcript with timings — the session stays live for " +
-                          "single-command poking afterwards.",
-            InputSchema = Schema(
-                ("sessionId", "string", true, "The session to run against"),
-                ("name", "string", false, "Name of a stored script from the library"),
-                ("script", "string", false, "Inline script text (used when name is not given)"))
-        });
-
-        tools.Add(new Tool
-        {
-            Name = "terminal_scripts",
-            Description = "List the stored scripts in the script library, or save one (name + script).",
-            InputSchema = Schema(
-                ("save", "string", false, "Script name to save under; omit to just list"),
-                ("script", "string", false, "Script text to save (required with save)"))
-        });
+            var tool = HandWrittenTools[i];
+            tools.Add(new Tool
+            {
+                Name = tool.Name,
+                Description = tool.Description,
+                InputSchema = SchemaWithChoices(ToSchema(tool.Arguments))
+            });
+        }
 
         // One tool per registered command — the same registry the script DSL uses.
         var commands = _registry.Commands;
@@ -160,23 +218,12 @@ public sealed class RetroTermToolProvider
             var command = commands[i];
             var parameters = command.Parameters;
 
-            var schemaParams = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Count + 1];
+            var described = ToSchema(parameters);
+            var schemaParams = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[described.Length + 1];
             schemaParams[0] = (SessionIdArgument, "string", true, "The session to operate on", null);
-            for (int p = 0; p < parameters.Count; p++)
+            for (int p = 0; p < described.Length; p++)
             {
-                var param = parameters[p];
-                var typeName = param.Type switch
-                {
-                    CommandParameterType.Int => "integer",
-                    CommandParameterType.Bool => "boolean",
-                    _ => "string"
-                };
-                var description = param.DefaultValue != null && !param.Required
-                    ? $"{param.Description} (default {param.DefaultValue})"
-                    : param.Description;
-                // A parameter with a word list (SCREENSHOT's area) carries it as a JSON Schema enum,
-                // read from the same metadata the script parser checks - the two-surface rule.
-                schemaParams[p + 1] = (param.Name, typeName, param.Required, description, param.AllowedValues);
+                schemaParams[p + 1] = described[p];
             }
 
             tools.Add(new Tool
@@ -204,7 +251,11 @@ public sealed class RetroTermToolProvider
         CallToolResult result;
         try
         {
-            result = name switch
+            // A hand-written tool refuses an argument name it does not declare BEFORE it does
+            // anything, with the same words a registry command uses (BUGS.md B14). The
+            // registry command tools get the same check from the registry at dispatch.
+            var refused = RefuseUnknownArgument(name, arguments);
+            result = refused ?? name switch
             {
                 "terminal_open" => await OpenAsync(arguments, cancellationToken).ConfigureAwait(false),
                 "terminal_close" => await CloseAsync(arguments).ConfigureAwait(false),
@@ -702,16 +753,66 @@ public sealed class RetroTermToolProvider
     }
 
     /// <summary>
-    /// Builds a JSON Schema object element for a tool's parameters.
+    /// The schema rows for a declared parameter list: JSON type from the parameter type, the
+    /// default added to the description of an optional one, and the word list as an enum.
     /// </summary>
-    private static JsonElement Schema(params (string Name, string Type, bool Required, string Description)[] parameters)
+    /// <param name="parameters">
+    /// The declared parameters.
+    /// </param>
+    /// <returns>
+    /// One schema row per parameter, in order.
+    /// </returns>
+    private static (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[] ToSchema(
+        IReadOnlyList<CommandParameter> parameters)
     {
-        var withChoices = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Length];
-        for (int i = 0; i < parameters.Length; i++)
+        var rows = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Count];
+        for (int p = 0; p < parameters.Count; p++)
         {
-            withChoices[i] = (parameters[i].Name, parameters[i].Type, parameters[i].Required, parameters[i].Description, null);
+            var param = parameters[p];
+            var typeName = param.Type switch
+            {
+                CommandParameterType.Int => "integer",
+                CommandParameterType.Bool => "boolean",
+                _ => "string"
+            };
+            var description = param.DefaultValue != null && !param.Required
+                ? $"{param.Description} (default {param.DefaultValue})"
+                : param.Description;
+            // A parameter with a word list (SCREENSHOT's area) carries it as a JSON Schema enum,
+            // read from the same metadata the script parser checks - the two-surface rule.
+            rows[p] = (param.Name, typeName, param.Required, description, param.AllowedValues);
         }
-        return SchemaWithChoices(withChoices);
+        return rows;
+    }
+
+    /// <summary>
+    /// The refusal for a hand-written tool called with an argument name it does not declare.
+    /// </summary>
+    /// <param name="toolName">
+    /// The tool called.
+    /// </param>
+    /// <param name="args">
+    /// The arguments as sent.
+    /// </param>
+    /// <returns>
+    /// The error result, or null when the tool is not hand-written or every name is declared.
+    /// </returns>
+    private static CallToolResult? RefuseUnknownArgument(string toolName, IDictionary<string, JsonElement>? args)
+    {
+        var declared = DeclaredArguments(toolName);
+        if (declared == null || args == null)
+        {
+            return null;
+        }
+        var e = args.GetEnumerator();
+        while (e.MoveNext())
+        {
+            if (!CommandParameterValidation.TryCheckName(toolName, declared, e.Current.Key, "tools/list", out var error))
+            {
+                return Error(error!);
+            }
+        }
+        return null;
     }
 
     /// <summary>

@@ -282,7 +282,11 @@ comes from that half hour.
    `SCREENSHOT aera=window` in a script and `terminal_screenshot` with `"aera": "window"` over MCP
    both answer `SCREENSHOT has no parameter 'aera' - it takes: ... (see HELP SCREENSHOT)` and
    nothing runs. Over MCP the one extra name every command tool takes is `sessionId`; in a script
-   the extra names are the step keywords `optional=`, `ontimeout=` and `into=`.
+   the extra names are the step keywords `optional=`, `ontimeout=` and `into=`. The MCP tools that
+   are not commands (`terminal_open`, `terminal_close`, `terminal_list`, `terminal_build`,
+   `terminal_run_script`, `terminal_scripts`) follow the same rule from their own declared
+   arguments, which are also their schema: `terminal_open` with `"hots"` answers
+   `terminal_open has no parameter 'hots' - it takes: name, protocol, ... (see tools/list)`.
 
 ### The script library
 

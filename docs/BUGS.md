@@ -214,12 +214,3 @@ Measured the same day: SSH.NET against `localhost:3270` (an IPv4-only listener) 
 5083 and 5032 ms, against `127.0.0.1:3270` after 3015 and 3011 ms, with a 3 s read timeout set in
 both - the 2 s difference is the connect. Fixing it means either a change in SSH.NET or connecting
 the socket in RetroTerm and running SSH over it; neither is done.
-
-## B14 - The hand-written MCP tools still ignore an unknown argument name
-
-Found 23 November 2026 while fixing B13. The registry commands now refuse a name they do not take,
-on both surfaces. The MCP tools that are not registry commands (`open`, `close`, `list`,
-`connect`, `run_script`, `scripts`, `help`, `build`, in `src\RetroTerm.Mcp\RetroTermToolProvider.cs`)
-read their arguments by name and still ignore a misspelled one without a word. They have no command
-metadata, so the B13 check does not reach them. Fix: declare their arguments the same way and run
-the same name check.

@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace RetroTerm.Core.Commands;
@@ -130,9 +131,42 @@ public static class CommandParameterValidation
     public static bool TryCheckName(ISessionCommand command, string name, out string? error)
     {
         if (command == null) throw new ArgumentNullException(nameof(command));
+        return TryCheckName(command.Name, command.Parameters, name, "HELP " + command.Name, out error);
+    }
+
+    /// <summary>
+    /// Checks that a supplied argument name is one of a declared parameter list (any case).
+    /// </summary>
+    /// <param name="ownerName">
+    /// What takes the arguments - a command name, or an MCP tool name - for the message.
+    /// </param>
+    /// <param name="parameters">
+    /// The declared parameters, which are the authority.
+    /// </param>
+    /// <param name="name">
+    /// The argument name as supplied.
+    /// </param>
+    /// <param name="helpHint">
+    /// Where the caller can read the accepted names, for the end of the message.
+    /// </param>
+    /// <param name="error">
+    /// The refusal, naming the unknown argument and every name accepted, or null.
+    /// </param>
+    /// <returns>
+    /// True when a parameter of that name is declared.
+    /// </returns>
+    /// <remarks>
+    /// The rule and its message live here once. The registry commands come through the
+    /// overload above; the hand-written MCP tools that are not registry commands
+    /// (terminal_open, terminal_close, terminal_run_script and the rest, BUGS.md B14) call
+    /// this one with their own declared list, so every surface refuses with the same words.
+    /// </remarks>
+    public static bool TryCheckName(string ownerName, IReadOnlyList<CommandParameter> parameters,
+        string name, string helpHint, out string? error)
+    {
+        if (parameters == null) throw new ArgumentNullException(nameof(parameters));
         error = null;
 
-        var parameters = command.Parameters;
         for (int i = 0; i < parameters.Count; i++)
         {
             if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
@@ -152,8 +186,8 @@ public static class CommandParameterValidation
         }
 
         error = parameters.Count == 0
-            ? $"{command.Name} has no parameter '{name}' - it takes no parameters (see HELP {command.Name})"
-            : $"{command.Name} has no parameter '{name}' - it takes: {accepted} (see HELP {command.Name})";
+            ? $"{ownerName} has no parameter '{name}' - it takes no parameters (see {helpHint})"
+            : $"{ownerName} has no parameter '{name}' - it takes: {accepted} (see {helpHint})";
         return false;
     }
 
