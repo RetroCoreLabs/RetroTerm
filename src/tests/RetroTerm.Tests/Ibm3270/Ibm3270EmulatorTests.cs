@@ -126,4 +126,41 @@ public class Ibm3270EmulatorTests
         Assert.Single(sent);
         Assert.Equal(0x88, sent[0][0]);
     }
+
+    [Fact]
+    public void ACharacterAfterAGraphicEscapeIsDrawnFromCodePage310()
+    {
+        // The first byte whose code page 310 character exists and differs from code page 037's.
+        byte code = 0;
+        for (int b = 0x41; b < 0xFF; b++)
+        {
+            char ge = CodePage.Cp310.ToUnicode((byte)b);
+            if (ge != '\0' && ge != CodePage.Cp037.ToUnicode((byte)b))
+            {
+                code = (byte)b;
+                break;
+            }
+        }
+
+        Assert.NotEqual(0, code);
+        var e = new Ibm3270Emulator();
+
+        e.ProcessData(new byte[] { Command3270.EraseWrite, 0x02, Order3270.SetBufferAddress, 0x40, 0x40, Order3270.GraphicEscape, code, code });
+
+        Assert.Equal(CodePage.Cp310.ToUnicode(code), (char)e.Buffer.GetCell(0, 0).Codepoint);
+        Assert.Equal(CodePage.Cp037.ToUnicode(code), (char)e.Buffer.GetCell(0, 1).Codepoint); // no GE in front
+    }
+
+    [Fact]
+    public void TheScreensOwnBasePageIsUsedNotAlways037()
+    {
+        // X'4A' is the cent sign in 037 and something else in 277 (Denmark, Norway).
+        Assert.NotEqual(CodePage.Cp037.ToUnicode(0x4A), CodePage.Cp277.ToUnicode(0x4A));
+        var e = new Ibm3270Emulator();
+        e.Display.CodePage = CodePage.Cp277;
+
+        e.ProcessData(new byte[] { Command3270.EraseWrite, 0x02, Order3270.SetBufferAddress, 0x40, 0x40, 0x4A });
+
+        Assert.Equal(CodePage.Cp277.ToUnicode(0x4A), (char)e.Buffer.GetCell(0, 0).Codepoint);
+    }
 }

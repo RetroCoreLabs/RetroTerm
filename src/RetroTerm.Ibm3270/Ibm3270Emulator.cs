@@ -1068,9 +1068,11 @@ namespace RetroTerm.Ibm3270
                     break;
             }
 
-            // GE characters (code page 310, APL) are not drawn yet: they show as the base page
-            // character until the 3270 font exists. Plan: docs\PLAN.md, the font item.
-            char c = CodePage037.ToUnicode(_display.GetByte(address));
+            // A character the host sent behind a Graphic Escape order is from code page 310 (APL,
+            // box pieces; GA23-0059-4 p. 4-9), every other one from the screen's own base page.
+            // Whether the font has a glyph for it is a separate question (docs\PLAN.md, the font item).
+            byte code = _display.GetByte(address);
+            char c = _display.IsGraphicEscape(address) ? CodePage.Cp310.ToUnicode(code) : _display.CodePage.ToUnicode(code);
             if (c == '\0')
             {
                 c = ' ';
