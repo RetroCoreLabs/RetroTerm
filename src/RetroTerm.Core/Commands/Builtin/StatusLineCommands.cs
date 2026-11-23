@@ -41,6 +41,30 @@ public sealed class StatusLineCommand : ISessionCommand
 }
 
 /// <summary>
+/// FIELDS — every field on a 3270 screen: where it is, how long, what kind, its colour and text.
+/// </summary>
+public sealed class FieldsCommand : ISessionCommand
+{
+    public string Name => "FIELDS";
+    public string Summary => "List the 3270 screen's fields: position, length, protected/input, numeric, hidden, bright, modified, colour and text (hidden fields never show their text)";
+    public string Example => "FIELDS";
+    public bool ProducesOutput => true;
+
+    public IReadOnlyList<CommandParameter> Parameters { get; } = System.Array.Empty<CommandParameter>();
+
+    public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
+    {
+        if (session.Emulator is not IFieldScreen screen)
+        {
+            return CommandResult.Fail("this tab's terminal (" + session.Emulator.GetType().Name + ") has no fields");
+        }
+
+        string fields = await session.RunOnSessionThreadAsync(() => screen.DescribeFields()).ConfigureAwait(false);
+        return CommandResult.Ok(fields);
+    }
+}
+
+/// <summary>
 /// WAITUNLOCK — wait until the host unlocks the keyboard: the 3270 way of knowing it answered.
 /// </summary>
 /// <remarks>

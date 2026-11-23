@@ -37,6 +37,7 @@ public static class BuiltinCommands
         registry.Register(new SendKeyCommand());
         registry.Register(new StatusLineCommand());
         registry.Register(new WaitUnlockCommand());
+        registry.Register(new FieldsCommand());
         TerminalControlCommands.RegisterAll(registry);
         TraceCommands.RegisterAll(registry);
         registry.Register(new OpcomDebugCommand());

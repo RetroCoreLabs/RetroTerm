@@ -123,7 +123,6 @@ clean-room rewrite in C#.
 - [ ] **Every 3270 feature reachable over MCP** (Ronny, 22 November 2026), declared on the command metadata so the script DSL gets the same thing (CLAUDE.md, "One behaviour, one place"; `CommandSurfaceEquivalenceTests` checks it):
   - [ ] Send every attention key: Enter, PF1-PF24, PA1-PA3, Clear, Attn, SysReq (extend `terminal_sendkey`)
   - [ ] Send every local key: Tab, Backtab, Home, Newline, ErEOF, ErInp, Insert, Delete, Dup, FieldMark, Reset, cursor keys
-  - [ ] Read the screen WITH its fields: position, length, protected/numeric/hidden/intensified, modified flag, colour; hidden fields reported as hidden, never their text
   - [ ] Put text into a field by number or by row/column; move the cursor
   - [ ] Choose the code page, the model and the screen size per connection
 - [ ] Oracle tests: run `s3270` on the same recorded host stream and compare screens

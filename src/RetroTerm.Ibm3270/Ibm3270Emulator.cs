@@ -42,7 +42,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -516,6 +516,98 @@ namespace RetroTerm.Ibm3270
         {
             Local(() => _display.Paste(text));
         }
+
+        /// <summary>
+        /// Lists every field for the FIELDS command (IFieldScreen).
+        /// </summary>
+        /// <remarks>
+        /// One line per field, in buffer order:
+        ///  - its number from 1, then the row and column of its first character (counted from 1),
+        ///    and its length, the positions up to the next field attribute.
+        ///  - its kind: protected or input, then numeric, hidden (nondisplay), bright
+        ///    (intensified) and modified (MDT set) when they apply (GA23-0059-4 p. 4-13).
+        ///  - its extended colour by name (GA23-0061-2 p. 2-10), when the host set one.
+        ///  - its text as drawn, in quotes. A hidden field is drawn blank, so its text is never
+        ///    given, whatever the host put in it (a password).
+        /// Called on the session thread, after Paint, so the drawn text is the current screen.
+        /// </remarks>
+        /// <returns>
+        /// The lines, or "no fields (unformatted screen)".
+        /// </returns>
+        public string DescribeFields()
+        {
+            int size = _display.Size;
+            int columns = _display.Columns;
+            var text = new System.Text.StringBuilder(size + 256);
+            int number = 0;
+            for (int fa = 0; fa < size; fa++)
+            {
+                if (!_display.IsFieldAttribute(fa))
+                {
+                    continue;
+                }
+
+                number++;
+                byte attribute = _display.GetByte(fa);
+                int first = (fa + 1) % size;
+                int length = 0;
+                var content = new System.Text.StringBuilder(columns);
+                for (int a = first; !_display.IsFieldAttribute(a) && length < size; a = (a + 1) % size)
+                {
+                    content.Append(Buffer.GetCell(a / columns, a % columns).GetString());
+                    length++;
+                }
+
+                bool hidden = (attribute & FieldAttribute.DisplayMask) == FieldAttribute.NonDisplay;
+                text.Append("field ").Append(number)
+                    .Append(" row ").Append((first / columns) + 1)
+                    .Append(" col ").Append((first % columns) + 1)
+                    .Append(" length ").Append(length)
+                    .Append(FieldAttribute.IsProtected(attribute) ? " protected" : " input");
+                if ((attribute & FieldAttribute.Numeric) != 0)
+                {
+                    text.Append(" numeric");
+                }
+
+                if (hidden)
+                {
+                    text.Append(" hidden");
+                }
+                else if ((attribute & FieldAttribute.DisplayMask) == FieldAttribute.Intensified)
+                {
+                    text.Append(" bright");
+                }
+
+                if ((attribute & FieldAttribute.Mdt) != 0)
+                {
+                    text.Append(" modified");
+                }
+
+                string? colour = ColourName(_display.GetFieldColor(fa));
+                if (colour != null)
+                {
+                    text.Append(" colour ").Append(colour);
+                }
+
+                text.Append(" \"").Append(content.ToString().TrimEnd()).Append("\"\n");
+            }
+
+            return number == 0 ? "no fields (unformatted screen)" : text.ToString().TrimEnd('\n');
+        }
+
+        // The extended colour values (GA23-0061-2 p. 2-10); X'00' is the default, so no name.
+        private static string? ColourName(byte colour) => colour switch
+        {
+            0xF1 => "blue",
+            0xF2 => "red",
+            0xF3 => "pink",
+            0xF4 => "green",
+            0xF5 => "turquoise",
+            0xF6 => "yellow",
+            0xF7 => "neutral",
+            0x00 => null,
+            _ => "X'" + colour.ToString("X2", System.Globalization.CultureInfo.InvariantCulture) + "'",
+        };
 
         private bool Attention(byte aid)
         {

@@ -120,6 +120,52 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public async Task FieldsListsEveryFieldAndNeverAHiddenFieldsText()
+        {
+            // EW, WCC restore, SF protected "NAME", SF input with "hi" typed later, SBA 80 SF
+            // protected bright "PASS" (X'E8'), SF input hidden (X'4C') holding "SECRET" from the
+            // host, SBA 160 SF protected (stop).
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new InMemoryConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(new byte[]
+            {
+                Command3270.EraseWrite, 0x02,
+                Order3270.StartField, 0x60, 0xD5, 0xC1, 0xD4, 0xC5,
+                Order3270.StartField, 0x40, Order3270.InsertCursor,
+                Order3270.SetBufferAddress, 0xC1, 0x50, Order3270.StartField, 0xE8, 0xD7, 0xC1, 0xE2, 0xE2,
+                Order3270.StartField, 0x4C, 0xE2, 0xC5, 0xC3, 0xD9, 0xC5, 0xE3,
+                Order3270.SetBufferAddress, 0xC2, 0x60, Order3270.StartField, 0x60,
+            });
+            await session.FlushAsync();
+            Assert.True(emulator.HandleText("hi"));
+            await session.FlushAsync();
+
+            CommandResult result = await Run(new FieldsCommand(), session, new CommandArgs());
+
+            Assert.True(result.Success);
+            string[] lines = result.Output!.Split('\n');
+            Assert.Equal(5, lines.Length);
+            Assert.Equal("field 1 row 1 col 2 length 4 protected \"NAME\"", lines[0]);
+            Assert.Equal("field 2 row 1 col 7 length 74 input modified \"hi\"", lines[1]);
+            Assert.Equal("field 3 row 2 col 2 length 4 protected bright \"PASS\"", lines[2]);
+            Assert.StartsWith("field 4 row 2 col 7 length 74 input hidden \"", lines[3]);
+            Assert.DoesNotContain("SECRET", result.Output);
+        }
+
+        [Fact]
+        public async Task FieldsOnAnUnformattedScreenSaysSo()
+        {
+            var session = new TerminalSession(new Ibm3270Emulator(), "Test");
+            await session.ConnectAsync(new InMemoryConnection(), TestContext.Current.CancellationToken);
+
+            CommandResult result = await Run(new FieldsCommand(), session, new CommandArgs());
+
+            Assert.Equal("no fields (unformatted screen)", result.Output);
+        }
+
+        [Fact]
         public async Task OnAVtTabStatusLineGivesTheHostLineAndWaitUnlockRefuses()
         {
             var session = new TerminalSession(new VT100Emulator(80, 24), "Test");
