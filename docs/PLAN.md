@@ -66,8 +66,6 @@ clean-room rewrite in C#.
 - [ ] Find the IBM 3270 PC user guides (Control Program / 3270 Workstation Program Users' Guide and Reference; bitsavers folder `pdf/ibm/pc/3270_PC/`) and write down what Help, WS Ctrl, Jump, Change Screen, Copy, Print, Zoom, Finish, Auto, ExSel and Pause did. The keycaps pair them (seasip 5271 page): Help/SysRq, WS Ctrl/ExSel, ChgSc/Jump/CrSel, Finish/Attn, Copy/Auto/Pause, Print/*/Ident, Clear/Test, Reset/Quit. Neither Wikipedia nor seasip says what they do
 - [ ] Find an ISPF manual: which characters ISPF sends for boxes, and what its "3278T" terminal setting means
 
-- [ ] Write `docs\IBM3270-INTRODUCTION.md` for users who have never seen a 3270 (Ronny, 22 November 2026: "i do not know anything about LU"): what a block-mode terminal is, fields, attention keys (Enter/PF/PA/Clear), keyboard lock, EBCDIC and code pages, TN3270 vs TN3270E, what an LU name is and when you need one, model sizes, IND$FILE, and a first walk-through logging in to TK5. Written AFTER the spec files, from them, in plain words
-- [ ] Add it to the docs site (`src\docfx\docfx.json` lists the published docs)
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
