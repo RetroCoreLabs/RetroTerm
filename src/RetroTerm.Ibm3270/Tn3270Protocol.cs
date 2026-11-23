@@ -7,10 +7,12 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Text;
 
 using RetroIO.Protocols.Telnet;
 using RetroIO.Protocols.Tn3270;
+using RetroTerm.Core.Protocols;
 
 namespace RetroTerm.Ibm3270
 {
@@ -26,9 +28,15 @@ namespace RetroTerm.Ibm3270
     /// TN3270E on our side. Everything else is refused.
     /// </para>
     /// <para>
-    /// TN3270E (RFC 2355) is "basic TN3270E" (section 9): the function list asked for is empty, so
-    /// there are no responses, no BIND image and no SYSREQ, and every record carries a 5-byte header
-    /// that is all zeros on the way out. Built 23 November 2026 from the RFC and checked against
+    /// TN3270E (RFC 2355) asks for one function, RESPONSES (section 10.4), and takes basic TN3270E
+    /// (section 9, no functions) when the host will not have it. There is no BIND image and no
+    /// SYSREQ. Every record carries a 5-byte header. With RESPONSES, each host record's
+    /// RESPONSE-FLAG and SEQ-NUMBER are kept until the session has applied the record
+    /// (<see cref="HostRecordStarting"/>, <see cref="HostRecordProcessed"/>), and then a positive
+    /// or negative response is sent as section 10.4.1 says; our own 3270-DATA messages carry a
+    /// counting sequence number. RESPONSES built 23 November 2026 from the RFC and GA23-0059-4
+    /// Appendix A, checked against x3270 Common\telnet.c (process_eor, net_output, tn3270e_ack,
+    /// tn3270e_nak). Basic TN3270E built 23 November 2026 from the RFC and checked against
     /// x3270 (Common\telnet.c, tn3270e_negotiate, process_eor, net_output) and tnz (tnz\tnz.py); TK5
     /// never offers TN3270E, so no live host has tested it. Where the two disagree this follows
     /// x3270: TN3270E counts as agreed only when the function lists match (RFC 2355 section 7.2,
@@ -58,8 +66,33 @@ namespace RetroTerm.Ibm3270
         private readonly byte[] _deviceType;
         private readonly byte[]? _luName;
 
-        // True once FUNCTIONS IS has settled the (empty) function list: TN3270E is in force.
+        // True once FUNCTIONS IS has settled the function list: TN3270E is in force.
         private bool _tn3270eNegotiated;
+
+        // The TN3270E functions still wanted, one bit per function code (bit 2 = RESPONSES).
+        // Starts as RESPONSES alone and only ever shrinks during one negotiation, which is the
+        // RFC 2355 7.2.1 rule against loops: never add back a function the other side removed
+        // (x3270 tn3270e_negotiate narrows e_funcs the same way).
+        private int _wantedFunctions = FunctionsWeAskFor;
+
+        // The functions agreed by FUNCTIONS IS; only meaningful while _tn3270eNegotiated.
+        private int _agreedFunctions;
+
+        // Our next outbound 3270-DATA sequence number. RFC 2355 10.4: counted only with RESPONSES,
+        // from zero, one per 3270-DATA message, back to zero after 32767.
+        private ushort _sendSequence;
+
+        // One entry per record handed up through RecordReceived, in order, so the session's
+        // HostRecordStarting/HostRecordProcessed calls (one pair per record) find the header of
+        // the record they are about. Plain TN3270 records get an entry too, asking for nothing,
+        // so the two can never fall out of step.
+        private readonly Queue<PendingRecord> _pending = new Queue<PendingRecord>();
+
+        // The record the session is applying now, between HostRecordStarting and
+        // HostRecordProcessed, and whether a response to it has gone already.
+        private PendingRecord _current;
+        private bool _applying;
+        private bool _answered;
 
         // The TN3270E subnegotiation command codes (RFC 2355 section 3; x3270 include\tn3270e.h).
         private const byte OpConnect = 0x01;
@@ -70,6 +103,16 @@ namespace RetroTerm.Ibm3270
         private const byte OpReject = 0x06;
         private const byte OpRequest = 0x07;
         private const byte OpSend = 0x08;
+
+        // TN3270E function codes (RFC 2355 section 3).
+        private const byte FunctionResponses = 0x02;
+
+        // What this terminal asks for: RESPONSES. BIND-IMAGE, SYSREQ and the printer functions
+        // are not built (docs PLAN.md).
+        private const int FunctionsWeAskFor = 1 << FunctionResponses;
+
+        // RFC 2355 10.4: sequence numbers run 0 to 32767.
+        private const int MaxSequence = 32767;
         /// <summary>
         /// The TERMINAL-TYPE this terminal announces: a 3278 model 2 that understands structured
         /// fields (the "-E").
@@ -164,6 +207,13 @@ namespace RetroTerm.Ibm3270
         public string? GrantedLuName { get; private set; }
 
         /// <summary>
+        /// Gets a value indicating whether TN3270E is in force with the RESPONSES function: the
+        /// host may ask for a response to each record, and the terminal must give one (RFC 2355
+        /// section 10.4).
+        /// </summary>
+        public bool ResponsesAgreed => InTn3270E && (_agreedFunctions & FunctionsWeAskFor) != 0;
+
+        /// <summary>
         /// Bytes received from the host, any amount, split anywhere.
         /// </summary>
         /// <param name="data">
@@ -179,13 +229,32 @@ namespace RetroTerm.Ibm3270
         /// </param>
         public void SendRecord(ReadOnlySpan<byte> record)
         {
+            if (InTn3270E && _applying && !_answered && _current.ResponseFlag == Tn3270EResponseFlag.AlwaysResponse)
+            {
+                // This record is the reply to the host record being applied (a Read Buffer, a
+                // Read Modified, a query reply). The positive response that record asked for goes
+                // first: x3270 net_output sends tn3270e_ack before the output whenever
+                // response_required is ALWAYS-RESPONSE.
+                SendResponse(positive: true, Tn3270EResponseStatus.Successful);
+            }
+
             _out.Clear();
             if (InTn3270E)
             {
-                // 3270-DATA, no request, no response, sequence 0: RESPONSES is not agreed, so the
-                // number stays 0 (RFC 2355 8.1.4; x3270 net_output counts only with RESPONSES).
+                // 3270-DATA, no request, no response. With RESPONSES the sequence number counts
+                // every 3270-DATA message we send, "regardless of the value of the RESPONSE-FLAG
+                // field", from 0 to 32767 and round again (RFC 2355 10.4). Without it the number
+                // stays 0 (RFC 2355 8.1.4; x3270 net_output counts only with RESPONSES). Written
+                // through WriteData, so a 0xFF in it is doubled (RFC 2355 8.1.4).
+                ushort sequence = 0;
+                if (ResponsesAgreed)
+                {
+                    sequence = _sendSequence;
+                    _sendSequence = _sendSequence == MaxSequence ? (ushort)0 : (ushort)(_sendSequence + 1);
+                }
+
                 Span<byte> header = stackalloc byte[Tn3270EHeader.Length];
-                new Tn3270EHeader(Tn3270EDataType.Data3270, 0, 0, 0).Write(header);
+                new Tn3270EHeader(Tn3270EDataType.Data3270, 0, 0, sequence).Write(header);
                 TelnetEncoder.WriteData(_out, header);
             }
 
@@ -236,8 +305,98 @@ namespace RetroTerm.Ibm3270
                 return;
             }
 
+            // Plain TN3270: nothing to answer, but the entry keeps the queue in step with the
+            // records handed up.
+            _pending.Enqueue(new PendingRecord(Tn3270EResponseFlag.NoResponse, 0));
             RecordReceived?.Invoke(_record.WrittenMemory);
             _record.Clear();
+        }
+
+        /// <summary>
+        /// The session starts applying the next record raised through <see cref="RecordReceived"/>.
+        /// </summary>
+        /// <remarks>
+        /// Called once per raised record, in order (Core.Protocols.IHostRecordResponseConnection).
+        /// Anything sent with <see cref="SendRecord"/> until <see cref="HostRecordProcessed"/> is
+        /// that record's reply.
+        /// </remarks>
+        public void HostRecordStarting()
+        {
+            if (_pending.Count == 0)
+            {
+                ProtocolError?.Invoke("The session started a host record that was never received; no TN3270E response can be matched to it.");
+                _applying = false;
+                return;
+            }
+
+            _current = _pending.Dequeue();
+            _applying = true;
+            _answered = false;
+        }
+
+        /// <summary>
+        /// The session has applied the record <see cref="HostRecordStarting"/> began: sends the
+        /// TN3270E response the record asked for, if any (RFC 2355 section 10.4.1).
+        /// </summary>
+        /// <param name="outcome">
+        /// How it went, or null when nothing could say.
+        /// </param>
+        public void HostRecordProcessed(HostRecordOutcome? outcome)
+        {
+            if (!_applying)
+            {
+                return;
+            }
+
+            _applying = false;
+            byte flag = _current.ResponseFlag;
+            if (flag == Tn3270EResponseFlag.NoResponse)
+            {
+                // "If the data message it has just processed had a RESPONSE-FLAG value of
+                // NO-RESPONSE ... then no RESPONSE type message should be sent."
+                return;
+            }
+
+            if (outcome == null)
+            {
+                ProtocolError?.Invoke("The host asked for a TN3270E response to record " + _current.Sequence + ", but the outcome of applying it is not known; no response was sent.");
+                return;
+            }
+
+            if (outcome.Value == HostRecordOutcome.Applied)
+            {
+                // ERROR-RESPONSE without an error: nothing. ALWAYS-RESPONSE: positive, "Device
+                // End" (X'00'), unless it went ahead of the record's own reply already.
+                if (flag == Tn3270EResponseFlag.AlwaysResponse && !_answered)
+                {
+                    SendResponse(positive: true, Tn3270EResponseStatus.Successful);
+                }
+
+                return;
+            }
+
+            // An error, and the host asked for ERROR-RESPONSE or ALWAYS-RESPONSE: negative. This
+            // goes even when a positive one went ahead of a reply the record produced before the
+            // error was found, because the host must hear that the record failed; x3270 does
+            // the same (process_eor: tn3270e_nak whenever rv is negative).
+            byte status = outcome.Value == HostRecordOutcome.CommandReject
+                ? Tn3270EResponseStatus.CommandReject
+                : Tn3270EResponseStatus.OperationCheck;
+            SendResponse(positive: false, status);
+        }
+
+        // A RESPONSE message: header with DATA-TYPE RESPONSE, the host record's own sequence
+        // number, then the one status byte, then IAC EOR (RFC 2355 10.4.1). WriteData doubles a
+        // 0xFF in the sequence number (RFC 2355 8.1.4; x3270 tn3270e_ack doubles it by hand).
+        private void SendResponse(bool positive, byte status)
+        {
+            Span<byte> message = stackalloc byte[Tn3270EHeader.Length + 1];
+            int length = Tn3270EHeader.WriteResponse(_current.Sequence, positive, status, message);
+            _out.Clear();
+            TelnetEncoder.WriteData(_out, message.Slice(0, length));
+            TelnetEncoder.WriteCommand(_out, TelnetCommand.EndOfRecord);
+            _write(_out.WrittenMemory);
+            _answered = true;
         }
 
         /// <summary>
@@ -349,13 +508,25 @@ namespace RetroTerm.Ibm3270
                 return;
             }
 
-            if (header.ResponseFlag != Tn3270EResponseFlag.NoResponse)
+            byte responseFlag = header.ResponseFlag;
+            if (responseFlag != Tn3270EResponseFlag.NoResponse && !ResponsesAgreed)
             {
                 // RESPONSES was not agreed, so the host must not ask (RFC 2355 section 9). It is
-                // said, and no answer is made up: an answer needs the outcome of the record.
-                ProtocolError?.Invoke("The host asked for a TN3270E response (flag " + header.ResponseFlag + ") although RESPONSES was not agreed; none was sent.");
+                // said, and no answer is made up.
+                ProtocolError?.Invoke("The host asked for a TN3270E response (flag " + responseFlag + ") although RESPONSES was not agreed; none was sent.");
+                responseFlag = Tn3270EResponseFlag.NoResponse;
+            }
+            else if (responseFlag > Tn3270EResponseFlag.AlwaysResponse)
+            {
+                // RFC 2355 8.1.3 defines 0, 1 and 2 for 3270-DATA. Anything else is not answered,
+                // and said.
+                ProtocolError?.Invoke("TN3270E response flag " + responseFlag + " is not defined for 3270-DATA (RFC 2355 section 8.1.3); no response will be sent.");
+                responseFlag = Tn3270EResponseFlag.NoResponse;
             }
 
+            // The header is kept until the session has applied the record and says how it went
+            // (HostRecordStarting / HostRecordProcessed).
+            _pending.Enqueue(new PendingRecord(responseFlag, header.SequenceNumber));
             ReadOnlySpan<byte> data = record.Slice(Tn3270EHeader.Length);
             RecordReceived?.Invoke(_record.WrittenMemory.Slice(Tn3270EHeader.Length, data.Length));
         }
@@ -365,7 +536,9 @@ namespace RetroTerm.Ibm3270
         {
             if (sb.Length >= 2 && sb[0] == OpSend && sb[1] == OpDeviceType)
             {
-                // DEVICE-TYPE REQUEST type [CONNECT lu] (RFC 2355 7.1.2).
+                // DEVICE-TYPE REQUEST type [CONNECT lu] (RFC 2355 7.1.2). A new negotiation
+                // starts with the full wish list again.
+                _wantedFunctions = FunctionsWeAskFor;
                 byte[] request = new byte[2 + _deviceType.Length + (_luName == null ? 0 : 1 + _luName.Length)];
                 request[0] = OpDeviceType;
                 request[1] = OpRequest;
@@ -382,13 +555,14 @@ namespace RetroTerm.Ibm3270
 
             if (sb.Length >= 2 && sb[0] == OpDeviceType && sb[1] == OpIs)
             {
-                // DEVICE-TYPE IS type [CONNECT lu]: keep what was granted, then ask for no
-                // functions, which is basic TN3270E (RFC 2355 sections 7.1.4, 7.2, 9).
+                // DEVICE-TYPE IS type [CONNECT lu]: keep what was granted, then ask for the
+                // functions wanted, RESPONSES (RFC 2355 sections 7.1.4, 7.2, 10.4; x3270 asks for
+                // its whole list at this point too, tn3270e_negotiate).
                 ReadOnlySpan<byte> rest = sb.Slice(2);
                 int connect = rest.IndexOf(OpConnect);
                 GrantedDeviceType = Encoding.ASCII.GetString(connect < 0 ? rest : rest.Slice(0, connect));
                 GrantedLuName = connect < 0 ? null : Encoding.ASCII.GetString(rest.Slice(connect + 1));
-                SendTn3270E(stackalloc byte[] { OpFunctions, OpRequest });
+                SendFunctions(OpRequest, _wantedFunctions);
                 return;
             }
 
@@ -401,16 +575,24 @@ namespace RetroTerm.Ibm3270
 
             if (sb.Length >= 2 && sb[0] == OpFunctions && sb[1] == OpRequest)
             {
-                // We want no functions. An empty list is accepted as it is; a longer one is
-                // answered with what both can do, which is nothing (RFC 2355 7.2.1).
-                if (sb.Length == 2)
+                // RFC 2355 7.2.1: a list holding only functions we want is accepted by sending it
+                // back unchanged in FUNCTIONS IS. A list with anything else in it, including a
+                // code we do not know ("simply remove that function code from the list"), is
+                // answered with FUNCTIONS REQUEST of what both want (x3270: b8_none_added, then
+                // b8_and).
+                int received = FunctionMask(sb.Slice(2), out bool onlyWanted);
+                if (onlyWanted)
                 {
-                    SendTn3270E(stackalloc byte[] { OpFunctions, OpIs });
-                    SetNegotiated(true);
+                    _wantedFunctions = received;
+                    byte[] reply = sb.ToArray();
+                    reply[1] = OpIs;
+                    SendTn3270E(reply);
+                    Agree(received);
                 }
                 else
                 {
-                    SendTn3270E(stackalloc byte[] { OpFunctions, OpRequest });
+                    _wantedFunctions &= received;
+                    SendFunctions(OpRequest, _wantedFunctions);
                 }
 
                 return;
@@ -418,9 +600,12 @@ namespace RetroTerm.Ibm3270
 
             if (sb.Length >= 2 && sb[0] == OpFunctions && sb[1] == OpIs)
             {
-                if (sb.Length == 2)
+                int agreed = FunctionMask(sb.Slice(2), out bool onlyWanted);
+                if (onlyWanted)
                 {
-                    SetNegotiated(true);
+                    // What we asked for, or less (RFC 2355 7.2.1; x3270 takes a subset too).
+                    _wantedFunctions = agreed;
+                    Agree(agreed);
                 }
                 else
                 {
@@ -433,6 +618,55 @@ namespace RetroTerm.Ibm3270
             }
 
             ProtocolError?.Invoke("TN3270E subnegotiation " + Convert.ToHexString(sb) + " is not handled.");
+        }
+
+        // TN3270E is in force with these functions. The send counter starts from zero (RFC 2355
+        // 10.4: "This counter should start at zero for the first such message").
+        private void Agree(int functions)
+        {
+            _agreedFunctions = functions;
+            _sendSequence = 0;
+            SetNegotiated(true);
+        }
+
+        // The bit mask of a function list. onlyWanted is false when the list holds a function we
+        // do not want now, or a code we do not know at all.
+        private int FunctionMask(ReadOnlySpan<byte> list, out bool onlyWanted)
+        {
+            int mask = 0;
+            onlyWanted = true;
+            for (int i = 0; i < list.Length; i++)
+            {
+                byte code = list[i];
+                int bit = code < 31 ? 1 << code : 0;
+                if (bit == 0 || (_wantedFunctions & bit) == 0)
+                {
+                    onlyWanted = false;
+                    continue;
+                }
+
+                mask |= bit;
+            }
+
+            return mask;
+        }
+
+        // FUNCTIONS REQUEST or IS with the functions in a mask, lowest code first.
+        private void SendFunctions(byte verb, int functions)
+        {
+            Span<byte> sb = stackalloc byte[2 + 31];
+            sb[0] = OpFunctions;
+            sb[1] = verb;
+            int n = 2;
+            for (int code = 0; code < 31; code++)
+            {
+                if ((functions & (1 << code)) != 0)
+                {
+                    sb[n++] = (byte)code;
+                }
+            }
+
+            SendTn3270E(sb.Slice(0, n));
         }
 
         // Gives up TN3270E and goes on as plain TN3270 (x3270 backoff_tn3270e).
@@ -490,6 +724,21 @@ namespace RetroTerm.Ibm3270
             _out.Clear();
             TelnetEncoder.WriteNegotiation(_out, verb, option);
             _write(_out.WrittenMemory);
+        }
+
+        // What a host record's header asked for: its RESPONSE-FLAG (NO-RESPONSE when nothing is
+        // to be sent) and its SEQ-NUMBER, to be echoed in the response.
+        private readonly struct PendingRecord
+        {
+            public PendingRecord(byte responseFlag, ushort sequence)
+            {
+                ResponseFlag = responseFlag;
+                Sequence = sequence;
+            }
+
+            public byte ResponseFlag { get; }
+
+            public ushort Sequence { get; }
         }
     }
 }

@@ -872,8 +872,46 @@ public partial class TerminalSession : IDisposable
         // is the one place that sees the true host-to-terminal stream exactly once.
         ProtocolTracer.TraceIncoming(data);
 
+        // A connection that answers the host for each record (TN3270E RESPONSES, RFC 2355
+        // section 10.4.1) is told when the record starts and how it went, here on the pump, so
+        // anything the emulator sends while applying it is known to be that record's reply.
+        if (_connection is IHostRecordResponseConnection responder)
+        {
+            ProcessHostRecord(responder, data);
+            return;
+        }
+
         // Business logic: route incoming data to the emulator
         Emulator.ProcessData(data);
+    }
+
+    /// <summary>
+    /// Applies one host record and gives its outcome to the connection, on the pump thread.
+    /// </summary>
+    /// <param name="responder">
+    /// The connection that answers the host.
+    /// </param>
+    /// <param name="record">
+    /// One whole host record (the connection raises DataReceived once per record).
+    /// </param>
+    private void ProcessHostRecord(IHostRecordResponseConnection responder, ReadOnlySpan<byte> record)
+    {
+        responder.HostRecordStarting();
+        HostRecordOutcome? outcome = null;
+        try
+        {
+            Emulator.ProcessData(record);
+            if (Emulator is IHostRecordOutcomeTerminal reporter)
+            {
+                outcome = reporter.LastRecordOutcome;
+            }
+        }
+        finally
+        {
+            // Null when the emulator cannot say or threw: the connection sends no response and
+            // says so, rather than answer for a record nobody checked.
+            responder.HostRecordProcessed(outcome);
+        }
     }
 
     /// <summary>

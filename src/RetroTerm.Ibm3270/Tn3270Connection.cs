@@ -20,12 +20,19 @@ namespace RetroTerm.Ibm3270
     /// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
     /// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
     /// </summary>
-    public sealed class Tn3270Connection : IConnection, IBreakConnection, ITn3270EConnection, IPrintJobEndConnection
+    public sealed class Tn3270Connection : IConnection, IBreakConnection, ITn3270EConnection, IPrintJobEndConnection, IHostRecordResponseConnection
     {
         private readonly string _host;
         private readonly int _port;
         private readonly object _gate = new object();
         private readonly Tn3270Protocol _protocol;
+
+        // Events the protocol raised while the receive loop held _gate, raised in order once it
+        // has let go. The session's handlers post to its pump, which blocks when the pump queue
+        // is full, while the pump itself takes _gate for every record (HostRecordStarting,
+        // HostRecordProcessed) and for every reply it sends. Raising them under the lock would
+        // let a full queue hang both threads. Only the receive loop touches this list.
+        private readonly System.Collections.Generic.List<Action> _raiseAfterFeed = new System.Collections.Generic.List<Action>();
 
         // A plain socket rather than a TcpClient: TcpConnector picks it from every address the host
         // name resolves to (BUGS.md B12), and TcpClient cannot adopt a socket connected elsewhere.
@@ -68,9 +75,13 @@ namespace RetroTerm.Ibm3270
             Description = host + ":" + port;
             TerminalType = terminalType;
             _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
-            _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
-            _protocol.Tn3270EChanged += on => Tn3270EChanged?.Invoke(on);
-            _protocol.AbortOutputReceived += () => EndOfJobReceived?.Invoke();
+            _protocol.RecordReceived += record =>
+            {
+                byte[] copy = record.ToArray();
+                _raiseAfterFeed.Add(() => DataReceived?.Invoke(copy));
+            };
+            _protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
+            _protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
             _protocol.ProtocolError += message =>
             {
                 ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
@@ -203,6 +214,38 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// The session starts applying the next host record (TN3270E RESPONSES).
+        /// </summary>
+        public void HostRecordStarting()
+        {
+            lock (_gate)
+            {
+                _protocol.HostRecordStarting();
+            }
+        }
+
+        /// <summary>
+        /// The session has applied the record; sends the TN3270E response it asked for, if any.
+        /// </summary>
+        /// <param name="outcome">
+        /// How it went, or null when nothing could say.
+        /// </param>
+        public void HostRecordProcessed(HostRecordOutcome? outcome)
+        {
+            if (_stream == null)
+            {
+                // Gone already (a record still on the pump after the socket closed): no one to
+                // answer.
+                return;
+            }
+
+            lock (_gate)
+            {
+                _protocol.HostRecordProcessed(outcome);
+            }
+        }
+
+        /// <summary>
         /// Closes the connection.
         /// </summary>
         /// <returns>
@@ -266,6 +309,8 @@ namespace RetroTerm.Ibm3270
                     {
                         _protocol.Feed(buffer.AsSpan(0, read));
                     }
+
+                    RaiseEventsFromFeed();
                 }
             }
             catch (OperationCanceledException)
@@ -281,6 +326,17 @@ namespace RetroTerm.Ibm3270
             {
                 SetStatus(ConnectionStatus.Disconnected);
             }
+        }
+
+        // Raises what the last Feed produced, in the order it was produced, outside _gate.
+        private void RaiseEventsFromFeed()
+        {
+            for (int i = 0; i < _raiseAfterFeed.Count; i++)
+            {
+                _raiseAfterFeed[i]();
+            }
+
+            _raiseAfterFeed.Clear();
         }
 
         private void WriteToSocket(ReadOnlyMemory<byte> bytes)

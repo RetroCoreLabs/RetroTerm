@@ -128,10 +128,11 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(SendDeviceType);
             Assert.Equal(Bytes("FF FA 28 02 07", "'IBM-3278-2-E", "FF F0"), wire.ToArray());
 
-            // Granted: the client asks for no functions, which is basic TN3270E (RFC 2355 s.9).
+            // Granted: the client asks for RESPONSES (RFC 2355 s.7.2, s.10.4; function X'02').
+            // The host here grants none, which is basic TN3270E (RFC 2355 s.9).
             wire.Clear();
             p.Feed(DeviceTypeIs);
-            Assert.Equal(Bytes("FF FA 28 03 07 FF F0"), wire.ToArray());
+            Assert.Equal(Bytes("FF FA 28 03 07 02 FF F0"), wire.ToArray());
             Assert.Equal("IBM-3278-2-E", p.GrantedDeviceType);
             Assert.Equal("TCP00034", p.GrantedLuName);
             Assert.False(p.InTn3270E);
@@ -220,27 +221,6 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
-        public void TheHostAskingForFunctionsGetsTheEmptyListBack()
-        {
-            var (p, wire, _, _) = Create();
-            p.Feed(DoTn3270E);
-            p.Feed(SendDeviceType);
-            p.Feed(DeviceTypeIs);
-            wire.Clear();
-
-            // The host asks for RESPONSES and SYSREQ: the answer is what both can do, nothing.
-            p.Feed(Bytes("FF FA 28 03 07 02 04 FF F0"));
-            Assert.Equal(Bytes("FF FA 28 03 07 FF F0"), wire.ToArray());
-            Assert.False(p.InTn3270E);
-
-            // Then it asks for nothing: agreed (x3270 tn3270e_negotiate, FUNCTIONS REQUEST).
-            wire.Clear();
-            p.Feed(Bytes("FF FA 28 03 07 FF F0"));
-            Assert.Equal(Bytes("FF FA 28 03 04 FF F0"), wire.ToArray());
-            Assert.True(p.InTn3270E);
-        }
-
-        [Fact]
         public void ARejectedDeviceTypeBacksOffToPlainTn3270()
         {
             var (p, wire, _, errors) = Create();
@@ -254,22 +234,6 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Contains("DEVICE-IN-USE", errors[0]);
             Assert.False(p.InTn3270E);
             Assert.Null(p.GrantedLuName);
-        }
-
-        [Fact]
-        public void FunctionsTheHostAddedOnItsOwnEndTn3270E()
-        {
-            var (p, wire, _, errors) = Create();
-            p.Feed(DoTn3270E);
-            p.Feed(SendDeviceType);
-            p.Feed(DeviceTypeIs);
-            wire.Clear();
-
-            p.Feed(Bytes("FF FA 28 03 04 02 FF F0"));
-
-            Assert.Equal(Bytes("FF FC 28"), wire.ToArray());
-            Assert.Contains("not asked for", errors[0]);
-            Assert.False(p.InTn3270E);
         }
 
         [Fact]

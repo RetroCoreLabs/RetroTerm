@@ -194,16 +194,57 @@ The tnz README (line 28) says: "Code page 310 for APL graphic symbols (i.e. 3278
 
 ## 4. TN3270E - the exact bytes (from RFC and oracles; TK5 does not offer it)
 
-**What RetroTerm does (built 23 November 2026, src\RetroTerm.Ibm3270\Tn3270Protocol.cs):**
-basic TN3270E (RFC 2355 section 9). It answers DO TN3270E with WILL, asks for the device type
-in its terminal type (an @name suffix becomes CONNECT name), keeps the device type and LU the
-host grants, and asks for an EMPTY function list. 3270-DATA records lose their 5-byte header on
-the way in and get  0 00 00 00 00 on the way out. Any other data type, and a record that asks
-for a response, is reported rather than shown or answered. A refused device type, or functions
-the host adds on its own, end TN3270E with WONT TN3270E and the connection goes on as plain
-TN3270 (x3270 ackoff_tn3270e). In TN3270E, Attn locks the keyboard with Minus Function and
-Sys Req does nothing, as x3270 does when no SNA session is bound and SYSREQ is not agreed. Not
-tested against a live host: TK5 never offers TN3270E.
+**What RetroTerm does (built 23 November 2026, src/RetroTerm.Ibm3270/Tn3270Protocol.cs):**
+It answers DO TN3270E with WILL, asks for the device type in its terminal type (an @name suffix
+becomes CONNECT name), keeps the device type and LU the host grants, and asks for ONE function,
+RESPONSES (`28 03 07 02`, as tnz does). A host that grants less gets basic TN3270E (RFC 2355
+section 9); a host REQUEST with more is answered with REQUEST of what both want, and a function
+the host removed is not asked for again (RFC 2355 s.7.2.1). 3270-DATA records lose their 5-byte
+header on the way in; on the way out the header is `00 00 00 <seq hi> <seq lo>`, the sequence
+counting from 0 with RESPONSES (back to 0 after 32767, RFC 2355 s.10.4) and 0000 without. Other
+data types are reported rather than shown. A refused device type, or functions the host adds on
+its own, end TN3270E with WONT TN3270E and the connection goes on as plain TN3270 (x3270
+backoff_tn3270e). In TN3270E, Attn locks the keyboard with Minus Function and Sys Req does
+nothing, as x3270 does when no SNA session is bound and SYSREQ is not agreed. Not tested against
+a live host: TK5 never offers TN3270E (measured again 23 November 2026: its first bytes are
+`FF FD 18`, then TERMINAL-TYPE SEND, then BINARY and EOR, and no `FF FD 28`).
+
+**RESPONSES, as built (RFC 2355 s.10.4.1, GA23-0059-4 Appendix A):** the response is sent AFTER
+the emulator has applied the record, on the session thread: the session tells the connection when
+a record starts and how it went (`IHostRecordResponseConnection`, filled from
+`Ibm3270Emulator.LastRecordOutcome`, which comes from RetroIO's `Display3270.ProcessOutbound`).
+
+| Host RESPONSE-FLAG | Record applied | Record refused |
+|---|---|---|
+| 00 NO-RESPONSE | nothing | nothing |
+| 01 ERROR-RESPONSE | nothing | `02 00 01 <seq> <status> FF EF` |
+| 02 ALWAYS-RESPONSE | `02 00 00 <seq> 00 FF EF` | `02 00 01 <seq> <status> FF EF` |
+
+- `<seq>` is the host record's own SEQ-NUMBER, a byte FF in it doubled. The data part is ONE byte
+  [RFC 2355 s.10.4.1]; there is no sense code on the wire. The server turns the byte into a sense
+  code itself (X'00' -> 0x10030000, X'02' -> 0x10050000).
+- `<status>`: **00 Command Reject** when the command code is not one of the eight 3270 commands
+  RetroIO takes (F1 F5 7E 6F F2 F6 6E F3), **02 Operation Check** for every other refused record
+  (a bad order, buffer address, structured field, or something not built). GA23-0059-4 Appendix A:
+  "For non-SNA environments, all 3270 data stream errors are rejected with an Op-Check (OC) except
+  for invalid commands. Unsupported commands are rejected with Command Reject (CR)." x3270 makes
+  the same split (process_ds: PDS_BAD_CMD for an unknown command; ctlr_write: PDS_BAD_ADDR).
+- When the record itself makes a reply (Read Buffer, Read Modified, a query reply) and asked for
+  ALWAYS-RESPONSE, the positive response goes just BEFORE that reply, and not again after it
+  (x3270 net_output sends tn3270e_ack first). If the record then still fails, the negative one
+  goes too, as x3270 does.
+- If nothing can say how the record went (an emulator that does not report it, such as the 3287
+  printer, or one that threw), no response is sent and an error is reported.
+
+Where RetroTerm differs from x3270 (Common/telnet.c, read 23 November 2026):
+- x3270 asks for BIND-IMAGE, RESPONSES and SYSREQ; RetroTerm asks for RESPONSES only, because the
+  others are not built.
+- x3270 decides "held until the output" from the command (PDS_OKAY_OUTPUT for the reads); if such
+  a record never actually sent output, x3270 would send no positive response at all. RetroTerm
+  decides from what really happened: a positive response still owed when the record is done is
+  sent then.
+- x3270 acks an NVT-DATA record that asks for ALWAYS-RESPONSE; RetroTerm does not show NVT data
+  yet, reports it, and does not answer it.
 
 TN3270E starts when the server sends `IAC DO TN3270E` and the client answers `IAC WILL TN3270E`
 (either side may start, but the server normally does) [RFC 2355 s.13.2]. Then the device type is
@@ -400,8 +441,9 @@ only the four cases above were measured.
    `IBM-3278-2`), optionally `@<name>` for TK5-style hosts.
 2. Answer `DO`/`WILL` for BINARY and EOR with WILL/DO; refuse other options except ECHO /
    SUPPRESS-GO-AHEAD in NVT mode [RFC 1576 s.3].
-3. Answer `DO TN3270E` with WILL, then the DEVICE-TYPE / FUNCTIONS exchange of section 4. Built as
-   basic TN3270E (see the top of section 4).
+3. Answer `DO TN3270E` with WILL, then the DEVICE-TYPE / FUNCTIONS exchange of section 4. Built
+   with the RESPONSES function, basic TN3270E when the host will not have it (see the top of
+   section 4).
 4. Treat the session as 3270 only while BINARY and EOR are on in both directions (plus TN3270E
    agreed, if used). Back to NVT text if either goes off [RFC 1576 s.4].
 5. Byte-level parser that survives any TCP split, undoubles FF, ends records on IAC EOR, strips

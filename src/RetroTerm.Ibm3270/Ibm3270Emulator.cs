@@ -43,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware, IRuledRowTerminal
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware, IRuledRowTerminal, IHostRecordOutcomeTerminal
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -71,6 +71,10 @@ namespace RetroTerm.Ibm3270
 
         // True while the connection runs TN3270E (set by the session through ITn3270EAware).
         private bool _inTn3270E;
+
+        // How the last host record went (set by ProcessData, read by the session for TN3270E
+        // RESPONSES).
+        private HostRecordOutcome _lastRecordOutcome = HostRecordOutcome.Applied;
 
         // The LU name the TN3270E host gave, shown on line 25; null when there is none.
         private string? _luName;
@@ -209,13 +213,62 @@ namespace RetroTerm.Ibm3270
             BeginBatch();
             try
             {
-                _display.ProcessOutbound(data);
+                bool applied = _display.ProcessOutbound(data);
+                _lastRecordOutcome = applied ? HostRecordOutcome.Applied : ErrorKind(data);
                 Paint();
                 OnInvalidated();
             }
             finally
             {
                 EndBatch();
+            }
+        }
+
+        /// <summary>
+        /// Gets how the record given to the last <see cref="ProcessData"/> call went, for a TN3270E
+        /// response (RFC 2355 section 10.4.1).
+        /// </summary>
+        public HostRecordOutcome LastRecordOutcome => _lastRecordOutcome;
+
+        /// <summary>
+        /// Says which error a refused record is.
+        /// </summary>
+        /// <remarks>
+        /// GA23-0059-4 Appendix A: "For non-SNA environments, all 3270 data stream errors are
+        /// rejected with an Op-Check (OC) except for invalid commands. Unsupported commands are
+        /// rejected with Command Reject (CR)." So the one question is whether the command byte is
+        /// a command at all. The list is the eight commands Display3270.ProcessOutbound takes
+        /// (GA23-0059-4 p. 3-2); a command code it does not take is the only command error it
+        /// raises, and every other error it raises comes from inside a known command.
+        /// </remarks>
+        /// <param name="record">
+        /// The refused record, command byte first.
+        /// </param>
+        /// <returns>
+        /// Command Reject for an unknown command, Operation Check for everything else.
+        /// </returns>
+        private static HostRecordOutcome ErrorKind(ReadOnlySpan<byte> record)
+        {
+            if (record.Length == 0)
+            {
+                // ProcessOutbound accepts an empty record, so this is not reached; kept so the
+                // method never reads past the end.
+                return HostRecordOutcome.OperationCheck;
+            }
+
+            switch (record[0])
+            {
+                case Command3270.Write:
+                case Command3270.EraseWrite:
+                case Command3270.EraseWriteAlternate:
+                case Command3270.EraseAllUnprotected:
+                case Command3270.ReadBuffer:
+                case Command3270.ReadModified:
+                case Command3270.ReadModifiedAll:
+                case Command3270.WriteStructuredField:
+                    return HostRecordOutcome.OperationCheck;
+                default:
+                    return HostRecordOutcome.CommandReject;
             }
         }
 
