@@ -170,10 +170,22 @@ namespace RetroTerm.Tests.Avalonia
 
         private static void Click(Window window, DescribedKeyboardView view, string legend)
         {
+            ClickWhere(window, view, legend, byPress: false);
+        }
+
+        // Two caps can carry the same legend (Backspace and cursor left are both an arrow), so a
+        // key can also be found by the 3270 key it presses.
+        private static void ClickKeyThatPresses(Window window, DescribedKeyboardView view, string press)
+        {
+            ClickWhere(window, view, press, byPress: true);
+        }
+
+        private static void ClickWhere(Window window, DescribedKeyboardView view, string name, bool byPress)
+        {
             var keys = view.Description!.Keys;
             for (int i = 0; i < keys.Count; i++)
             {
-                if (keys[i].Legend == legend)
+                if ((byPress ? keys[i].Press : keys[i].Legend) == name)
                 {
                     var centre = new Point((keys[i].X + keys[i].Width / 2) * DescribedKeyboardView.UnitSize,
                         (keys[i].Y + keys[i].Height / 2) * DescribedKeyboardView.UnitSize);
@@ -185,7 +197,7 @@ namespace RetroTerm.Tests.Avalonia
                 }
             }
 
-            Assert.Fail("no key '" + legend + "'");
+            Assert.Fail("no key '" + name + "'");
         }
 
         [AvaloniaFact]
@@ -243,11 +255,12 @@ namespace RetroTerm.Tests.Avalonia
             Dispatcher.UIThread.RunJobs();
             var view = keyboard.FindControl<DescribedKeyboardView>("DescribedKeyboard")!;
 
-            Click(keyboard, view, "CURSR SEL");
+            // Backspace waits on a decision (docs\spec\IBM3270\KEYBOARD.md, open question 3).
+            ClickKeyThatPresses(keyboard, view, "BACKSPACE");
             await ibm.Session.FlushAsync();
 
             Assert.Empty(connection.GetSentData());
-            Assert.Contains("IBM.CURSORSELECT is not built yet", main.StatusTextForTesting);
+            Assert.Contains("IBM.BACKSPACE is not built yet", main.StatusTextForTesting);
 
             keyboard.AllowClose = true;
             keyboard.Close();

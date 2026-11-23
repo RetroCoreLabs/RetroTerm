@@ -11,6 +11,7 @@ using RetroIO.Protocols.Tn3270;
 
 using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Ibm3270;
 using RetroTerm.Tests.TDV;
 
@@ -111,6 +112,81 @@ namespace RetroTerm.Tests.Ibm3270
             await session.DisconnectAsync();
             await session.FlushAsync();
             Assert.Equal(Line25("?", "X Not Connected", string.Empty), await RowAsync(session, 24));
+        }
+
+        [Fact]
+        public async Task AttnSendsThePa1ShortReadThenABreakEvenWithTheKeyboardLocked()
+        {
+            // x3270 Attn_action in plain TN3270: PA1, then TELNET BREAK. Attn is for a host that
+            // does not answer, so it must work while the keyboard waits for the host.
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new BreakCountingConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(Screen);
+            await session.FlushAsync();
+            Assert.True(emulator.HandleKey("Enter", false, false, false));
+            await session.FlushAsync();
+            Assert.Equal(KeyboardLock.WaitingForHost, emulator.Display.Lock);
+            connection.ClearSentData();
+
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+
+            var sent = connection.GetSentData();
+            Assert.Single(sent);
+            Assert.Equal(new byte[] { Aid.PA1 }, sent[0]);
+            Assert.Equal(1, connection.Breaks);
+            Assert.Equal(1, connection.SentBeforeFirstBreak);
+            Assert.Equal(KeyboardLock.WaitingForHost, emulator.Display.Lock);
+        }
+
+        [Fact]
+        public async Task EndSysReqAndCursorSelectAreReachedByName()
+        {
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new InMemoryConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(Screen);
+            await session.FlushAsync();
+
+            Assert.True(emulator.HandleText("hi"));
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("HOME", out _));
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("END", out _));
+            await session.FlushAsync();
+            Assert.Equal(8, emulator.Display.CursorAddress);
+
+            // Not in a detectable field: Cursor Select locks the keyboard (Go Elsewhere).
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("CURSORSELECT", out _));
+            await session.FlushAsync();
+            Assert.Equal(KeyboardLock.OperatorError, emulator.Display.Lock);
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("RESET", out _));
+
+            connection.ClearSentData();
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("SYSREQ", out _));
+            await session.FlushAsync();
+            var sent = connection.GetSentData();
+            Assert.Single(sent);
+            Assert.Equal(new byte[] { 0x01, 0x6C, 0x61, 0x02, 0x11, 0x40, 0xC6, 0x88, 0x89 }, sent[0]);
+        }
+
+        // A connection that can send a break, and remembers how many records went before it.
+        private sealed class BreakCountingConnection : InMemoryConnection, IBreakConnection
+        {
+            public int Breaks { get; private set; }
+
+            public int SentBeforeFirstBreak { get; private set; } = -1;
+
+            public void SendBreak()
+            {
+                if (Breaks == 0)
+                {
+                    SentBeforeFirstBreak = GetSentData().Count;
+                }
+
+                Breaks++;
+            }
         }
 
         private static string Line25(string box, string message, string cursor)

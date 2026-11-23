@@ -73,7 +73,7 @@ clean-room rewrite in C#.
 - [ ] Tn3270Client (plain TN3270 against TK5), with a replay test of the TK5 handshake
 - [ ] TN3270E
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] 3270 keys still not built: Backspace, End, Attn (IAC BRK through Tn3270Connection.SendAttention), Sys Req, Cursor Select
+- [ ] 3270 Backspace: waits on Ronny's choice, move left as IBM's 3278 does or erase left as wc3270 does (`docs\spec\IBM3270\KEYBOARD.md`, open question 3)
 - [ ] Implicit TLS on port 992 (low priority)
 - [ ] Move RetroIO's X.25 telnet PAD and switch command line onto the telnet library
 - [ ] Publish the packages; RetroTerm takes them as NuGet packages

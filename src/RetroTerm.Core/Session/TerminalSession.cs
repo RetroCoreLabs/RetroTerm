@@ -248,9 +248,36 @@ public partial class TerminalSession : IDisposable
             localKeyboard.SessionThread = job => _ = _pump.RunAsync(() => job());
         }
 
+        // A key that sends a break rather than data (the 3270 Attn key).
+        if (Emulator is IBreakSource breakSource)
+        {
+            breakSource.BreakRequested -= OnEmulatorBreakRequested;
+            breakSource.BreakRequested += OnEmulatorBreakRequested;
+        }
+
         // An emulator that shows the connection on its screen (the 3270's line 25) starts from
         // the state the connection is in now.
         TellEmulatorConnectionStatus(Status);
+    }
+
+    /// <summary>
+    /// Sends the break an emulator asked for, when the connection can send one.
+    /// </summary>
+    /// <remarks>
+    /// Raised on the pump thread after the key's data went to the connection, so the order on
+    /// the wire is the data, then the break (x3270, Attn_action: PA1, then TELNET BREAK).
+    /// </remarks>
+    private void OnEmulatorBreakRequested()
+    {
+        if (_connection is IBreakConnection breakConnection && _connection.IsConnected)
+        {
+            ApplicationLogger.Log(LogCategory.Session, LogLevel.Debug, "TerminalSession", "Break sent");
+            breakConnection.SendBreak();
+            return;
+        }
+
+        ApplicationLogger.Log(LogCategory.Session, LogLevel.Warn, "TerminalSession",
+            $"Break asked for but the connection cannot send one (status: {_connection?.Status})");
     }
 
     /// <summary>
@@ -429,6 +456,10 @@ public partial class TerminalSession : IDisposable
             outgoing.Invalidated -= OnEmulatorInvalidated;
             outgoing.DataToSend -= OnEmulatorDataToSend;
             outgoing.FrameRequested -= OnFrameRequested;
+            if (outgoing is IBreakSource outgoingBreaks)
+            {
+                outgoingBreaks.BreakRequested -= OnEmulatorBreakRequested;
+            }
 
             replacement.GetBuffer().CopyFrom(outgoing.GetBuffer());
 
@@ -1006,6 +1037,10 @@ public partial class TerminalSession : IDisposable
             Emulator.Invalidated -= OnEmulatorInvalidated;
             Emulator.DataToSend -= OnEmulatorDataToSend;
             Emulator.FrameRequested -= OnFrameRequested;
+            if (Emulator is IBreakSource breaks)
+            {
+                breaks.BreakRequested -= OnEmulatorBreakRequested;
+            }
 
             // Nothing TDV-specific to unsubscribe any more: TDV replies come through DataToSend
             // like everything else, and that handler is removed just above.

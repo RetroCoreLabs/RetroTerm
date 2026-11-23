@@ -44,7 +44,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -88,6 +88,12 @@ namespace RetroTerm.Ibm3270
         /// Raised when the WCC asks for the alarm (GA23-0059-4 p. 3-3).
         /// </summary>
         public event Ibm3270Alarm? Alarm;
+
+        /// <summary>
+        /// Raised by the Attn key after its PA1 short read, for the session to send the telnet
+        /// break (IBreakSource).
+        /// </summary>
+        public event BreakRequestedHandler? BreakRequested;
 
         /// <summary>
         /// The 3278 model 2 screen: 24 rows of 80 columns, and line 25.
@@ -378,14 +384,21 @@ namespace RetroTerm.Ibm3270
                 case "BACKSPACE": notBuiltReason = "Backspace"; return NamedKeyResult.NotBuilt;
                 case "DELETE": Local(() => _display.Delete()); return NamedKeyResult.Pressed;
                 case "INSERT": Local(() => _display.ToggleInsert()); return NamedKeyResult.Pressed;
-                case "END": notBuiltReason = "End (go to end of field)"; return NamedKeyResult.NotBuilt;
+                case "END": Local(() => _display.FieldEnd()); return NamedKeyResult.Pressed;
                 case "ERASEEOF": Local(() => _display.EraseEndOfField()); return NamedKeyResult.Pressed;
                 case "ERASEINPUT": Local(() => _display.EraseInput()); return NamedKeyResult.Pressed;
                 case "DUP": Local(() => _display.Dup()); return NamedKeyResult.Pressed;
                 case "FIELDMARK": Local(() => _display.FieldMark()); return NamedKeyResult.Pressed;
-                case "ATTN": notBuiltReason = "Attn (needs the TN3270 connection to send IAC BRK)"; return NamedKeyResult.NotBuilt;
-                case "SYSREQ": notBuiltReason = "Sys Req"; return NamedKeyResult.NotBuilt;
-                case "CURSORSELECT": notBuiltReason = "Cursor Select"; return NamedKeyResult.NotBuilt;
+                case "ATTN":
+                    // x3270 Attn_action in plain TN3270: PA1, then TELNET BREAK.
+                    Local(() =>
+                    {
+                        _display.Attn();
+                        BreakRequested?.Invoke();
+                    });
+                    return NamedKeyResult.Pressed;
+                case "SYSREQ": Local(() => _display.SysReq()); return NamedKeyResult.Pressed;
+                case "CURSORSELECT": Local(() => _display.CursorSelect()); return NamedKeyResult.Pressed;
                 default: return NamedKeyResult.UnknownName;
             }
         }

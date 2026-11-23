@@ -975,26 +975,26 @@ public class FileSessionDataLoggerTests : IDisposable
 
         client.EnqueueReceivedData(Encoding.UTF8.GetBytes("Hello"));
 
-        for (int i = 0; i < 200; i++)
+        // The connection's receive loop hands the bytes to the session on its own task, and the
+        // session counts them before posting them to the pump. Wait for that count with a deadline,
+        // then flush the pump: the logger writes on the pump, so after the flush the bytes are in
+        // the file. This test used to stop and restart the logger every 10 ms while waiting, and
+        // bytes that arrived while it was stopped were never logged - it failed under load
+        // (full suite, 23 November 2026) and passed alone.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (session.BytesReceived < 5)
         {
+            Assert.True(clock.ElapsedMilliseconds < 10000, "the session never received the 5 bytes");
             await Task.Delay(10, TestContext.Current.CancellationToken);
-            // Check if data has been written
-            logger.Stop();
-            var content = File.ReadAllText(path);
-            if (content.Contains("<<<"))
-            {
-                Assert.Contains("48 65 6C 6C 6F", content);
-                await session.DisconnectAsync();
-                return; // Test passed
-            }
-            // Restart for next iteration
-            logger.Start(path, SessionLogFormat.HexDump);
         }
 
-        // If we get here, data was never logged
+        await session.FlushAsync();
         logger.Stop();
-        var finalContent = File.ReadAllText(path);
-        Assert.Fail($"Incoming data was never logged to file. File content: {finalContent}");
+
+        var content = File.ReadAllText(path);
+        Assert.Contains("<<<", content);
+        Assert.Contains("48 65 6C 6C 6F", content);
+        await session.DisconnectAsync();
     }
 
     [Fact]

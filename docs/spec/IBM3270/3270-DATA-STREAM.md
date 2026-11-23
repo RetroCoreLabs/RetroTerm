@@ -666,9 +666,12 @@ from the rule above).
 The OCR text of this table had the ASCII column shifted by one row; the values above come from the
 image.
 
-x3270 sends Sys Req (X'F0') in an SSCP-LU session as the four bytes SOH % / STX instead (`ctlr.c`);
-that is a session-level behaviour the manual table does not describe here. **NOT VERIFIED** against
-a manual.
+Sys Req (Test Req) does not send X'F0' as a read heading at all. Its Read Modified is the **test
+request read** (p. 9-3): the heading SOH % / STX (X'01' X'6C' X'61' X'02') in place of the AID and
+cursor address, then the modified fields as in a normal read; the non-SNA layout ends with ETX.
+x3270 (`ctlr.c`, ctlr_read_modified, case AID_SYSREQ) sends the same heading in every session, with
+no ETX, and RetroIO does the same (`Display3270.SysReq`). An earlier note here said x3270 does this
+only in an SSCP-LU session; its code has no such condition.
 
 ### 8.2 Read heading and the normal reply (p. 3-10)
 
@@ -1111,8 +1114,8 @@ For an emulator without partitions this is short, but the rules are here (p. 3-1
 10. **Default (WD x HD) size.** x3270 always reports 80 x 24 as the default; tnz reports its
     configured default. The manual only says the values must be non-zero and equal to the
     alternate when there is no alternate (p. 6-60).
-11. **Sys Req in an SSCP-LU session.** x3270 sends SOH % / STX instead of AID X'F0'. Not checked
-    against a manual.
+11. **Sys Req: the ETX.** p. 9-3 ends the test request read with ETX; x3270 sends none over
+    TN3270, and RetroIO follows x3270. Settled only when a host is seen answering one.
 12. **Not read in this pass:** Character Sets descriptor layout (p. 6-24 on), Create Partition
     (16-bit mode), Field Validation and Field Outlining query reply layouts (p. 6-49, 6-52),
     Transparency query reply, Usable Area self-defining parameters (p. 6-90 to 6-94), the Reset

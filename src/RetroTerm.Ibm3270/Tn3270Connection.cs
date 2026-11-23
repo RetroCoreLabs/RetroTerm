@@ -20,7 +20,7 @@ namespace RetroTerm.Ibm3270
     /// each <see cref="SendAsync"/> sends ONE record; the telnet framing is done by
     /// <see cref="Tn3270Protocol"/>. Pair it with <see cref="Ibm3270Emulator"/>, which expects exactly that.
     /// </summary>
-    public sealed class Tn3270Connection : IConnection
+    public sealed class Tn3270Connection : IConnection, IBreakConnection
     {
         private readonly string _host;
         private readonly int _port;
@@ -162,7 +162,7 @@ namespace RetroTerm.Ibm3270
         /// <summary>
         /// Sends IAC BRK, which is what the Attn key does in plain TN3270.
         /// </summary>
-        public void SendAttention()
+        public void SendBreak()
         {
             lock (_gate)
             {
