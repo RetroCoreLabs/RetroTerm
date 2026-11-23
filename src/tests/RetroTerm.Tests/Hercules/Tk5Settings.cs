@@ -19,7 +19,9 @@ namespace RetroTerm.Tests.Hercules
     /// The file is <c>%USERPROFILE%\.retroterm\tk5-tests.json</c>:
     /// <code>
     /// { "host": "localhost", "port": 3270, "user": "HERC03", "password": "...",
-    ///   "compareUser": "HERC04", "comparePassword": "...", "s3270": "path to s3270.exe" }
+    ///   "compareUser": "HERC04", "comparePassword": "...", "s3270": "path to s3270.exe",
+    ///   "jrpUser": "HERC01", "jrpPassword": "..." }
+    /// The JRP user is needed only by the 3287 printer test (Tk5PrinterTests).
     /// </code>
     /// Two users so that each test has its own and a session one test leaves hanging never
     /// refuses the other's logon. The comparison test logs on as the compare user in BOTH
@@ -44,11 +46,52 @@ namespace RetroTerm.Tests.Hercules
         public string S3270 { get; private set; } = string.Empty;
 
         /// <summary>
+        /// Gets the user that logs on to the JRP console (logon applid=cjrp) to start the 3287
+        /// printer PRT4. Only users with read access to FACILITY JRPAUTH may: as shipped, HERC01
+        /// and HERC02 (MVS TK4- Users Manual, "Operating JRP"). Empty when the file has none.
+        /// </summary>
+        public string JrpUser { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Gets the password of <see cref="JrpUser"/>.
+        /// </summary>
+        public string JrpPassword { get; private set; } = string.Empty;
+
+        /// <summary>
         /// The same settings logged on as the compare user.
         /// </summary>
         public Tk5Settings AsCompareUser()
         {
             return new Tk5Settings { Host = Host, Port = Port, User = CompareUser, Password = ComparePassword, S3270 = S3270 };
+        }
+
+        /// <summary>
+        /// The same settings pointed at another host and port: a relay that records the bytes
+        /// (Tk5WireTap) in front of the real host.
+        /// </summary>
+        /// <param name="host">
+        /// The host to connect to instead.
+        /// </param>
+        /// <param name="port">
+        /// Its port.
+        /// </param>
+        /// <returns>
+        /// The settings.
+        /// </returns>
+        public Tk5Settings Through(string host, int port)
+        {
+            return new Tk5Settings
+            {
+                Host = host,
+                Port = port,
+                User = User,
+                Password = Password,
+                CompareUser = CompareUser,
+                ComparePassword = ComparePassword,
+                S3270 = S3270,
+                JrpUser = JrpUser,
+                JrpPassword = JrpPassword,
+            };
         }
 
         public static Tk5Settings Load()
@@ -71,6 +114,8 @@ namespace RetroTerm.Tests.Hercules
                 CompareUser = root.GetProperty("compareUser").GetString() ?? string.Empty,
                 ComparePassword = root.GetProperty("comparePassword").GetString() ?? string.Empty,
                 S3270 = root.TryGetProperty("s3270", out JsonElement s) ? s.GetString() ?? string.Empty : string.Empty,
+                JrpUser = root.TryGetProperty("jrpUser", out JsonElement ju) ? ju.GetString() ?? string.Empty : string.Empty,
+                JrpPassword = root.TryGetProperty("jrpPassword", out JsonElement jp) ? jp.GetString() ?? string.Empty : string.Empty,
             };
             return settings;
         }

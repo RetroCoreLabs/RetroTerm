@@ -111,6 +111,44 @@ rows in place, this entry becomes a real defect and the old rule comes back.
   replace the sleeps with a deadline poll on the received replies, as
   `TerminalSessionTestServerIntegrationTests.WaitForResponseAsync` does.
 
+## B10 - TK5 printer: a JRP job begins on PRT4 and no byte ever reaches the printer
+
+`src\tests\RetroTerm.Tests\Hercules\Tk5PrinterTests.cs` (category Hercules, needs TK5) starts
+PRT4 from the JRP console and prints two class G jobs through RetroTerm's 3287 session, with every
+byte recorded by a relay in front of it. Found 23 November 2026. Usually green; red when this happens.
+
+What is known, from the Hercules log (`mvs-tk5\log\3033.log`) and the relay:
+
+- Three jobs of the 24 submitted that day: JOB00676 (17:18:56), JOB00692 (17:42:58) and JOB00697 (17:49:19).
+  For each, JRP logged `JRPI400 ... BEGINNING ON PRT4(CUU0C7)` and never `JRPI403 ... ENDED`, and the
+  relay saw NO byte from the host to the printer after the telnet negotiation. JOB00676 was the
+  first job after starting PRT4, JOB00692 the second, JOB00697 the first.
+- In the runs that worked, the printer sent the host nothing after the negotiation (IAC WILL/DO
+  TERMINAL-TYPE, BINARY, END-OF-RECORD). For the three failed jobs the printer's side was not
+  decoded (the failure report showed only the host's side then; it shows both now).
+- Hercules sends a write to a 3287 client the moment the channel program runs it
+  (`source\hyperion\console.c`, `loc3270_execute_ccw`, the `write:` block and `sendto_client`), and
+  answers with channel end and device end at once. So the write was not run, or not issued.
+- The begun job is not lost: the next time PRT4 was started, JRP printed it first (JOB00692 and
+  JOB00697 both came out at the start of the next run). The test prints such leftovers before its
+  own jobs and leaves them out of the checks.
+
+What is not known: whether RetroTerm's printer, Hercules or JRP holds the job. Next step, on the
+Hercules console (which only Ronny can type into): `t+00C7` before a run, `t-00C7` after; the CCW
+trace then shows whether VTAM issued a write to 00C7 for the job that hung, and what came back.
+
+## B11 - JRP console screen: message pieces in odd places, not compared with s3270
+
+While the JRP console showed messages as they happened (PF1), RetroTerm's screen had pieces of
+messages where none should be: `JRP100I OK` starting in column 69 of a row that already had one,
+a lone `0` in column 1, `,S=N` at the end of the PF key legend row and `000000` at the end of the
+`Enter JRP command ==>` row (23 November 2026, `Tk5PrinterTests` output). JRP writes one record per
+message line: SBA to the line, SF, SA, then the text, some of it 81 characters after the SF, so it
+runs one position into the next row (decoded from the console's records the same day). Whether a
+real 3270 and s3270 show the same pieces has NOT been checked; the screen was not compared. The
+test reads JRP's answers from the records, not the screen, so it does not depend on this. Next
+step: run the same JRP keys in s3270 and RetroTerm and compare the screens, as the guide tests do.
+
 ## B9 - 3270 Attn at TSO's READY: the screen after the next Enter differs from s3270
 
 `src\tests\RetroTerm.Tests\Hercules\Tk5AttnTests.cs` (category Hercules, needs TK5) logs in,

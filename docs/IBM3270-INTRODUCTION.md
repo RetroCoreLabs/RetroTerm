@@ -206,12 +206,37 @@ closes, or when no data has come for the number of seconds set on the Printer ta
 change it; 0 turns this off). The quiet time is the same idea as x3270's `pr3287 -eojtimeout`.
 The End of Message code (EM) is not a job end: it only ends one printout.
 
-**What has not been measured yet.** On TK5 the printer is driven by JRP, a program that copies JES2
-output class G to device `00C7` (the TK4- manual, "JRP on TK4-"). JRP's printer starts switched off,
-and switching it on needs a logon to the JRP console (`logon applid=cjrp` at the TK5 logon screen)
-with a user allowed to use JRP; the manual names HERC01 and HERC02. With HERC03, JRP answers
-`JRP005T - NOT AUTHORIZED FOR JRP`. So what TK5 really sends to a printer, and whether it marks the
-end of a job at all, has not been seen. Until it has, the quiet time is what ends a job from TK5.
+**Printing from TK5.** On TK5 the printer is driven by JRP, a program that copies JES2 output
+class G to device `00C7` through its printer PRT4 (the TK4- manual, "Operating JRP", pages 16-17).
+PRT4 starts drained (switched off). To switch it on:
+
+1. Connect the printer connection first.
+2. In a second, ordinary 3270 session, type `logon applid=cjrp` at the TK5 logon screen.
+3. On the CONTROL TERMINAL FACILITY screen, type a user allowed to use JRP (HERC01 or HERC02; HERC03
+   gets `JRP005T - NOT AUTHORIZED FOR JRP`), Tab, the password, Enter.
+4. On the JRP console press PF1 (show messages as they happen) and PF8 (start PRT4). PF7 shows the
+   printer's state: `DRAINED` is off, `INACTIVE` is on and waiting for work. The manual also says
+   PF12 (a bigger screen); it is not needed, and a model 2 terminal has no bigger screen.
+5. Submit a job with `SYSOUT=G` on the lines to print. PF9 switches PRT4 off again, PF3 logs the
+   console off; PRT4 stays on after the logoff.
+
+**What TK5 sends, measured 23 November 2026** (`Tk5PrinterTests`, every byte recorded on the way):
+
+- The connection is plain TN3270: terminal type, binary and end of record, nothing else. No TN3270E.
+- Each small job is ONE record: the command Erase/Write Alternate (`7E`), the control byte `C8`
+  (start printing; no line length, so the lines are ended by New Line codes), the lines, and End of
+  Message (`19`) at the end. It is the 3270 data stream, not SCS; JRP's own display says `SCS=N`.
+- After each line comes one New Line (`15`), plus one more for every blank line the job asks for.
+  A new page is NOT a Form Feed: JRP sends New Lines down to the end of its 56-line page
+  (`LPP=056` in its display), and it fills the job's last page the same way. So a job of two lines
+  is a 56-line file, and a two-page job is 112 lines with no page break character in it.
+- Nothing marks the end of a job. No telnet Abort Output, no Form Feed, nothing at all between two
+  jobs. **On TK5 the quiet time is the only thing that ends a job**, so leave it on (5 seconds).
+- RetroTerm's files matched: one text file and one PDF per job, every line as JES2 had it.
+
+**Seen three times in 24 jobs: a job that never comes.** JRP said `BEGINNING ON PRT4` and no
+byte reached the printer; the job then printed the next time PRT4 was started. Why is not known
+yet; it is `docs\BUGS.md` B10.
 
 ## 12. Where to read more
 

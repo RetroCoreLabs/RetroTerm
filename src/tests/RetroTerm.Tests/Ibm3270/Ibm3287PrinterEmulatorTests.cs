@@ -230,6 +230,56 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public async Task DisconnectingTheSessionWritesTheJobInProgress()
+        {
+            // TK5 sends nothing at the end of a JRP job (measured 23 November 2026,
+            // Tk5PrinterTests), so a job can still be open when the user closes the connection;
+            // closing must write it, through the real session as the app closes it.
+            var printer = new Ibm3287PrinterEmulator(() => _now);
+            printer.Configure(new TextPrintJobOutput(_folder), 0);
+            var session = new TerminalSession(printer, "Test");
+            var connection = new PrinterConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+
+            connection.SimulateReceive(PrintLine("OPEN AT CLOSE"));
+            await session.FlushAsync();
+            Assert.Empty(Files());
+
+            await session.DisconnectAsync();
+            await session.FlushAsync();
+
+            Assert.Single(Files());
+            Assert.Equal("OPEN AT CLOSE" + Environment.NewLine, File.ReadAllText(Files()[0]));
+            Assert.Equal("the connection closed", printer.Jobs[0].EndedBy);
+            session.Dispose();
+        }
+
+        [Fact]
+        public async Task ClosingTheTabWritesTheJobInProgress()
+        {
+            // Closing a tab disconnects and disposes the session at once. The job end is queued on
+            // the session thread by the disconnect; the dispose must still let it run.
+            var printer = new Ibm3287PrinterEmulator(() => _now);
+            printer.Configure(new TextPrintJobOutput(_folder), 0);
+            var session = new TerminalSession(printer, "Test");
+            var connection = new PrinterConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.SimulateReceive(PrintLine("OPEN AT DISPOSE"));
+            await session.FlushAsync();
+
+            await session.DisconnectAsync();
+            session.Dispose();
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (Files().Length == 0 && clock.ElapsedMilliseconds < 5000)
+            {
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+
+            Assert.Single(Files());
+        }
+
+        [Fact]
         public void TheFactoryMakesThePrinterForIbm3287()
         {
             Assert.Equal(ConnectionFactory.Ibm3287, ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, "ibm-3287-1"));
