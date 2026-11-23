@@ -214,3 +214,44 @@ Measured the same day: SSH.NET against `localhost:3270` (an IPv4-only listener) 
 5083 and 5032 ms, against `127.0.0.1:3270` after 3015 and 3011 ms, with a 3 s read timeout set in
 both - the 2 s difference is the connect. Fixing it means either a change in SSH.NET or connecting
 the socket in RetroTerm and running SSH over it; neither is done.
+
+## B15 - 3270 query replies: the base character set's local ID, and Usable Area for two sizes that do not nest
+
+Both replies are built in RetroIO, `RetroIO.Protocols.Tn3270\src\Display3270.cs`,
+`AppendQueryReply` (the `QueryCode.CharacterSets` and `QueryCode.UsableArea` cases). RetroTerm
+does not change RetroIO, so the fix is written here for the RetroIO side. Read from GA23-0059-4,
+23 November 2026; see `docs\spec\IBM3270\3270-DATA-STREAM.md` sections 9.4, 9.4a and 9.9.
+
+- **Base character set local ID is X'00'.** p. 6-26: "Nonloadable character sets will have default
+  LCID assigned to them (X'F0' to X'FE'), where: X'F0' to X'F7' = 1-byte character sets". p. 4-19
+  gives the same ranges for the character set attribute value and keeps X'00' for "Default
+  character set", a value the host sends to mean "use the default", not an ID of a set. The base
+  set is non-loadable and 1-byte, so its ID must be one of X'F0' to X'F7'. The manual does not say
+  which; X'F1' is already the Graphic Escape set's. Change needed in RetroIO: in the base
+  descriptor `{ 0x00, 0x00, 0x00 }` the third byte becomes an ID in X'F0' to X'F7' other than
+  X'F1' (X'F0' is the lowest free one; the choice is not from the manual). Before that, check that
+  RetroIO's SA/SFE handling still treats both X'00' and that ID as the base set.
+  `src\tests\RetroTerm.Tests\Ibm3270\Ibm3270QueryReplyTests.cs`,
+  `TheBaseCharacterSetHasALocalIdForANonLoadableOneByteSet`, is RED (4 cases) until it is done.
+  x3270 also sends X'00'; that is not evidence either way.
+- **Usable Area for a default and an alternate size where neither holds the other.** RetroIO
+  writes W = the larger column count and H = the larger row count, so 43 x 80 with 27 x 132 is
+  reported as 132 x 43, a screen that cannot be shown. p. 6-89: "W x H defines the maximum number
+  of characters that can be presented in the Usable Area". p. 6-93 gives exactly this device (a
+  3180: 43 x 80 or 27 x 132, "but not concurrently"): base 43 rows by 80 columns, and 27 rows by
+  132 columns in an Alternate Usable Area self-defining parameter, which "is always required when
+  the device supports more than one usable area size on one display surface". BUFFSZ is then
+  132 x 43 = 5676 where the largest screen needs 3564. Change needed in RetroIO, only when neither
+  size holds the other: base W, H = the default size; BUFFSZ = the larger of the two cell counts;
+  bytes 23 to 26 (XMIN, YMIN, XMAX, YMAX) present as zeros, which p. 6-87 requires when any
+  self-defining parameter follows (length X'1B'); then `13 02 00 01`, WAUA, HAUA (alternate columns,
+  rows), `00 FF FF FF FF FF FF FF FF`, AW, AH (layout p. 6-94; Xr/Yr unknown is allowed without
+  Load PS). **RetroTerm never reaches this case**: every RetroTerm model has the default 24 x 80,
+  which fits inside its alternate size. It is a defect for other RetroIO users.
+
+Not defects, settled from the manual the same day:
+
+- **BUFFSZ is cut to 16 bits with no check.** It cannot overflow: `Display3270`'s constructor
+  refuses more than 16383 cells (the reply says 12/14-bit addressing only, p. 6-88), and BUFFSZ is a
+  2-byte field (p. 6-87). The same check refuses exactly 16384 cells, which 14-bit addresses
+  (0 to 16383) could still reach; that limit belongs with the large-screen item in `docs\PLAN.md`.

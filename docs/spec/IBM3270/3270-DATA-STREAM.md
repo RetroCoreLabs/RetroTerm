@@ -906,7 +906,9 @@ they are in character cells, so a 160 x 62 screen is W = X'00A0', H = X'003E'. N
 manual ties W/H to the 24x80 / 32x80 / 43x80 / 27x132 model sizes. The screen sizes the host
 switches between are reported separately, in the Implicit Partition reply (9.7). BUFFSZ is 2 bytes,
 so it cannot hold more than 65 535 (my reading of the field width; the manual says nothing about a
-larger buffer). Addresses above 16 383 need 16-bit mode (ADDR = X'3' plus Create Partition).
+larger buffer). RetroIO cannot reach that: it refuses a screen above 16383 cells, the 12/14-bit
+limit of the ADDR value it reports (p. 6-88), so its BUFFSZ always fits.
+Addresses above 16 383 need 16-bit mode (ADDR = X'3' plus Create Partition).
 
 Oracles:
 
@@ -985,6 +987,19 @@ neither. Not for printers. With Load PS, bytes 8 to 18 must be supplied.
 | 18 | AHAUAi - Y units in the default cell |
 
 X'FFFFFFFF' for both AUAXr and AUAYr when they cannot be found; not allowed with Load PS (p. 6-94).
+
+**What this means for a screen with Erase/Write Alternate and no partitions (23 November 2026).**
+p. 6-89 says W x H is "the maximum number of characters that can be presented", so W and H must be
+a size the screen can show. When neither size holds the other (43 x 80 and 27 x 132), the 3180
+example on p. 6-93 settles it: base = 43 x 80, Alternate Usable Area = 27 x 132, and the parameter
+is "always required"; the base then needs bytes 23-26 as zeros (p. 6-87). RetroIO reports 132 x 43
+instead: docs/BUGS.md B15 (RetroTerm's models never hit it, their default 24 x 80 always fits
+inside the alternate size). When one size holds the other (every RetroTerm model: 24 x 80 inside
+32 x 80, 43 x 80 or 27 x 132), W x H = the larger size meets p. 6-89. Whether such a screen also
+"supports more than one usable area size" and so must send an Alternate Usable Area is **left open
+by the manual**: it does not say whether a smaller implicit partition size on the same surface is a
+second usable area. RetroTerm sends none and that is left as it is.
+`src\tests\RetroTerm.Tests\Ibm3270\Ibm3270QueryReplyTests.cs` pins the bytes of each model.
 
 Whether x3270 or tnz ever sends one of these was not checked in their source for this pass
 (**NOT VERIFIED**); the oracle table above describes only their base bytes.
@@ -1146,10 +1161,19 @@ Rules (p. 6-25 to 6-28):
   partition and the keyboard. Create Partition BASE picks a base set by counting down these
   descriptors in order.
 - CHAR = 0: a character fills an AW x AH cell (Usable Area). CHAR = 1: a 2AW x AH cell.
-- CB: whether the set can be compared for copy (see Load PS, p. 5-18 - not read in this pass).
+- CB: whether the set can be compared for copy (p. 6-25, pointing at Load PS). Read on p. 5-20 (the CB
+  bit and the OB bit are described there, 23 November 2026): the bit is about **local copy to a printer**. CB = 0:
+  the set's LCID is compared with the printer's LCIDs; if they match and both CB bits are 0, the
+  copy uses the printer's matching set, else its non-loadable set. CB = 1: no compare, the copy
+  uses the printer's base set. Neither page says what a device with no local copy should send, so
+  for RetroTerm (no local copy) the manual leaves CB open; RetroIO sends 0 and that is left as it
+  is. x3270's X'10' on its base set is its own choice, not a reading of these pages.
 - LCID: the ID used in SA, SFE and MF to pick this set. X'FF' means "free": it cannot be picked by
   SA, SFE, MF or the PS keys. **Non-loadable sets have default LCIDs X'F0' to X'FE': X'F0'-X'F7'
   for 1-byte sets, X'F8'-X'FE' for 2-byte sets** (p. 6-25, 6-26).
+  p. 4-19 keeps X'00' in the character set attribute for "Default character set", a value a host
+  sends. So the base set, being non-loadable and 1-byte, must carry an ID in X'F0' to X'F7'; the
+  manual does not say which one. RetroIO sends X'00': a defect, docs/BUGS.md B15.
 - SW/SH: a character is placed as an SW x SH dot matrix at the top left of the cell; smaller leaves
   background, larger is cut off on the right and bottom (p. 6-26). Load PS format types 3 to 6 use
   LW/LH if given, else non-zero SW/SH, else SDW/SDH (p. 6-26, Figure 6-1 on p. 6-27).
