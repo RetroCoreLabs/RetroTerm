@@ -32,8 +32,10 @@ On the 3270 PC keyboard several of these share one key: one legend plain, one wi
 with Alt. The groups (read from the key pictures, CP-UG 5-7, and the key panel, WSP-UG 7-27,
 figure 7-6) are: WS Ctrl / ExSel; Finish / Attn; ChgSc / Jump / CrSel; Print / Ident;
 Copy / Auto / Pause; Enlarge / Delete Window; Help / SysRq; Clear / Test.
-Which legend is plain, which Shift and which Alt is NOT VERIFIED for every key; WSP-UG 5-22 says
-"Shift + ChgSc", so ChgSc is a shifted legend.
+For two keys WSP-UG spells it out (7-7, 7-8): on the Jump key, Jump is the key alone, ChgSc is
+Shift + the key, and CrSel (on the front of the key) is Alt + the key; on the WS Ctrl key, WS Ctrl
+is the key alone or with Shift, and ExSel is Alt + the key. For the other keys, which legend is
+plain, Shift and Alt is NOT VERIFIED.
 
 | Key | What it did | Source |
 |---|---|---|
@@ -50,11 +52,26 @@ Which legend is plain, which Shift and which Alt is NOT VERIFIED for every key; 
 | **Auto** | Starts the autokey function: record a series of keystrokes and play them back (logon, memo start). Recordings can be saved to disk. | CP-UG 2-34, 6-9 |
 | **Pause** | During autokey: stops so the user can type variable text into a recording or playback; press again to carry on. | CP-UG 6-9 |
 | **ErInp** in work station control mode | Deletes an autokey recording. (In a host window it is the normal 3278 Erase Input.) | CP-UG 5-8, 6-8 |
-| **ExSel** | "Configures your host computer keyboard functions to emulate certain typewriter features." Host key, application mode. What exactly it changes is NOT VERIFIED. | CP-UG 5-7 |
+| **ExSel** | "Configures your host computer keyboard functions to emulate certain typewriter features." It is Alt + the WS Ctrl key: "You select 3270 Entry Assist in a host session" (WSP-UG 7-8). Entry Assist is a separate IBM option for typing text on a host, explained in its own guide, "3270 Information Display System: Entry Assist RPQ (BK1147) User's Guide" (WSP-UG 9-9), which is not in `IBM-manuals/`. Whether pressing ExSel sends anything to the host is NOT VERIFIED. | CP-UG 5-7; WSP-UG 7-8, 9-9 |
 | **CrSel** | Host key: cursor select - chooses a field the application marked as selectable with the cursor. | CP-UG 5-8 |
 | **Ident** | Host key: the next two digits typed are the printer ID; shows the ID in the status line, also when the printer assignment changes. | CP-UG 5-9 |
 | **Test** | Host key: readies the station for problem-finding functions held in the control unit, when the 3270 PC runs as a CUT (control unit terminal) display. | CP-UG 5-6, Appendix A (NOT read) |
 | **Attn**, **SysRq**, **Clear** | Ordinary 3278 host keys: Attn and SysRq signal the host; Clear erases the session and signals the host. | CP-UG 5-6, 5-7 |
+
+## Which keys reach the host
+
+Read from the descriptions in the table above (no wire trace backs this):
+
+- **Local to the 3270 PC, nothing sent:** WS Ctrl, Help, Jump, ChgSc, Enlarge, Delete Window,
+  Copy, Finish, Quit, Auto, Pause, and ErInp in work station control mode. They work on windows,
+  screen profiles and key recordings.
+- **Print:** local in work station control mode (the PC's own printer). In a host window it asks
+  the 3274 control unit for a local copy (CP-UG 5-8). That is a control unit job; these manuals
+  name no data stream byte for it, so whether the host sees it is NOT VERIFIED.
+- **Host keys (3278 meaning):** Attn, SysRq, Clear, CrSel, Ident, Test, and ErInp in a host window.
+  Note WSP-UG 7-7 also gives CrSel a local job (mark source and target of a work station control
+  copy); CP-UG 5-8 gives the host cursor-select job. By the two pages, the mode decides.
+- **ExSel:** open, see the table.
 
 ## Sessions and windows
 
@@ -112,7 +129,8 @@ settings window for each connection, and a Help menu that opens the docs site.
 
 - Exactly which legend on each shared key is plain, Shift and Alt (CP-UG 5-4 and 6-6 key pictures
   are not readable as text; CP-CARD is an image-only PDF and was not read).
-- What ExSel's "typewriter features" are (CP-UG chapter 5 only gives one sentence).
+- What Entry Assist (ExSel) does in detail, and whether it sends anything: the Entry Assist RPQ
+  BK1147 User's Guide (named on WSP-UG 9-9) is not in `IBM-manuals/` and was not searched for.
 - The full Copy steps (CP-UG chapter 9) and the browse function (chapter 8) were not read.
 - The Enhanced PC keyboard equivalents were only read for WS Ctrl, Jump, ChgSc and Enlarge; the
   rest (Copy, Print, Auto, Help) are NOT VERIFIED. WSP-UG chapter 7 (keyboard definition) and

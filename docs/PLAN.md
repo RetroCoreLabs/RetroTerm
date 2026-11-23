@@ -63,7 +63,7 @@ clean-room rewrite in C#.
 **A. Read and document — no machine, no Ronny**
 - [ ] Read the parts of GA23-0059-4 the data stream spec lists as not read yet: Character Sets reply layout, Create Partition, Field Validation / Outlining / Transparency replies, Usable Area extra parameters (p. 6-90 to 6-94), Appendix C reset table
 - [ ] Settle the open questions at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE) — most need one of the traces below
-- [ ] Find the IBM 3270 PC user guides (Control Program / 3270 Workstation Program Users' Guide and Reference; bitsavers folder `pdf/ibm/pc/3270_PC/`) and write down what Help, WS Ctrl, Jump, Change Screen, Copy, Print, Zoom, Finish, Auto, ExSel and Pause did. The keycaps pair them (seasip 5271 page): Help/SysRq, WS Ctrl/ExSel, ChgSc/Jump/CrSel, Finish/Attn, Copy/Auto/Pause, Print/*/Ident, Clear/Test, Reset/Quit. Neither Wikipedia nor seasip says what they do
+- [ ] 3270 PC keys, what is still open (the keys themselves are written up in `docs\spec\IBM3270\3270-PC-WORKSTATION-KEYS.md` from SC23-0103-2 and 84X0982): what ExSel / Entry Assist does and whether it sends anything (needs the Entry Assist RPQ BK1147 User's Guide, not found yet); whether Print in a host window reaches the host; plain/Shift/Alt legends for the keys other than Jump and WS Ctrl (the summary card SX23-0231-02 is image only)
 - [ ] Find an ISPF manual: which characters ISPF sends for boxes, and what its "3278T" terminal setting means
 
 
@@ -137,7 +137,7 @@ clean-room rewrite in C#.
 
 - [ ] Font: search for a dump of a real IBM 3278/3279/3179/3191 character generator ROM (MAME, bitsavers, vintage keyboard/terminal sites) and IBM's published glyph drawings (GA27-2837-9 draws every character); build the RetroTerm 3270 font from the ROM if one exists, else from the manual's drawings. Check the licence of anything used. Also look at rbanffy/3270font (a remake, licence to check) only as a cross-check
 
-**Next:** the RetroIO Telnet library and the headless 3278 model 2 milestone (section R); in parallel, the 3270 PC user guides and the ROM search for the font.
+**Next:** the RetroIO Telnet library and the headless 3278 model 2 milestone (section R); in parallel, the ROM search for the font.
 
 ---
 
