@@ -29,19 +29,17 @@ namespace RetroTerm.Tests.Hercules
         {
             string user = settings.User;
 
-            // The first screen is the logon panel, or Hercules' information panel on a terminal
-            // address not used since MVS started; Reset then Clear leaves it.
+            // The first screen is the logon panel, or Hercules' information panel when the
+            // connect comes straight after another client disconnected. Nothing is pressed on the
+            // Hercules panel: the host replaces it with the logon panel ON ITS OWN. Measured 23
+            // November 2026 (was BUGS.md B7), three of three times: Hercules panel, then one logon
+            // panel, with nothing sent. Pressing Clear there, as guide 01 says, makes the host send
+            // the logon panel a SECOND time in answer to the Clear, and a user id typed after the
+            // first copy is thrown away by the second; that is why the first user id was ignored.
             steps.Add(new Tk5Step("connect", t => Task.CompletedTask,
                 s => s.Contains("Logon ===>") || s.Contains("Hercules"), "the logon or Hercules panel", false));
-            steps.Add(new Tk5Step("logon panel", async t =>
-            {
-                Tk5Screen first = await t.ReadAsync();
-                if (!first.Contains("Logon ===>"))
-                {
-                    await t.PressAsync("RESET");
-                    await t.PressAsync("CLEAR");
-                }
-            }, s => CursorIsInTheLogonField(s), "'Logon ===>' with the cursor in its field", true));
+            steps.Add(new Tk5Step("logon panel", t => Task.CompletedTask,
+                s => CursorIsInTheLogonField(s), "'Logon ===>' with the cursor in its field", true));
 
             // User, password, welcome, fortune cookie, ISPF.
             steps.Add(new Tk5Step("user id", async t =>

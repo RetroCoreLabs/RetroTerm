@@ -108,6 +108,21 @@ namespace RetroTerm.Tests.Hercules
             Assert.True(report.Length == 0, "RetroTerm and " + referenceName + " differ:\n" + report);
         }
 
+        // The last line with anything on it, trimmed: the prompt TSO is waiting at.
+        private static string LastNonBlankLine(Tk5Screen screen)
+        {
+            for (int r = Tk5Screen.Rows - 1; r >= 0; r--)
+            {
+                string line = screen.Lines[r].Trim();
+                if (line.Length > 0)
+                {
+                    return line;
+                }
+            }
+
+            return string.Empty;
+        }
+
         // A step failed while logged on. Leaving TSO waiting would refuse the next run's logon
         // ("USERID IN USE", guide 01 section 10), so try to get back to READY and log off. A
         // failure here is written to the test output, and the original failure still stands.
@@ -137,7 +152,16 @@ namespace RetroTerm.Tests.Hercules
                     // logged on and the next run was refused). CANCEL on the command line leaves
                     // the editor without saving, whatever is pending.
                     string now = screen.Text();
-                    if (now == before)
+                    string last = LastNonBlankLine(screen);
+                    if (last == "EDIT" || last.StartsWith("ENTER SAVE OR END", StringComparison.Ordinal))
+                    {
+                        // The TSO line editor (guide 03 section 7) ignores PF3 and has no CANCEL:
+                        // END leaves it, and END again at its "save or end" question leaves
+                        // without saving (found 23 November 2026, guide 04).
+                        await terminal.TypeAsync("END");
+                        await terminal.PressAsync("ENTER");
+                    }
+                    else if (now == before)
                     {
                         await terminal.PressAsync("HOME");
                         await terminal.PressAsync("ERASEEOF");
