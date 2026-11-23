@@ -175,3 +175,14 @@ What is not known: what s3270 received in the same run. No byte trace of the s32
 taken, so it is not settled whether the host answered the two terminals differently, or answered
 the same and the screens were read at different moments. Next step: run s3270 with its trace
 (`-trace -tracefile`) in the same test and compare the records byte by byte.
+
+## B12 - Connecting to "localhost" waits about 2 seconds when the host listens only on IPv4
+
+Measured 23 November 2026 while building SUBMIT: a connection to `localhost:3505` (TK5's card
+reader) took about 2 s every time, one to `127.0.0.1:3505` took 3 ms. "localhost" resolves to the
+IPv6 address ::1 first; Hercules listens only on IPv4, and Windows waits about 2 s before it tries
+127.0.0.1. SUBMIT (`src\RetroTerm.Core\Commands\Builtin\SubmitCommand.cs`) is where it was measured.
+The TN3270 and telnet connections use the same kind of connect and very likely wait the same way;
+that is NOT measured. The fix is a decision on how every RetroTerm connection picks between the
+addresses a name resolves to (try them in turn with a short timeout, or both at once as browsers
+do), not a SUBMIT-only change.

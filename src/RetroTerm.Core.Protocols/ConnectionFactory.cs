@@ -169,6 +169,16 @@ public static class ConnectionFactory
         public bool? DoubleClickPressesEnter { get; set; }
 
         /// <summary>
+        /// The host of the card reader SUBMIT sends to, or null for <see cref="Host"/>.
+        /// </summary>
+        public string? CardReaderHost { get; set; }
+
+        /// <summary>
+        /// The TCP port of the card reader SUBMIT sends to, or null when there is none.
+        /// </summary>
+        public int? CardReaderPort { get; set; }
+
+        /// <summary>
         /// Where a 3287 printer connection puts each print job: one of <see cref="PrinterOutputs"/>;
         /// null means a text file.
         /// </summary>
@@ -511,6 +521,27 @@ public static class ConnectionFactory
             case ProtocolType.TN3270: return 3270;
             default: return 23;
         }
+    }
+
+    /// <summary>
+    /// Where SUBMIT sends a job for a connection: its card reader host (the connection's own host
+    /// when none is set) and port, or two nulls when the connection has no card reader port.
+    /// </summary>
+    /// <param name="parameters">
+    /// The connection, or null.
+    /// </param>
+    /// <returns>
+    /// The host and port, or (null, null).
+    /// </returns>
+    public static (string? Host, int? Port) CardReaderAddress(ConnectionParameters? parameters)
+    {
+        if (parameters?.CardReaderPort is not int port)
+        {
+            return (null, null);
+        }
+
+        string host = string.IsNullOrWhiteSpace(parameters.CardReaderHost) ? parameters.Host : parameters.CardReaderHost.Trim();
+        return (host, port);
     }
 
     /// <summary>

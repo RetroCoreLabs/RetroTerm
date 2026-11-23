@@ -1043,6 +1043,9 @@ public partial class ManageConnectionsWindow : Window
     /// <summary>Shows the Terminal tab, which holds the colour controls.</summary>
     internal void ShowTerminalTabForTesting() => SelectTab(2);
 
+    /// <summary>Shows the Protocol tab, which holds host, port and the card reader boxes.</summary>
+    internal void ShowProtocolTabForTesting() => SelectTab(1);
+
     // The Keyboard tab, for a headless test: its panel is only in the window while it is shown.
     internal void ShowKeyboardTabForTesting() => SelectTab(3);
 
@@ -1433,7 +1436,66 @@ public partial class ManageConnectionsWindow : Window
             {
                 if (int.TryParse(telPort.Text, out var p)) _viewModel.CurrentProfile.Port = p;
             };
+
+            AddCardReaderBoxes();
         }
+    }
+
+    /// <summary>
+    /// The label above the card reader port box.
+    /// </summary>
+    public const string CardReaderPortLabel = "Card reader port for SUBMIT (IBM host; empty: none)";
+
+    /// <summary>
+    /// The label above the card reader host box.
+    /// </summary>
+    public const string CardReaderHostLabel = "Card reader host (empty: the host above)";
+
+    // The card reader SUBMIT sends a job to (Ronny, 22 November 2026): on Hercules a card
+    // reader device that listens on a TCP port; on TK5 the line "000C 3505 ${RDRPORT:=3505}
+    // sockdev ..." in conf/tk5.cnf. No default port is filled in: it is whatever that host's
+    // Hercules configuration says. Watched through TextProperty, because TextChanged does not
+    // fire on a set from code (CLAUDE.md, Avalonia).
+    private void AddCardReaderBoxes()
+    {
+        if (_protocolPanel == null) return;
+
+        // Named before they go into the window: Avalonia refuses a Name on a styled control.
+        StackPanel portPanel = CreateLabeledTextBox(CardReaderPortLabel, out var readerPort, "");
+        StackPanel hostPanel = CreateLabeledTextBox(CardReaderHostLabel, out var readerHost, "");
+        if (readerPort == null || readerHost == null) return;
+
+        readerPort.Name = "CardReaderPortBox";
+        readerPort.Width = 120;
+        readerPort.HorizontalAlignment = HorizontalAlignment.Left;
+        readerHost.Name = "CardReaderHostBox";
+        _protocolPanel.Children.Add(portPanel);
+        _protocolPanel.Children.Add(hostPanel);
+        readerPort.Text = _viewModel.CurrentProfile.CardReaderPort?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        readerHost.Text = _viewModel.CurrentProfile.CardReaderHost ?? "";
+
+        readerPort.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            string text = (readerPort.Text ?? "").Trim();
+            if (text.Length == 0)
+            {
+                _viewModel.CurrentProfile.CardReaderPort = null;
+            }
+            else if (int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int port) && port >= 1 && port <= 65535)
+            {
+                _viewModel.CurrentProfile.CardReaderPort = port;
+            }
+
+            // Anything else (letters, 0, over 65535) leaves the saved port as it was, the way the
+            // Port box above treats text that is not a number.
+        };
+        readerHost.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            string text = readerHost.Text ?? "";
+            _viewModel.CurrentProfile.CardReaderHost = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        };
     }
 
     #endregion

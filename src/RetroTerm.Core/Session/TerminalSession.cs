@@ -182,6 +182,20 @@ public partial class TerminalSession : IDisposable
     public string Title { get; set; }
 
     /// <summary>
+    /// Gets or sets the host of the card reader SUBMIT sends a job to, from the connection's
+    /// settings (HostConfiguration.CardReaderHost, or the connection's own host when that is
+    /// empty). Null when the connection has no card reader.
+    /// </summary>
+    public string? CardReaderHost { get; set; }
+
+    /// <summary>
+    /// Gets or sets the TCP port of the card reader SUBMIT sends a job to, from the connection's
+    /// settings (HostConfiguration.CardReaderPort). Null when the connection has none; SUBMIT
+    /// then refuses.
+    /// </summary>
+    public int? CardReaderPort { get; set; }
+
+    /// <summary>
     /// Creates a new terminal session with the specified emulator
     /// </summary>
     public TerminalSession(TerminalEmulatorBase emulator, string title = "Terminal")

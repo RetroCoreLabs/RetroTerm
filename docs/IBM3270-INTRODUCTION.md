@@ -161,6 +161,22 @@ Clear, so you get an empty screen back at `READY`, and shows the mainframe's ans
 TRANS04 means it worked) at the bottom of the window. One transfer runs at a time; Cancel stops
 waiting for it.
 
+**Running a batch job from a PC file: SUBMIT.** Hercules can have a card reader that listens on a
+network port (on TK5 it is port 3505, the `3505 ... sockdev` line in `conf\tk5.cnf`). Text sent
+there is read as a deck of punched cards, one line per card, and MVS runs it as a job.
+`SUBMIT "C:\path\hello.jcl"` sends a JCL file there. Set the port first, once per connection: in
+**Manage Connections**, Protocol tab, **Card reader port for SUBMIT** (and **Card reader host** if
+the reader is on another machine than the 3270 port). With no port set, SUBMIT refuses and says
+so. A card has 80 columns, so SUBMIT refuses a file with a longer line and names the line, instead
+of letting Hercules cut it off without a word; it also refuses letters outside plain ASCII (such as
+ø). SUBMIT answers with how many cards it sent and that the reader closed the connection after the
+last one (Hercules does that when MVS has read the whole deck). It does not see the job number:
+JES2 writes that to the operator console. Ask TSO afterwards with `STATUS jobname`, which shows
+`JOB jobname(JOB00702) ON OUTPUT QUEUE` once the job has run; put `MSGCLASS=X` on the JOB card to
+keep the output, and read it with `OUTPUT jobname PRINT(*)`. Nothing adds your user id to a job
+from the card reader; put `USER=` and `PASSWORD=` on the JOB card when the job touches protected
+data sets (TK5 guide 04, sections 5 and 10).
+
 ## 10. A first login to TK5
 
 TK5 is a ready-made MVS 3.8J system for the Hercules emulator. Its README lists the ready-made

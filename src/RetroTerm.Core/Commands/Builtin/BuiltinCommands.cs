@@ -42,6 +42,7 @@ public static class BuiltinCommands
         registry.Register(new CursorCommand());
         registry.Register(new HostSendCommand());
         registry.Register(new HostReceiveCommand());
+        registry.Register(new SubmitCommand());
 
         // IBM's own names for the same two transfers (IND$FILE PUT and GET), for scripts written by
         // people who know them (Ronny, 23 November 2026: keep HOSTSEND and HOSTRECEIVE, add these).

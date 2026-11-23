@@ -93,6 +93,21 @@ public class HostConfiguration
     public bool? DoubleClickPressesEnter { get; set; }
 
     /// <summary>
+    /// The host of the card reader that SUBMIT sends a job to, or null for the connection's own
+    /// host. Hercules has a card reader that listens on a TCP port (on TK5, device 00C, port
+    /// 3505); the text that arrives there is read as a deck of cards and run by MVS as a job.
+    /// Ronny, 22 November 2026.
+    /// </summary>
+    public string? CardReaderHost { get; set; }
+
+    /// <summary>
+    /// The TCP port of the card reader that SUBMIT sends a job to, or null when this connection
+    /// has none; SUBMIT then refuses and says where to set it. There is no default port: it is
+    /// whatever the Hercules configuration says, and that differs between systems.
+    /// </summary>
+    public int? CardReaderPort { get; set; }
+
+    /// <summary>
     /// IBM 3287 printer connections only: where each print job goes, "Text", "PDF" or "Printer"
     /// (the PDF handed to the system print command). Null is a text file. Ronny, 23 November 2026.
     /// </summary>
@@ -326,6 +341,8 @@ public class HostConfiguration
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
             DoubleClickPressesEnter = DoubleClickPressesEnter,
+            CardReaderHost = CardReaderHost,
+            CardReaderPort = CardReaderPort,
             PrinterOutput = PrinterOutput,
             PrinterFolder = PrinterFolder,
             PrinterDeletePdf = PrinterDeletePdf,
@@ -374,6 +391,8 @@ public class HostConfiguration
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
             DoubleClickPressesEnter = DoubleClickPressesEnter,
+            CardReaderHost = string.IsNullOrWhiteSpace(CardReaderHost) ? null : CardReaderHost.Trim(),
+            CardReaderPort = CardReaderPort,
             PrinterOutput = PrinterOutput,
             PrinterFolder = PrinterFolder,
             PrinterDeletePdf = PrinterDeletePdf,

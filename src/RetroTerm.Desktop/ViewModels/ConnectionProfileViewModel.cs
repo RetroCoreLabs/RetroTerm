@@ -47,6 +47,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private int? _codePage;
     private bool? _snapshotDoubleClickPressesEnter;
     private bool? _doubleClickPressesEnter;
+    private string? _snapshotCardReaderHost;
+    private string? _cardReaderHost;
+    private int? _snapshotCardReaderPort;
+    private int? _cardReaderPort;
     private string? _snapshotPrinterOutput;
     private string? _printerOutput;
     private string? _snapshotPrinterFolder;
@@ -319,6 +323,24 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The host of the card reader SUBMIT sends to; null is the connection's own host.
+    /// </summary>
+    public string? CardReaderHost
+    {
+        get => _cardReaderHost;
+        set { if (_cardReaderHost != value) { _cardReaderHost = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// The TCP port of the card reader SUBMIT sends to; null means none, and SUBMIT refuses.
+    /// </summary>
+    public int? CardReaderPort
+    {
+        get => _cardReaderPort;
+        set { if (_cardReaderPort != value) { _cardReaderPort = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// 3287 printer: where each job goes ("Text", "PDF" or "Printer"); null is a text file.
     /// </summary>
     public string? PrinterOutput
@@ -487,6 +509,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _backspaceSendsDel != _snapshotBackspaceSendsDel
                 || _codePage != _snapshotCodePage
                 || _doubleClickPressesEnter != _snapshotDoubleClickPressesEnter
+                || _cardReaderHost != _snapshotCardReaderHost
+                || _cardReaderPort != _snapshotCardReaderPort
                 || _printerOutput != _snapshotPrinterOutput
                 || _printerFolder != _snapshotPrinterFolder
                 || _printerDeletePdf != _snapshotPrinterDeletePdf
@@ -542,6 +566,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _backspaceSendsDel = config.BackspaceSendsDel;
         _codePage = config.CodePage;
         _doubleClickPressesEnter = config.DoubleClickPressesEnter;
+        _cardReaderHost = config.CardReaderHost;
+        _cardReaderPort = config.CardReaderPort;
         _printerOutput = config.PrinterOutput;
         _printerFolder = config.PrinterFolder;
         _printerDeletePdf = config.PrinterDeletePdf;
@@ -628,6 +654,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
+            CardReaderHost = string.IsNullOrWhiteSpace(_cardReaderHost) ? null : _cardReaderHost.Trim(),
+            CardReaderPort = _cardReaderPort,
             PrinterOutput = _printerOutput,
             PrinterFolder = _printerFolder,
             PrinterDeletePdf = _printerDeletePdf,
@@ -676,6 +704,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
+            CardReaderHost = string.IsNullOrWhiteSpace(_cardReaderHost) ? null : _cardReaderHost.Trim(),
+            CardReaderPort = _cardReaderPort,
             PrinterOutput = _printerOutput,
             PrinterFolder = _printerFolder,
             PrinterDeletePdf = _printerDeletePdf,
@@ -730,6 +760,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotBackspaceSendsDel = _backspaceSendsDel;
         _snapshotCodePage = _codePage;
         _snapshotDoubleClickPressesEnter = _doubleClickPressesEnter;
+        _snapshotCardReaderHost = _cardReaderHost;
+        _snapshotCardReaderPort = _cardReaderPort;
         _snapshotPrinterOutput = _printerOutput;
         _snapshotPrinterFolder = _printerFolder;
         _snapshotPrinterDeletePdf = _printerDeletePdf;

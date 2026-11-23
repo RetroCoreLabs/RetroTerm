@@ -72,6 +72,10 @@ public sealed class TabSession : IDisposable
                 pointer.DoubleClickPressesEnter = value?.DoubleClickPressesEnter ?? true;
             }
 
+            // The card reader SUBMIT sends to. One rule for every way a tab is opened, through
+            // ConnectionFactory.CardReaderAddress; no port means no reader, and SUBMIT refuses.
+            (Session.CardReaderHost, Session.CardReaderPort) = ConnectionFactory.CardReaderAddress(value);
+
             // A 3287 printer connection: where its jobs go and when a job ends, from the
             // connection's Printer tab. Applied on the session thread, like the code page.
             if (value != null && Session.Emulator is RetroTerm.Ibm3270.Ibm3287PrinterEmulator printer)

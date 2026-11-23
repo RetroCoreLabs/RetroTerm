@@ -44,6 +44,7 @@ public sealed class InProcessSessionHost : ITerminalSessionHost, IDisposable
 
         var emulator = EmulatorFactory.CreateEmulator(parameters.EmulatorType, parameters.Width, parameters.Height);
         var session = new TerminalSession(emulator, parameters.DisplayName);
+        (session.CardReaderHost, session.CardReaderPort) = ConnectionFactory.CardReaderAddress(parameters);
         var connection = _connectionFactory(parameters);
 
         try

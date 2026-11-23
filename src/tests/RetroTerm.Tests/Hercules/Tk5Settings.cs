@@ -20,8 +20,10 @@ namespace RetroTerm.Tests.Hercules
     /// <code>
     /// { "host": "localhost", "port": 3270, "user": "HERC03", "password": "...",
     ///   "compareUser": "HERC04", "comparePassword": "...", "s3270": "path to s3270.exe",
-    ///   "jrpUser": "HERC01", "jrpPassword": "..." }
-    /// The JRP user is needed only by the 3287 printer test (Tk5PrinterTests).
+    ///   "jrpUser": "HERC01", "jrpPassword": "...", "cardReaderPort": 3505 }
+    /// The JRP user is needed only by the 3287 printer test (Tk5PrinterTests), the card reader
+    /// port only by the SUBMIT test (Tk5SubmitTests): it is the port on the 3505 sockdev line of
+    /// TK5's conf/tk5.cnf.
     /// </code>
     /// Two users so that each test has its own and a session one test leaves hanging never
     /// refuses the other's logon. The comparison test logs on as the compare user in BOTH
@@ -58,6 +60,11 @@ namespace RetroTerm.Tests.Hercules
         public string JrpPassword { get; private set; } = string.Empty;
 
         /// <summary>
+        /// Gets the TCP port of TK5's socket card reader, or 0 when the file has none.
+        /// </summary>
+        public int CardReaderPort { get; private set; }
+
+        /// <summary>
         /// The same settings logged on as the compare user.
         /// </summary>
         public Tk5Settings AsCompareUser()
@@ -91,6 +98,7 @@ namespace RetroTerm.Tests.Hercules
                 S3270 = S3270,
                 JrpUser = JrpUser,
                 JrpPassword = JrpPassword,
+                CardReaderPort = CardReaderPort,
             };
         }
 
@@ -116,6 +124,7 @@ namespace RetroTerm.Tests.Hercules
                 S3270 = root.TryGetProperty("s3270", out JsonElement s) ? s.GetString() ?? string.Empty : string.Empty,
                 JrpUser = root.TryGetProperty("jrpUser", out JsonElement ju) ? ju.GetString() ?? string.Empty : string.Empty,
                 JrpPassword = root.TryGetProperty("jrpPassword", out JsonElement jp) ? jp.GetString() ?? string.Empty : string.Empty,
+                CardReaderPort = root.TryGetProperty("cardReaderPort", out JsonElement cr) ? cr.GetInt32() : 0,
             };
             return settings;
         }
