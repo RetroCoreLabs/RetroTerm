@@ -67,7 +67,8 @@ namespace RetroTerm.Ibm3270
         // The largest file transfer structured field, both ways (Display3270.FileTransferLimit).
         private const int FileTransferBufferSize = 16384;
 
-        private readonly Display3270 _display;
+        // Not readonly: Reset puts a new one in place, a 3278 just switched on (see Reset).
+        private Display3270 _display;
 
         // True while the connection runs TN3270E (set by the session through ITn3270EAware).
         private bool _inTn3270E;
@@ -80,7 +81,8 @@ namespace RetroTerm.Ibm3270
         private string? _luName;
 
         // The PC side of IND$FILE (IHostFileTransfer). Fed by the display's X'D0' fields.
-        private readonly IndFileTransfer _transfer;
+        // Not readonly: built again with each new display (Reset).
+        private IndFileTransfer _transfer;
 
         // Where the connection is, for line 25. Set on the session thread by the session.
         private StatusLineConnection _connection = StatusLineConnection.NotConnected;
@@ -120,17 +122,62 @@ namespace RetroTerm.Ibm3270
                 transportEncoding: TransportEncoding.EightBit,
                 columns: AlternateColumns(model),
                 rows: _statusRow + 1);
-            _display = new Display3270(24, 80, AlternateRows(model), AlternateColumns(model));
-            _display.InboundRecord += OnInboundRecord;
-            _display.ProtocolError += OnProtocolError;
-            _display.Alarm += OnAlarm;
+            (_display, _transfer) = CreateDisplay(model);
+            Paint();
+        }
+
+        // A 3278 as it is when switched on, wired to this emulator: no fields, no data, the
+        // keyboard free, the default size.
+        private (Display3270 Display, IndFileTransfer Transfer) CreateDisplay(int model)
+        {
+            var display = new Display3270(24, 80, AlternateRows(model), AlternateColumns(model));
+            display.InboundRecord += OnInboundRecord;
+            display.ProtocolError += OnProtocolError;
+            display.Alarm += OnAlarm;
 
             // File transfer on: the Query Reply then carries DDM, which is what makes IND$FILE
             // pick DFT mode (docs/spec/IBM3270/IND-FILE-TRANSFER.md sections 1.3 and 5; TK5 uses
             // DFT, measured 22 November 2026). 16384 is the default size of section 9 item 1.
-            _display.FileTransferLimit = FileTransferBufferSize;
-            _transfer = new IndFileTransfer(_display);
-            _transfer.Finished += OnTransferFinished;
+            display.FileTransferLimit = FileTransferBufferSize;
+            var transfer = new IndFileTransfer(display);
+            transfer.Finished += OnTransferFinished;
+            return (display, transfer);
+        }
+
+        /// <summary>
+        /// Puts the terminal back as it is when switched on: a new 3270 screen model with no
+        /// fields and no data, the keyboard not locked, the default size, no TN3270E.
+        /// </summary>
+        /// <remarks>
+        /// MainWindow calls this before it reconnects a tab that keeps its emulator. Until 23
+        /// November 2026 there was no override, so only the base buffer was cleared and the 3270
+        /// model kept everything from the dropped session: measured by
+        /// Tn3270ReconnectTests.AResetBeforeAReconnectUnlocksTheKeyboard, a keyboard left waiting
+        /// for the host (Enter sent, no answer before the line went) was still waiting on the new
+        /// connection. A new model, rather than clearing its fields one by one, cannot miss one.
+        /// What the operator chose is not session state and is carried over: the code page and
+        /// the screen settings the host reads from the Query Reply.
+        /// </remarks>
+        public override void Reset()
+        {
+            base.Reset();
+
+            Display3270 old = _display;
+            old.InboundRecord -= OnInboundRecord;
+            old.ProtocolError -= OnProtocolError;
+            old.Alarm -= OnAlarm;
+            _transfer.Finished -= OnTransferFinished;
+
+            (_display, _transfer) = CreateDisplay(Model);
+            _display.CodePage = old.CodePage;
+            _display.Color = old.Color;
+            _display.CellWidth = old.CellWidth;
+            _display.CellHeight = old.CellHeight;
+            _display.FileTransferLimit = old.FileTransferLimit;
+
+            _inTn3270E = false;
+            _luName = null;
+            _lastRecordOutcome = HostRecordOutcome.Applied;
             Paint();
         }
 

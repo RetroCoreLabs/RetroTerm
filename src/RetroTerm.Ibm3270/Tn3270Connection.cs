@@ -25,7 +25,17 @@ namespace RetroTerm.Ibm3270
         private readonly string _host;
         private readonly int _port;
         private readonly object _gate = new object();
-        private readonly Tn3270Protocol _protocol;
+
+        // A new protocol object for every connection (CreateProtocol, called from ConnectAsync).
+        // One object used to live for the whole life of this class, so a second ConnectAsync
+        // started with the first connection's telnet option states, TN3270E and its agreed
+        // functions, its sequence counter, half a record and the records still waiting for a
+        // response. Measured 23 November 2026 by Tn3270ReconnectTests: after a TN3270E first
+        // connection that ended mid-record, a plain TN3270 second connection still reported
+        // TN3270E in force and handed up its first record with the stray byte from the first.
+        // A fresh object is the whole state of one telnet conversation, and nothing can be
+        // missed the way resetting fields one by one could miss a field added later.
+        private Tn3270Protocol _protocol;
 
         // Events the protocol raised while the receive loop held _gate, raised in order once it
         // has let go. The session's handlers post to its pump, which blocks when the pump queue
@@ -159,6 +169,20 @@ namespace RetroTerm.Ibm3270
             try
             {
                 SetStatus(ConnectionStatus.Connecting);
+
+                // A host that closed the last connection left its socket here (the receive loop
+                // only stops reading); free it before the new one.
+                _stream?.Dispose();
+                _client?.Dispose();
+                _receiveCts?.Dispose();
+                _stream = null;
+                _client = null;
+                _raiseAfterFeed.Clear();
+                lock (_gate)
+                {
+                    _protocol = CreateProtocol();
+                }
+
                 // TcpConnector tries IPv6 and IPv4 together (RFC 8305), so "localhost" against
                 // Hercules, which listens on IPv4 only, no longer waits ~2 s for ::1 (B12).
                 _client = await TcpConnector.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
@@ -288,6 +312,25 @@ namespace RetroTerm.Ibm3270
             _stream?.Dispose();
             _client?.Dispose();
             _receiveCts?.Dispose();
+        }
+
+        // One protocol object, wired to this connection's events, for one connection.
+        private Tn3270Protocol CreateProtocol()
+        {
+            var protocol = new Tn3270Protocol(WriteToSocket, TerminalType);
+            protocol.RecordReceived += record =>
+            {
+                byte[] copy = record.ToArray();
+                _raiseAfterFeed.Add(() => DataReceived?.Invoke(copy));
+            };
+            protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
+            protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
+            protocol.ProtocolError += message =>
+            {
+                ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
+                ErrorOccurred?.Invoke(new InvalidOperationException(message));
+            };
+            return protocol;
         }
 
         private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
