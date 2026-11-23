@@ -436,8 +436,9 @@ or uses an earlier answer was not captured: NOT VERIFIED.
   records cut) is also a successful end [IND p.36]. Both oracles only test for `TRANS03`, so
   TRANS04 falls into their "other message" path [same lines]; how x3270 shows that path was
   not read. RetroTerm should report it as success with a warning.
-- x3270 cuts the message text at the first `$` [x3270 `Common/ft_dft.c` lines 259-265]. Why is
-  not explained: NOT VERIFIED.
+- x3270 cuts the message text at the first `$` [x3270 `Common/ft_dft.c` lines 259-265]. TK5 ends
+  the text with `$` and fills the 85-byte message with blanks (measured 23 November 2026, Open
+  question 7), so the `$` is the end of the text.
 - Message text in DFT: both oracles read it as ASCII bytes [x3270 compares to the C string
   `"TRANS03"`; tnz decodes message data as ISO 8859-1]. [IND] says nothing about the message
   code page in DFT (for CUT it says EBCDIC, p.17 note 1): NOT VERIFIED in IBM text.
@@ -687,21 +688,25 @@ and server-requester programming guides.
 
 ## Open questions
 
-1. **What name does TK5's IND$FILE put in the message Open** - `FT:` plus blanks (IBM figure)
-   or `FT:MSG` (x3270)? Needs a byte trace of one TK5 transfer.
+1. **ANSWERED 23 November 2026, measured on TK5:** the message Open names `FT:MSG ` (with a trailing
+   blank), the data Open `FT:DATA`. The data Open for an upload is the long form (0x29 bytes), for a
+   download the short form (0x23); the message Open is always short.
 2. **Which buffer size did the TK5 test run with**, and does TK5's IND$F205 accept 32639 or
    32767? Needs a trace with the Query Reply and the Open (short or long form).
-3. **Does TK5's IND$FILE send a fresh Read Partition Query for every transfer?** Decides whether
-   RetroTerm must answer Query at any time or only once at connect.
+3. **ANSWERED 23 November 2026, measured on TK5:** yes. Every IND$FILE command was followed by a Read
+   Partition Query (`F3 00 05 01 FF 02`), twice in one session. RetroTerm must answer Query at any time.
 4. **TK5 defaults conflict with the 1986 manual:** TK5 made `RECFM VB LRECL 255`; FTTERM says
    TSO defaults to `RECFM(F)` and allows LRECL only 1-132. Is that because IND$F205 is a
    different (later or rewritten) program? Matters for what RetroTerm's dialog offers as defaults.
 5. **Error code for a PC-side abort:** x3270 sends `0100` to Insert and Get, which IBM's table
    does not list for those requests. What does TK5 do with `0100`, `3E00` and `6000`?
 6. **First record number** in the PC's Data ack and Data for Get: 1 or 0? IBM does not say;
-   the two oracles appear to differ.
-7. **Code page of DFT messages:** ASCII (what the oracles assume) or EBCDIC? And why does x3270
-   cut a message at `$`?
+   the two oracles appear to differ. RetroTerm sends 1, and TK5 accepted that in both directions
+   (23 November 2026); whether 0 would also be accepted was not tried.
+7. **ANSWERED 23 November 2026, measured on TK5:** ASCII. The message is 85 bytes:
+   `TRANS03   File transfer complete`, then `$`, then blanks. The `$` marks the end of the text,
+   which is why x3270 cuts there. Also measured: TK5 sends nothing after the PC's Data ack for the
+   message (no Close of the message file), so the transfer ends on that ack, as IBM's figures show.
 8. **IND$FILE's fixed ASCII/EBCDIC table** is not in any IBM document read here. Needed only if
    RetroTerm offers remapping to the user's code page.
 9. **Is the Read Modified resend (section 3.8) needed** for IND$FILE, or only for some other host?

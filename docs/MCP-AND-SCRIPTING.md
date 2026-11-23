@@ -145,6 +145,8 @@ Verb summary:
 | `SETFIELD` | `SETFIELD 2 HERC01` — empty a 3270 input field (numbered as FIELDS numbers it) and type the text; nothing is sent until a key such as `SENDKEY IBM.ENTER` |
 | `CURSOR` | `CURSOR 10 20` — move the 3270 cursor to row 10, column 20 (counted from 1) |
 | `WAITUNLOCK` | `WAITUNLOCK 10000` — wait until the host unlocks the 3270 keyboard (it has answered); fails at once on a lock only Reset clears; `ontimeout=label` works |
+| `HOSTSEND` | `HOSTSEND "C:\\temp\\hello.txt" HELLO.TEXT` — send a PC file to an IBM host data set with IND$FILE: types `IND$FILE PUT HELLO.TEXT ASCII CRLF` at TSO's READY (not in ISPF) and waits for the host's `TRANS03` message. `mode=binary` sends the bytes unchanged; `options=` adds host options such as `RECFM(F) LRECL(80)`; `ontimeout=label` works |
+| `HOSTRECEIVE` | `HOSTRECEIVE "C:\\temp\\back.txt" HELLO.TEXT` — receive a host data set into a PC file with IND$FILE GET. The file is only replaced when the host says the transfer is complete; a failed transfer leaves it as it was. Same `mode=`, `options=` and `timeout=` as HOSTSEND |
 | `EMULATION` | `EMULATION type=TDV2200` — changes the terminal type on a LIVE connection, keeping the screen and the connection. |
 | `UNHANDLED` | `UNHANDLED` — the sequences this session was sent and did not act on, the ND graphics modes and ReGIS commands included. The first thing to read when a screen looks wrong and nothing has failed. |
 | `RESET` / `CLEAR` | Reset the emulator / clear screen + scrollback |

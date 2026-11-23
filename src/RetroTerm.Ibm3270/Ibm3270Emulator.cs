@@ -15,6 +15,7 @@ using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Core.Terminal.Input.Keyboards;
 using RetroTerm.Core.Terminal.Profiles;
+using RetroTerm.Core.Transfer;
 
 namespace RetroTerm.Ibm3270
 {
@@ -42,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -63,7 +64,13 @@ namespace RetroTerm.Ibm3270
 
         private readonly TerminalProfile _profile;
 
+        // The largest file transfer structured field, both ways (Display3270.FileTransferLimit).
+        private const int FileTransferBufferSize = 16384;
+
         private readonly Display3270 _display;
+
+        // The PC side of IND$FILE (IHostFileTransfer). Fed by the display's X'D0' fields.
+        private readonly IndFileTransfer _transfer;
 
         // Where the connection is, for line 25. Set on the session thread by the session.
         private StatusLineConnection _connection = StatusLineConnection.NotConnected;
@@ -107,6 +114,13 @@ namespace RetroTerm.Ibm3270
             _display.InboundRecord += OnInboundRecord;
             _display.ProtocolError += OnProtocolError;
             _display.Alarm += OnAlarm;
+
+            // File transfer on: the Query Reply then carries DDM, which is what makes IND$FILE
+            // pick DFT mode (docs/spec/IBM3270/IND-FILE-TRANSFER.md sections 1.3 and 5; TK5 uses
+            // DFT, measured 22 November 2026). 16384 is the default size of section 9 item 1.
+            _display.FileTransferLimit = FileTransferBufferSize;
+            _transfer = new IndFileTransfer(_display);
+            _transfer.Finished += OnTransferFinished;
             Paint();
         }
 
@@ -791,6 +805,138 @@ namespace RetroTerm.Ibm3270
             0x00 => null,
             _ => "X'" + colour.ToString("X2", System.Globalization.CultureInfo.InvariantCulture) + "'",
         };
+
+        /// <summary>
+        /// Raised when an IND$FILE transfer ends (IHostFileTransfer), on the session thread.
+        /// </summary>
+        public event HostFileTransferFinished? HostFileTransferFinished;
+
+        /// <summary>
+        /// Arms an IND$FILE transfer and types its command into the input field under the cursor,
+        /// then presses Enter, as x3270 does (IND-FILE-TRANSFER.md section 2.5).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The field is emptied first: x3270 clears it, and TSO would otherwise read whatever was
+        /// left after the command. Refused when the keyboard is locked, when the cursor is on a
+        /// protected field, or when the command does not fit: a command cut off at the field's
+        /// end would run on the host with a different meaning (section 2.5).
+        /// </para>
+        /// <para>
+        /// On a screen without fields (TSO after Clear) the input runs from the cursor to the
+        /// end of the screen.
+        /// </para>
+        /// </remarks>
+        /// <param name="upload">
+        /// True for IND$FILE PUT (PC to host), false for GET.
+        /// </param>
+        /// <param name="file">
+        /// The PC file's stream. Not closed here.
+        /// </param>
+        /// <param name="command">
+        /// The whole command, for example "IND$FILE PUT HELLO.TEXT ASCII CRLF".
+        /// </param>
+        /// <returns>
+        /// Null when the command was sent, or the reason nothing was started.
+        /// </returns>
+        public string? StartHostFileTransfer(bool upload, System.IO.Stream file, string command)
+        {
+            ArgumentNullException.ThrowIfNull(file);
+            ArgumentNullException.ThrowIfNull(command);
+            if (_transfer.State != FileTransferState.Idle)
+            {
+                return "a file transfer is already " + _transfer.State;
+            }
+
+            if (_display.Lock != KeyboardLock.None)
+            {
+                return "the keyboard is locked (" + KeyboardLockReason + ")";
+            }
+
+            // The input field under the cursor: from after its attribute to the next attribute.
+            int size = _display.Size;
+            int cursor = _display.CursorAddress;
+            int attribute = -1;
+            for (int i = 0; i < size; i++)
+            {
+                int a = (cursor - i + size) % size;
+                if (_display.IsFieldAttribute(a))
+                {
+                    attribute = a;
+                    break;
+                }
+            }
+
+            int first;
+            int length;
+            if (attribute < 0)
+            {
+                first = cursor;
+                length = size - cursor;
+            }
+            else
+            {
+                if (attribute == cursor || FieldAttribute.IsProtected(_display.GetByte(attribute)))
+                {
+                    return "the cursor is not in an input field";
+                }
+
+                first = (attribute + 1) % size;
+                length = 0;
+                for (int a = first; !_display.IsFieldAttribute(a) && length < size; a = (a + 1) % size)
+                {
+                    length++;
+                }
+            }
+
+            if (command.Length > length)
+            {
+                return "the command has " + command.Length + " characters and the input field holds " + length;
+            }
+
+            _display.MoveCursor(first);
+            _display.EraseEndOfField();
+            for (int i = 0; i < command.Length; i++)
+            {
+                if (!_display.Type(command[i]))
+                {
+                    Refresh();
+                    return "the field refused '" + command[i] + "' (keyboard now " + (KeyboardLockReason ?? "unlocked") + ")";
+                }
+            }
+
+            if (upload)
+            {
+                _transfer.ExpectUpload(file);
+            }
+            else
+            {
+                _transfer.ExpectDownload(file);
+            }
+
+            _display.Attention(Aid.Enter);
+            Refresh();
+            return null;
+        }
+
+        /// <summary>
+        /// Gives up on a transfer the host has not opened yet (IHostFileTransfer). One the host
+        /// has opened ends with the host's message, which is the only way IND$FILE ends (section
+        /// 3.13).
+        /// </summary>
+        public void CancelHostFileTransfer()
+        {
+            if (_transfer.State == FileTransferState.Armed)
+            {
+                _transfer.Disarm();
+                HostFileTransferFinished?.Invoke(false, "cancelled before the host started the transfer");
+            }
+        }
+
+        private void OnTransferFinished(bool success, string message)
+        {
+            HostFileTransferFinished?.Invoke(success, message);
+        }
 
         private bool Attention(byte aid)
         {

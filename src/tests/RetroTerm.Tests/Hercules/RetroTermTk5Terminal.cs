@@ -43,6 +43,11 @@ namespace RetroTerm.Tests.Hercules
 
         public string Name => "RetroTerm";
 
+        /// <summary>
+        /// Gets the session, for a test that runs a registry command on it (HOSTSEND, HOSTRECEIVE).
+        /// </summary>
+        public TerminalSession Session => _session;
+
         public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings)
         {
             var emulator = new Ibm3270Emulator();
@@ -147,7 +152,8 @@ namespace RetroTerm.Tests.Hercules
         {
             var line = new System.Text.StringBuilder(direction.Length + 2 + (data.Length * 3));
             line.Append(direction).Append(':');
-            int shown = data.Length > 64 ? 64 : data.Length;
+            // 256 bytes: enough for a whole IND$FILE message record (112 bytes on TK5).
+            int shown = data.Length > 256 ? 256 : data.Length;
             for (int i = 0; i < shown; i++)
             {
                 line.Append(' ').Append(data[i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
@@ -164,7 +170,13 @@ namespace RetroTerm.Tests.Hercules
             }
         }
 
-        private string WireText()
+        /// <summary>
+        /// Every record both ways so far, oldest first, one line each (256 bytes shown).
+        /// </summary>
+        /// <returns>
+        /// The lines.
+        /// </returns>
+        public string WireText()
         {
             lock (_wire)
             {
