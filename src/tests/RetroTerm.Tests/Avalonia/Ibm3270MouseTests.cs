@@ -116,6 +116,23 @@ public class Ibm3270MouseTests
     }
 
     [AvaloniaFact]
+    public void APasteFillsTheFieldsAndSendsNothing()
+    {
+        // The Paste menu's path. The input field runs from 6 to the end of the screen, so the line
+        // break's New Line lands on row 2, address 80. Before IFieldPaste the line break was Enter.
+        var (window, canvas, emulator, sent) = Build();
+
+        canvas.PasteText("ab\ncd");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(sent);
+        Assert.Equal(0x81, emulator.Display.GetByte(6));
+        Assert.Equal(0x83, emulator.Display.GetByte(80));
+        Assert.Equal(82, emulator.Display.CursorAddress);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public void AClickOnLine25DoesNotMoveTheCursor()
     {
         var (window, canvas, emulator, _) = Build();

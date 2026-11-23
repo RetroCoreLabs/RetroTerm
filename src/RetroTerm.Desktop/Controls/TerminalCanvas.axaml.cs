@@ -1823,6 +1823,15 @@ public partial class TerminalCanvas : Control
     {
         if (string.IsNullOrEmpty(text)) return;
 
+        // A 3270 pastes into its own fields: a line break moves to the next input field and does
+        // not press Enter, which the input path below would make of it. No national-character
+        // conversion either; that is for the 7-bit TDV lines.
+        if (_emulator is IFieldPaste fieldPaste)
+        {
+            fieldPaste.PasteIntoFields(text!);
+            return;
+        }
+
         var converted = ApplyIso646Conversion(text!);
 
         // Bracketed paste, when the host asked for it. The wrapping is the emulator's - it is

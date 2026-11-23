@@ -42,7 +42,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste
     {
         private static readonly TerminalProfile Model2Profile = new(
             name: "IBM-3278-2",
@@ -503,6 +503,18 @@ namespace RetroTerm.Ibm3270
                 }
             });
             return true;
+        }
+
+        /// <summary>
+        /// Pastes into the fields as x3270's paste does (Display3270.Paste): a line break goes to
+        /// the input field on the next row and never presses Enter (IFieldPaste).
+        /// </summary>
+        /// <param name="text">
+        /// The pasted text.
+        /// </param>
+        public void PasteIntoFields(string text)
+        {
+            Local(() => _display.Paste(text));
         }
 
         private bool Attention(byte aid)
