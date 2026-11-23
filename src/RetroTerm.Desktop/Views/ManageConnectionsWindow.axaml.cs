@@ -54,6 +54,9 @@ public partial class ManageConnectionsWindow : Window
     private TextBox? _printerFolderBox;
     private CheckBox? _printerDeletePdfCheck;
     private TextBox? _printerQuietBox;
+    private TextBox? _printerLinesPerPageBox;
+    private CheckBox? _printerTractorCheck;
+    private ComboBox? _printerTractorColourCombo;
 
     // Protocol-specific sub-panels within Protocol tab
     private StackPanel? _telnetProtocolPanel;
@@ -769,6 +772,60 @@ public partial class ManageConnectionsWindow : Window
             };
         }
 
+        // PDF sheets (Ronny, 23 November 2026). Both only change the PDF, never the text file.
+        _printerPanel.Children.Add(CreateLabeledTextBox("PDF lines per page (empty: a new sheet only on a form feed; TK5 needs 56)", out _printerLinesPerPageBox));
+        if (_printerLinesPerPageBox != null)
+        {
+            _printerLinesPerPageBox.Name = "PrinterLinesPerPageBox";
+            _printerLinesPerPageBox.Width = 120;
+            _printerLinesPerPageBox.HorizontalAlignment = HorizontalAlignment.Left;
+            _printerLinesPerPageBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TextBox.TextProperty || _suppressSelectionChange) return;
+                string text = (_printerLinesPerPageBox.Text ?? "").Trim();
+                if (text.Length == 0)
+                {
+                    _viewModel.CurrentProfile.PrinterLinesPerPage = null;
+                }
+                else if (int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int lines) && lines > 0)
+                {
+                    _viewModel.CurrentProfile.PrinterLinesPerPage = lines;
+                }
+
+                // Anything else (0, letters) is not a number of lines; the stored value stays as it was.
+            };
+        }
+
+        _printerTractorCheck = new CheckBox
+        {
+            Name = "PrinterTractorCheck",
+            Content = "Draw the PDF as tractor feed paper (bands and sprocket holes)",
+            Foreground = TextPrimary,
+            FontSize = 13,
+        };
+        _printerTractorCheck.IsCheckedChanged += (_, _) =>
+        {
+            UpdatePrinterTractorEnabled();
+            if (_suppressSelectionChange) return;
+            _viewModel.CurrentProfile.PrinterTractorPaper = _printerTractorCheck.IsChecked == true ? true : null;
+        };
+        _printerPanel.Children.Add(_printerTractorCheck);
+
+        _printerPanel.Children.Add(CreateLabeledComboBox("Band colour", out _printerTractorColourCombo, new[] { PrinterTractorBlueText, PrinterTractorGreenText }));
+        if (_printerTractorColourCombo != null)
+        {
+            _printerTractorColourCombo.Name = "PrinterTractorColourCombo";
+            _printerTractorColourCombo.MinWidth = 280;
+            _printerTractorColourCombo.SelectedIndex = 0;
+            _printerTractorColourCombo.IsEnabled = false;
+            _printerTractorColourCombo.SelectionChanged += (_, _) =>
+            {
+                if (_suppressSelectionChange) return;
+                int index = _printerTractorColourCombo.SelectedIndex;
+                _viewModel.CurrentProfile.PrinterTractorColour = index <= 0 ? null : ConnectionFactory.TractorPaperColours.Choices[index];
+            };
+        }
+
         _printerPanel.Children.Add(new TextBlock
         {
             Text = "A job also ends when the host sends telnet Abort Output or the connection closes. " +
@@ -779,6 +836,23 @@ public partial class ManageConnectionsWindow : Window
             TextWrapping = TextWrapping.Wrap
         });
     }
+
+    // The band colour only means something with the tractor paper look on.
+    private void UpdatePrinterTractorEnabled()
+    {
+        if (_printerTractorColourCombo == null || _printerTractorCheck == null) return;
+        _printerTractorColourCombo.IsEnabled = _printerTractorCheck.IsChecked == true;
+    }
+
+    /// <summary>
+    /// The Band colour box's entry for white and pale blue (the default).
+    /// </summary>
+    public const string PrinterTractorBlueText = "White and pale blue";
+
+    /// <summary>
+    /// The Band colour box's entry for white and pale green, the classic green bar sheet.
+    /// </summary>
+    public const string PrinterTractorGreenText = "White and pale green (green bar)";
 
     // "Delete the PDF after printing" only means something when the PDF goes to a printer.
     private void UpdatePrinterDeleteEnabled()
@@ -1554,7 +1628,13 @@ public partial class ManageConnectionsWindow : Window
         if (_printerDeletePdfCheck != null) _printerDeletePdfCheck.IsChecked = profile.PrinterDeletePdf == true;
         if (_printerQuietBox != null)
             _printerQuietBox.Text = profile.PrinterQuietSeconds?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        if (_printerLinesPerPageBox != null)
+            _printerLinesPerPageBox.Text = profile.PrinterLinesPerPage?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        if (_printerTractorCheck != null) _printerTractorCheck.IsChecked = profile.PrinterTractorPaper == true;
+        if (_printerTractorColourCombo != null)
+            _printerTractorColourCombo.SelectedIndex = System.Array.IndexOf(ConnectionFactory.TractorPaperColours.Choices, ConnectionFactory.TractorPaperColours.Normalise(profile.PrinterTractorColour));
         UpdatePrinterDeleteEnabled();
+        UpdatePrinterTractorEnabled();
         _suppressSelectionChange = false;
 
         // Scripts tab: hook selections follow the profile

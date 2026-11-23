@@ -148,6 +148,9 @@ public sealed class Ibm3287PrinterTests : IDisposable
                 PrinterFolder = @"D:\Print",
                 PrinterDeletePdf = true,
                 PrinterQuietSeconds = 7,
+                PrinterLinesPerPage = 56,
+                PrinterTractorPaper = true,
+                PrinterTractorColour = ConnectionFactory.TractorPaperColours.Green,
             });
             window.ShowPrinterTabForTesting();
 
@@ -160,6 +163,13 @@ public sealed class Ibm3287PrinterTests : IDisposable
             Assert.True(delete.IsChecked);
             Assert.True(delete.IsEnabled);
             Assert.Equal("7", quiet.Text);
+            TextBox linesPerPage = Find<TextBox>(window, "PrinterLinesPerPageBox");
+            CheckBox tractor = Find<CheckBox>(window, "PrinterTractorCheck");
+            ComboBox colour = Find<ComboBox>(window, "PrinterTractorColourCombo");
+            Assert.Equal("56", linesPerPage.Text);
+            Assert.True(tractor.IsChecked);
+            Assert.Equal(ManageConnectionsWindow.PrinterTractorGreenText, colour.SelectedItem);
+            Assert.True(colour.IsEnabled);
 
             // The saved connection is still a printer, not turned into a 3278.
             Assert.Equal(ConnectionFactory.Ibm3287, window.ProfileForTesting.ToHostConfiguration().EmulatorType);
@@ -167,6 +177,8 @@ public sealed class Ibm3287PrinterTests : IDisposable
             output.SelectedIndex = 1;
             folder.Text = @"E:\Jobs";
             quiet.Text = "0";
+            linesPerPage.Text = "60";
+            colour.SelectedIndex = 0;
             HostConfiguration saved = window.ProfileForTesting.ToHostConfiguration();
             Assert.Equal(ConnectionFactory.PrinterOutputs.Pdf, saved.PrinterOutput);
             Assert.Equal(@"E:\Jobs", saved.PrinterFolder);
@@ -178,11 +190,26 @@ public sealed class Ibm3287PrinterTests : IDisposable
             Assert.Equal(@"E:\Jobs", parameters.PrinterFolder);
             Assert.True(parameters.PrinterDeletePdf);
             Assert.Equal(0, parameters.PrinterQuietSeconds);
+            Assert.Equal(60, saved.PrinterLinesPerPage);
+            Assert.Equal(60, parameters.PrinterLinesPerPage);
+            Assert.True(parameters.PrinterTractorPaper);
+            Assert.Null(saved.PrinterTractorColour);
+
+            // Not a number of lines: the stored value stays.
+            linesPerPage.Text = "0";
+            Assert.Equal(60, window.ProfileForTesting.ToHostConfiguration().PrinterLinesPerPage);
+            colour.SelectedIndex = 1;
+            Assert.Equal(ConnectionFactory.TractorPaperColours.Green, window.ProfileForTesting.ToHostConfiguration().PrinterTractorColour);
 
             output.SelectedIndex = 0;
             folder.Text = "";
             quiet.Text = "";
+            linesPerPage.Text = "";
+            tractor.IsChecked = false;
+            Assert.False(colour.IsEnabled);
             saved = window.ProfileForTesting.ToHostConfiguration();
+            Assert.Null(saved.PrinterLinesPerPage);
+            Assert.Null(saved.PrinterTractorPaper);
             Assert.Null(saved.PrinterOutput);
             Assert.Null(saved.PrinterFolder);
             Assert.Null(saved.PrinterQuietSeconds);

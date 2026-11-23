@@ -202,6 +202,23 @@ public static class ConnectionFactory
         public int? PrinterQuietSeconds { get; set; }
 
         /// <summary>
+        /// 3287 PDF only: start a new sheet after this many lines as well as on a Form Feed; null
+        /// for a new sheet only on a Form Feed. The text file is never split by it.
+        /// </summary>
+        public int? PrinterLinesPerPage { get; set; }
+
+        /// <summary>
+        /// 3287 PDF only: true draws each sheet as continuous form (tractor feed) paper.
+        /// </summary>
+        public bool? PrinterTractorPaper { get; set; }
+
+        /// <summary>
+        /// 3287 PDF only: the colour of the tractor paper's bands, one of
+        /// <see cref="TractorPaperColours"/>; null is blue.
+        /// </summary>
+        public string? PrinterTractorColour { get; set; }
+
+        /// <summary>
         /// Whether the Delete key sends DEL (0x7F) rather than its terminal's own sequence.
         /// </summary>
         public bool DeleteSendsDel { get; set; }
@@ -673,6 +690,51 @@ public static class ConnectionFactory
             }
 
             return Text;
+        }
+    }
+
+    /// <summary>
+    /// The band colours of the 3287 PDF's tractor paper look: white and pale blue (Ronny asked for
+    /// blue, 23 November 2026), or white and pale green, the classic "green bar" sheet.
+    /// </summary>
+    public static class TractorPaperColours
+    {
+        /// <summary>
+        /// White and pale blue bands, the default.
+        /// </summary>
+        public const string Blue = "Blue";
+
+        /// <summary>
+        /// White and pale green bands.
+        /// </summary>
+        public const string Green = "Green";
+
+        /// <summary>
+        /// The choices in the order the connection form lists them.
+        /// </summary>
+        public static readonly string[] Choices = { Blue, Green };
+
+        /// <summary>
+        /// The stored value for any text: one of <see cref="Choices"/>, or <see cref="Blue"/> for
+        /// null or anything else.
+        /// </summary>
+        /// <param name="value">
+        /// The stored or typed value; case does not matter.
+        /// </param>
+        /// <returns>
+        /// One of <see cref="Choices"/>.
+        /// </returns>
+        public static string Normalise(string? value)
+        {
+            for (int i = 0; i < Choices.Length; i++)
+            {
+                if (string.Equals(value, Choices[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return Choices[i];
+                }
+            }
+
+            return Blue;
         }
     }
 

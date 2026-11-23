@@ -214,7 +214,19 @@ to it the same way it writes to a screen, and the printer prints what it was sen
    and macOS). With Printer you can tick **Delete the PDF after printing**; unticked, the PDF stays
    in the folder.
 3. Pick the output folder. Empty means `Documents\RetroTerm\Printer`.
-4. Connect. The tab shows the printer's state instead of a screen: connected or not, whether a job
+4. For PDF and Printer only (the text file is never changed by these):
+   - **PDF lines per page.** Empty: a new sheet only where the host sent a Form Feed. A number N:
+     also a new sheet after every N lines. A Form Feed starts the count again from 0, and a page
+     that runs to exactly N lines and then gets a Form Feed is one sheet, not a full sheet and an
+     empty one. **TK5 needs 56** (see below: JRP never sends a Form Feed).
+   - **Draw the PDF as tractor feed paper.** Each sheet looks like old continuous form paper:
+     bands of white and a pale colour (pick blue or green, blue unless you change it), three print
+     lines to a band, and drawn sprocket holes down both sides. The sheet is 9 1/2 x 11 inches for
+     lines up to 84 columns (every 80-column job) and 14 7/8 x 11 inches above that (every
+     132-column job), with a 1/2 inch strip down each side for the holes. The holes are 5/32 inch,
+     1/2 inch apart, 1/4 inch in from the edge; the bands are 1/2 inch (3 lines at 6 lines an inch).
+     Where those numbers come from is written at the top of `src\RetroTerm.Desktop\Printing\TractorPaper.cs`.
+5. Connect. The tab shows the printer's state instead of a screen: connected or not, whether a job
    is coming in, and every job printed with its file name.
 
 **One file per print job.** A job ends when the host sends telnet Abort Output, when the connection
@@ -246,6 +258,8 @@ PRT4 starts drained (switched off). To switch it on:
   A new page is NOT a Form Feed: JRP sends New Lines down to the end of its 56-line page
   (`LPP=056` in its display), and it fills the job's last page the same way. So a job of two lines
   is a 56-line file, and a two-page job is 112 lines with no page break character in it.
+  So for the PDF set **PDF lines per page** to 56: then a two-page job is two sheets. Left empty,
+  it is one tall sheet. The text file is the same either way.
 - Nothing marks the end of a job. No telnet Abort Output, no Form Feed, nothing at all between two
   jobs. **On TK5 the quiet time is the only thing that ends a job**, so leave it on (5 seconds).
 - RetroTerm's files matched: one text file and one PDF per job, every line as JES2 had it.

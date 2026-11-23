@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -15,6 +16,8 @@ using RetroTerm.Core.Logging;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Ibm3270;
 
+using SkiaSharp;
+
 namespace RetroTerm.Desktop.Printing;
 
 /// <summary>
@@ -23,13 +26,15 @@ namespace RetroTerm.Desktop.Printing;
 /// printer port uses.
 /// </summary>
 /// <remarks>
-/// The sheet is US Letter and grows to fit a wider line, so a 132-column job is not cut
+/// The plain sheet is US Letter and grows to fit a wider line, so a 132-column job is not cut
 /// (PdfPrintSink, "The sheet grows rather than cropping"). The page breaks are the host's Form
-/// Feeds and nothing else; a job without a Form Feed is one tall sheet.
+/// Feeds, and with "Lines per page" set also every N lines (<see cref="PdfSheets"/>). With
+/// "Tractor paper" on, each sheet is drawn as continuous form paper by <see cref="TractorPaper"/>.
 /// </remarks>
 public sealed class PdfPrintJobOutput : IPrintJobOutput
 {
     private readonly string? _folder;
+    private readonly PdfPaperOptions _paper;
 
     /// <summary>
     /// Creates the output.
@@ -37,10 +42,19 @@ public sealed class PdfPrintJobOutput : IPrintJobOutput
     /// <param name="folder">
     /// The output folder, or null for <see cref="PrintJobFiles.DefaultFolder"/>.
     /// </param>
-    public PdfPrintJobOutput(string? folder)
+    /// <param name="paper">
+    /// Where the sheets break and how they look; null for <see cref="PdfPaperOptions.Plain"/>.
+    /// </param>
+    public PdfPrintJobOutput(string? folder, PdfPaperOptions? paper = null)
     {
         _folder = folder;
+        _paper = paper ?? PdfPaperOptions.Plain;
     }
+
+    /// <summary>
+    /// Gets the sheet options this output writes with.
+    /// </summary>
+    public PdfPaperOptions Paper => _paper;
 
     /// <inheritdoc/>
     public string Description => "PDF files in " + (string.IsNullOrWhiteSpace(_folder) ? PrintJobFiles.DefaultFolder : _folder);
@@ -50,8 +64,31 @@ public sealed class PdfPrintJobOutput : IPrintJobOutput
     {
         ArgumentNullException.ThrowIfNull(job);
         string path = PrintJobFiles.NewPath(_folder, localTime, number, ".pdf");
-        WritePdf(job, path);
+        WritePdf(job, path, _paper);
         return path;
+    }
+
+    /// <summary>
+    /// The job's sheets: its pages split by the lines-per-page setting.
+    /// </summary>
+    /// <param name="job">
+    /// The job.
+    /// </param>
+    /// <param name="linesPerPage">
+    /// N, or null for Form Feeds only.
+    /// </param>
+    /// <returns>
+    /// The sheets.
+    /// </returns>
+    internal static List<IReadOnlyList<string>> Sheets(PrintJob job, int? linesPerPage)
+    {
+        var pages = new List<IReadOnlyList<string>>(job.PageCount);
+        for (int page = 0; page < job.PageCount; page++)
+        {
+            pages.Add(job.Page(page));
+        }
+
+        return PdfSheets.Split(pages, linesPerPage);
     }
 
     /// <summary>
@@ -63,17 +100,27 @@ public sealed class PdfPrintJobOutput : IPrintJobOutput
     /// <param name="path">
     /// Where the PDF goes; an existing file is replaced.
     /// </param>
-    internal static void WritePdf(PrintJob job, string path)
+    /// <param name="paper">
+    /// Where the sheets break and how they look.
+    /// </param>
+    internal static void WritePdf(PrintJob job, string path, PdfPaperOptions paper)
     {
-        using var sink = new PdfPrintSink(path);
-        for (int page = 0; page < job.PageCount; page++)
+        List<IReadOnlyList<string>> sheets = Sheets(job, paper.LinesPerPage);
+        if (paper.TractorPaper)
         {
-            if (page > 0)
+            WriteTractorPdf(sheets, path, paper.TractorColour);
+            return;
+        }
+
+        using var sink = new PdfPrintSink(path);
+        for (int sheet = 0; sheet < sheets.Count; sheet++)
+        {
+            if (sheet > 0)
             {
                 sink.FormFeed();
             }
 
-            var lines = job.Page(page);
+            var lines = sheets[sheet];
 
             // An empty page is a sheet the host ejected with nothing on it. PdfPrintSink skips a
             // page with no bytes, so it gets one empty line to keep the sheet, as the text file does.
@@ -88,6 +135,32 @@ public sealed class PdfPrintJobOutput : IPrintJobOutput
                 WriteLatin1(sink, lines[line]);
                 sink.Write("\n"u8);
             }
+        }
+    }
+
+    // Tractor paper: one PDF page per sheet, drawn by TractorPaper.Draw, the same method the tests
+    // render into a bitmap. The document is closed before the file (see PdfPrintSink, "It MUST be
+    // disposed", for why both are disposed and in this order).
+    private static void WriteTractorPdf(List<IReadOnlyList<string>> sheets, string path, string? colour)
+    {
+        using var file = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using (SKDocument document = SKDocument.CreatePdf(file))
+        {
+            for (int sheet = 0; sheet < sheets.Count; sheet++)
+            {
+                (float width, float height) = TractorPaper.SheetSize(sheets[sheet]);
+                SKCanvas canvas = document.BeginPage(width, height);
+                try
+                {
+                    TractorPaper.Draw(canvas, width, height, sheets[sheet], colour);
+                }
+                finally
+                {
+                    document.EndPage();
+                }
+            }
+
+            document.Close();
         }
     }
 
@@ -183,6 +256,7 @@ public sealed class SystemPrinterJobOutput : IPrintJobOutput
     private readonly string? _folder;
     private readonly ISystemPrintCommand _command;
     private readonly bool _deletePdf;
+    private readonly PdfPaperOptions _paper;
 
     /// <summary>
     /// Creates the output.
@@ -196,8 +270,12 @@ public sealed class SystemPrinterJobOutput : IPrintJobOutput
     /// <param name="deletePdf">
     /// True to delete each PDF after printing.
     /// </param>
-    public SystemPrinterJobOutput(string? folder, ISystemPrintCommand command, bool deletePdf)
+    /// <param name="paper">
+    /// Where the sheets break and how they look; null for <see cref="PdfPaperOptions.Plain"/>.
+    /// </param>
+    public SystemPrinterJobOutput(string? folder, ISystemPrintCommand command, bool deletePdf, PdfPaperOptions? paper = null)
     {
+        _paper = paper ?? PdfPaperOptions.Plain;
         _folder = folder;
         _command = command ?? throw new ArgumentNullException(nameof(command));
         _deletePdf = deletePdf;
@@ -217,7 +295,7 @@ public sealed class SystemPrinterJobOutput : IPrintJobOutput
     {
         ArgumentNullException.ThrowIfNull(job);
         string path = PrintJobFiles.NewPath(_folder, localTime, number, ".pdf");
-        PdfPrintJobOutput.WritePdf(job, path);
+        PdfPrintJobOutput.WritePdf(job, path, _paper);
 
         // Started here so a missing print program fails this job, where the status screen lists it.
         Task<bool> printing = _command.PrintAsync(path);
@@ -276,8 +354,8 @@ public static class PrinterJobOutputFactory
         string? folder = string.IsNullOrWhiteSpace(parameters.PrinterFolder) ? null : parameters.PrinterFolder;
         return ConnectionFactory.PrinterOutputs.Normalise(parameters.PrinterOutput) switch
         {
-            ConnectionFactory.PrinterOutputs.Pdf => new PdfPrintJobOutput(folder),
-            ConnectionFactory.PrinterOutputs.Printer => new SystemPrinterJobOutput(folder, command ?? new SystemPrintCommand(), parameters.PrinterDeletePdf == true),
+            ConnectionFactory.PrinterOutputs.Pdf => new PdfPrintJobOutput(folder, PdfPaperOptions.From(parameters)),
+            ConnectionFactory.PrinterOutputs.Printer => new SystemPrinterJobOutput(folder, command ?? new SystemPrintCommand(), parameters.PrinterDeletePdf == true, PdfPaperOptions.From(parameters)),
             _ => new TextPrintJobOutput(folder),
         };
     }

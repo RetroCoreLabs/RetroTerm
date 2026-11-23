@@ -132,6 +132,22 @@ public class HostConfiguration
     public int? PrinterQuietSeconds { get; set; }
 
     /// <summary>
+    /// IBM 3287 printer connections, PDF only: a new sheet after this many lines as well as on a
+    /// Form Feed; null for a new sheet only on a Form Feed. TK5 needs 56 (Ronny, 23 November 2026).
+    /// </summary>
+    public int? PrinterLinesPerPage { get; set; }
+
+    /// <summary>
+    /// IBM 3287 printer connections, PDF only: true draws each sheet as tractor feed paper.
+    /// </summary>
+    public bool? PrinterTractorPaper { get; set; }
+
+    /// <summary>
+    /// IBM 3287 printer connections, PDF only: "Blue" or "Green" bands; null is blue.
+    /// </summary>
+    public string? PrinterTractorColour { get; set; }
+
+    /// <summary>
     /// Maximum scrollback lines
     /// </summary>
     public int MaxScrollback { get; set; } = 1000;
@@ -347,6 +363,9 @@ public class HostConfiguration
             PrinterFolder = PrinterFolder,
             PrinterDeletePdf = PrinterDeletePdf,
             PrinterQuietSeconds = PrinterQuietSeconds,
+            PrinterLinesPerPage = PrinterLinesPerPage,
+            PrinterTractorPaper = PrinterTractorPaper,
+            PrinterTractorColour = PrinterTractorColour,
             NewLineReceive = NewLineReceive,
             NewLineTransmit = NewLineTransmit,
             LocalEcho = LocalEcho,
@@ -397,6 +416,9 @@ public class HostConfiguration
             PrinterFolder = PrinterFolder,
             PrinterDeletePdf = PrinterDeletePdf,
             PrinterQuietSeconds = PrinterQuietSeconds,
+            PrinterLinesPerPage = PrinterLinesPerPage,
+            PrinterTractorPaper = PrinterTractorPaper,
+            PrinterTractorColour = PrinterTractorColour,
             NewLineReceive = string.IsNullOrWhiteSpace(NewLineReceive) ? "AUTO" : NewLineReceive,
             NewLineTransmit = string.IsNullOrWhiteSpace(NewLineTransmit) ? "CR" : NewLineTransmit,
             LocalEcho = LocalEcho,

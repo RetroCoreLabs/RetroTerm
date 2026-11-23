@@ -59,6 +59,12 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private bool? _printerDeletePdf;
     private int? _snapshotPrinterQuietSeconds;
     private int? _printerQuietSeconds;
+    private int? _snapshotPrinterLinesPerPage;
+    private int? _printerLinesPerPage;
+    private bool? _snapshotPrinterTractorPaper;
+    private bool? _printerTractorPaper;
+    private string? _snapshotPrinterTractorColour;
+    private string? _printerTractorColour;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
     private string _snapshotNewLineTransmit = ConnectionFactory.NewLineModes.Cr;
@@ -377,6 +383,33 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 3287 printer, PDF only: a new sheet after this many lines too; null for Form Feeds only.
+    /// </summary>
+    public int? PrinterLinesPerPage
+    {
+        get => _printerLinesPerPage;
+        set { if (_printerLinesPerPage != value) { _printerLinesPerPage = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// 3287 printer, PDF only: true draws each sheet as tractor feed paper.
+    /// </summary>
+    public bool? PrinterTractorPaper
+    {
+        get => _printerTractorPaper;
+        set { if (_printerTractorPaper != value) { _printerTractorPaper = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// 3287 printer, PDF only: the tractor paper's band colour; null is blue.
+    /// </summary>
+    public string? PrinterTractorColour
+    {
+        get => _printerTractorColour;
+        set { if (_printerTractorColour != value) { _printerTractorColour = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// Whether Delete sends DEL (0x7F) instead of its terminal's own sequence.
     /// </summary>
     public bool DeleteSendsDel
@@ -515,6 +548,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _printerFolder != _snapshotPrinterFolder
                 || _printerDeletePdf != _snapshotPrinterDeletePdf
                 || _printerQuietSeconds != _snapshotPrinterQuietSeconds
+                || _printerLinesPerPage != _snapshotPrinterLinesPerPage
+                || _printerTractorPaper != _snapshotPrinterTractorPaper
+                || _printerTractorColour != _snapshotPrinterTractorColour
                 || _deleteSendsDel != _snapshotDeleteSendsDel
                 || _newLineReceive != _snapshotNewLineReceive
                 || _newLineTransmit != _snapshotNewLineTransmit
@@ -572,6 +608,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _printerFolder = config.PrinterFolder;
         _printerDeletePdf = config.PrinterDeletePdf;
         _printerQuietSeconds = config.PrinterQuietSeconds;
+        _printerLinesPerPage = config.PrinterLinesPerPage;
+        _printerTractorPaper = config.PrinterTractorPaper;
+        _printerTractorColour = config.PrinterTractorColour;
         _deleteSendsDel = config.DeleteSendsDel;
         // A file written before these existed has null here, and the fallbacks are the
         // behaviour that build had - so an old connection opens behaving exactly as it did.
@@ -660,6 +699,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             PrinterFolder = _printerFolder,
             PrinterDeletePdf = _printerDeletePdf,
             PrinterQuietSeconds = _printerQuietSeconds,
+            PrinterLinesPerPage = _printerLinesPerPage,
+            PrinterTractorPaper = _printerTractorPaper,
+            PrinterTractorColour = _printerTractorColour,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -710,6 +752,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             PrinterFolder = _printerFolder,
             PrinterDeletePdf = _printerDeletePdf,
             PrinterQuietSeconds = _printerQuietSeconds,
+            PrinterLinesPerPage = _printerLinesPerPage,
+            PrinterTractorPaper = _printerTractorPaper,
+            PrinterTractorColour = _printerTractorColour,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -766,6 +811,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotPrinterFolder = _printerFolder;
         _snapshotPrinterDeletePdf = _printerDeletePdf;
         _snapshotPrinterQuietSeconds = _printerQuietSeconds;
+        _snapshotPrinterLinesPerPage = _printerLinesPerPage;
+        _snapshotPrinterTractorPaper = _printerTractorPaper;
+        _snapshotPrinterTractorColour = _printerTractorColour;
         _snapshotDeleteSendsDel = _deleteSendsDel;
         _snapshotNewLineReceive = _newLineReceive;
         _snapshotNewLineTransmit = _newLineTransmit;
