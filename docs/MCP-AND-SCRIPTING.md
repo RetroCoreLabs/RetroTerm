@@ -142,6 +142,8 @@ Verb summary:
 | `SENDKEY` | `SENDKEY HJELP` — named TDV function key, mode-aware sequence from the key registry |
 | `STATUSLINE` | `STATUSLINE` — the status line: a 3270's line 25 plus whether the keyboard is locked and why; on a VT tab, the line the host writes |
 | `FIELDS` | `FIELDS` — every 3270 field, one line each: row and column of its first character, length, protected or input, numeric, hidden, bright, modified, colour and its text; a hidden field never shows its text |
+| `SETFIELD` | `SETFIELD 2 HERC01` — empty a 3270 input field (numbered as FIELDS numbers it) and type the text; nothing is sent until a key such as `SENDKEY IBM.ENTER` |
+| `CURSOR` | `CURSOR 10 20` — move the 3270 cursor to row 10, column 20 (counted from 1) |
 | `WAITUNLOCK` | `WAITUNLOCK 10000` — wait until the host unlocks the 3270 keyboard (it has answered); fails at once on a lock only Reset clears; `ontimeout=label` works |
 | `EMULATION` | `EMULATION type=TDV2200` — changes the terminal type on a LIVE connection, keeping the screen and the connection. |
 | `UNHANDLED` | `UNHANDLED` — the sequences this session was sent and did not act on, the ND graphics modes and ReGIS commands included. The first thing to read when a screen looks wrong and nothing has failed. |

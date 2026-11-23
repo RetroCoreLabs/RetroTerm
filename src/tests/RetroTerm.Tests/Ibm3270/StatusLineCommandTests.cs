@@ -155,6 +155,50 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public async Task SetFieldReplacesAFieldsTextAndEnterSendsIt()
+        {
+            var (session, connection, emulator) = await Open();
+            Assert.True(emulator.HandleText("old"));
+            await session.FlushAsync();
+
+            CommandResult set = await Run(new SetFieldCommand(), session, new CommandArgs().Set("field", "2").Set("text", "hi"));
+            Assert.True(set.Success, set.Error);
+
+            // Erase EOF emptied "old" first, so only "hi" goes: AID, cursor 8, SBA 6, "hi".
+            connection.ClearSentData();
+            Assert.True(emulator.HandleKey("Enter", false, false, false));
+            await session.FlushAsync();
+            Assert.Equal(new byte[] { 0x7D, 0x40, 0xC8, 0x11, 0x40, 0xC6, 0x88, 0x89 }, connection.GetSentData()[0]);
+        }
+
+        [Fact]
+        public async Task SetFieldRefusesAProtectedFieldAMissingFieldAndTooMuchText()
+        {
+            var (session, _, _) = await Open();
+
+            CommandResult protectedField = await Run(new SetFieldCommand(), session, new CommandArgs().Set("field", "1").Set("text", "x"));
+            CommandResult missing = await Run(new SetFieldCommand(), session, new CommandArgs().Set("field", "9").Set("text", "x"));
+            CommandResult tooLong = await Run(new SetFieldCommand(), session, new CommandArgs().Set("field", "2").Set("text", new string('x', 2000)));
+
+            Assert.Contains("protected", protectedField.Error);
+            Assert.Contains("no field 9", missing.Error);
+            Assert.Contains("holds", tooLong.Error);
+        }
+
+        [Fact]
+        public async Task CursorMovesTheCursorAndRefusesACellOffTheScreen()
+        {
+            var (session, _, emulator) = await Open();
+
+            CommandResult moved = await Run(new CursorCommand(), session, new CommandArgs().Set("row", "2").Set("col", "7"));
+            CommandResult off = await Run(new CursorCommand(), session, new CommandArgs().Set("row", "25").Set("col", "1"));
+
+            Assert.True(moved.Success, moved.Error);
+            Assert.Equal(86, emulator.Display.CursorAddress);
+            Assert.False(off.Success);
+        }
+
+        [Fact]
         public async Task FieldsOnAnUnformattedScreenSaysSo()
         {
             var session = new TerminalSession(new Ibm3270Emulator(), "Test");

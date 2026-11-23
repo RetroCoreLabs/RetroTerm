@@ -65,6 +65,66 @@ public sealed class FieldsCommand : ISessionCommand
 }
 
 /// <summary>
+/// SETFIELD — replace the text of one 3270 input field, numbered as FIELDS numbers them.
+/// </summary>
+public sealed class SetFieldCommand : ISessionCommand
+{
+    public string Name => "SETFIELD";
+    public string Summary => "Put text into a 3270 input field by its FIELDS number (the field is emptied first; nothing is sent until a key like IBM.ENTER)";
+    public string Example => "SETFIELD 2 HERC01";
+
+    public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
+    {
+        new CommandParameter("field", CommandParameterType.Int, required: true, defaultValue: null,
+            "The field number, as FIELDS lists it (from 1)"),
+        new CommandParameter("text", CommandParameterType.String, required: true, defaultValue: null,
+            "The text to type into it"),
+    };
+
+    public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
+    {
+        if (session.Emulator is not IFieldScreen screen)
+        {
+            return CommandResult.Fail("this tab's terminal (" + session.Emulator.GetType().Name + ") has no fields");
+        }
+
+        int number = args.GetInt("field", 0);
+        string text = args.GetString("text") ?? string.Empty;
+        string? problem = await session.RunOnSessionThreadAsync(() => screen.FillField(number, text)).ConfigureAwait(false);
+        return problem == null ? CommandResult.Ok("field " + number + " set") : CommandResult.Fail(problem + " — nothing was changed after that");
+    }
+}
+
+/// <summary>
+/// CURSOR — move the 3270 cursor to a row and column.
+/// </summary>
+public sealed class CursorCommand : ISessionCommand
+{
+    public string Name => "CURSOR";
+    public string Summary => "Move the 3270 cursor to a row and column (counted from 1)";
+    public string Example => "CURSOR 10 20";
+
+    public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
+    {
+        new CommandParameter("row", CommandParameterType.Int, required: true, defaultValue: null, "Row, from 1"),
+        new CommandParameter("col", CommandParameterType.Int, required: true, defaultValue: null, "Column, from 1"),
+    };
+
+    public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
+    {
+        if (session.Emulator is not IFieldScreen screen)
+        {
+            return CommandResult.Fail("this tab's terminal (" + session.Emulator.GetType().Name + ") has no 3270 cursor to move");
+        }
+
+        int row = args.GetInt("row", 0);
+        int col = args.GetInt("col", 0);
+        string? problem = await session.RunOnSessionThreadAsync(() => screen.MoveCursorTo(row, col)).ConfigureAwait(false);
+        return problem == null ? CommandResult.Ok("cursor at row " + row + " column " + col) : CommandResult.Fail(problem);
+    }
+}
+
+/// <summary>
 /// WAITUNLOCK — wait until the host unlocks the keyboard: the 3270 way of knowing it answered.
 /// </summary>
 /// <remarks>

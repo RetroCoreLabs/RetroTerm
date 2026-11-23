@@ -595,6 +595,101 @@ namespace RetroTerm.Ibm3270
             return number == 0 ? "no fields (unformatted screen)" : text.ToString().TrimEnd('\n');
         }
 
+        /// <summary>
+        /// Replaces one input field's text (IFieldScreen): cursor to its first position, Erase
+        /// EOF, then the text typed through Display3270.Type, the operator's own path, so the
+        /// field's rules (numeric, overflow) apply as they would to a person typing.
+        /// </summary>
+        /// <param name="number">
+        /// The field number from DescribeFields, from 1.
+        /// </param>
+        /// <param name="text">
+        /// The text.
+        /// </param>
+        /// <returns>
+        /// Null when done, or the reason it was refused.
+        /// </returns>
+        public string? FillField(int number, string text)
+        {
+            if (_display.Lock != KeyboardLock.None)
+            {
+                return "the keyboard is locked (" + KeyboardLockReason + ")";
+            }
+
+            int size = _display.Size;
+            int found = 0;
+            for (int fa = 0; fa < size; fa++)
+            {
+                if (!_display.IsFieldAttribute(fa) || ++found != number)
+                {
+                    continue;
+                }
+
+                if (FieldAttribute.IsProtected(_display.GetByte(fa)))
+                {
+                    return "field " + number + " is protected";
+                }
+
+                int first = (fa + 1) % size;
+                int length = 0;
+                for (int a = first; !_display.IsFieldAttribute(a) && length < size; a = (a + 1) % size)
+                {
+                    length++;
+                }
+
+                if (text.Length > length)
+                {
+                    return "field " + number + " holds " + length + " characters, the text has " + text.Length;
+                }
+
+                _display.MoveCursor(first);
+                _display.EraseEndOfField();
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if (!_display.Type(text[i]))
+                    {
+                        return "the field refused '" + text[i] + "' (keyboard now " + (KeyboardLockReason ?? "unlocked") + ")";
+                    }
+                }
+
+                Refresh();
+                return null;
+            }
+
+            return "there is no field " + number + " (the screen has " + found + ")";
+        }
+
+        /// <summary>
+        /// Moves the cursor to a cell (IFieldScreen), refused while the keyboard is locked.
+        /// </summary>
+        /// <param name="row">
+        /// The row, from 1.
+        /// </param>
+        /// <param name="column">
+        /// The column, from 1.
+        /// </param>
+        /// <returns>
+        /// Null when moved, or the reason it was refused.
+        /// </returns>
+        public string? MoveCursorTo(int row, int column)
+        {
+            int columns = _display.Columns;
+            int rows = _display.Size / columns;
+            if (row < 1 || row > rows || column < 1 || column > columns)
+            {
+                return "row " + row + " column " + column + " is not on the " + rows + " by " + columns + " screen";
+            }
+
+            if (_display.Lock != KeyboardLock.None)
+            {
+                return "the keyboard is locked (" + KeyboardLockReason + ")";
+            }
+
+            _display.MoveCursor(((row - 1) * columns) + column - 1);
+            Refresh();
+            return null;
+        }
+
         // The extended colour values (GA23-0061-2 p. 2-10); X'00' is the default, so no name.
         private static string? ColourName(byte colour) => colour switch
         {

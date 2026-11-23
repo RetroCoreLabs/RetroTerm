@@ -22,5 +22,35 @@ namespace RetroTerm.Core.Terminal.Input
         /// The lines, or one line saying the screen has no fields.
         /// </returns>
         string DescribeFields();
+
+        /// <summary>
+        /// Replaces the text of one input field, as an operator would: the cursor goes to the
+        /// field's first position, Erase EOF empties it, and the text is typed.
+        /// </summary>
+        /// <param name="number">
+        /// The field's number in <see cref="DescribeFields"/>, from 1.
+        /// </param>
+        /// <param name="text">
+        /// The text to type.
+        /// </param>
+        /// <returns>
+        /// Null when done, or why not (no such field, a protected field, the keyboard locked, text
+        /// longer than the field).
+        /// </returns>
+        string? FillField(int number, string text);
+
+        /// <summary>
+        /// Moves the cursor, as clicking the cell would.
+        /// </summary>
+        /// <param name="row">
+        /// The row, from 1.
+        /// </param>
+        /// <param name="column">
+        /// The column, from 1.
+        /// </param>
+        /// <returns>
+        /// Null when moved, or why not.
+        /// </returns>
+        string? MoveCursorTo(int row, int column);
     }
 }
