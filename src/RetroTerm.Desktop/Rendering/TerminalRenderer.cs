@@ -383,6 +383,7 @@ public class TerminalRenderer
     /// </param>
     public void Render(DrawingContext context, Size availableSize, int scrollOffset = 0, double scale = 1.0)
     {
+        _drawScale = scale > 0 ? scale : 1.0;
         double smooth = SmoothScrollPixelOffset;
 
         if (smooth <= 0.0)
@@ -1188,6 +1189,9 @@ public class TerminalRenderer
             double cellWidth = doubleWidthRow ? _charWidth * 2 : _charWidth;
             int lastVisibleColumn = doubleWidthRow ? frame.Width / 2 - 1 : frame.Width - 1;
 
+            PaintRowBackgrounds(context, frame, row, aboveTop, lastVisibleColumn, cellWidth,
+                selStart, selEnd, currentStart, currentEnd, matchRow);
+
             for (int col = 0; col <= lastVisibleColumn; col++)
             {
                 // The frame already resolved any scrollback offset on the pump thread, so the
@@ -1217,37 +1221,8 @@ public class TerminalRenderer
                     (fg, bg) = (bg, fg); // Swap colors
                 }
 
-                // Draw highlights in priority order: selection > current match > other matches
-                if (isSelected)
-                {
-                    // Selection highlight (highest priority)
-                    context.FillRectangle(SelectionBrush, new Rect(x, y, cellWidth, _charHeight));
-                }
-                else if (isCurrentMatch)
-                {
-                    // Current search match highlight (bright yellow)
-                    context.FillRectangle(CurrentMatchBrush, new Rect(x, y, cellWidth, _charHeight));
-                }
-                else if (isSearchMatch)
-                {
-                    // Other search match highlight (darker yellow)
-                    context.FillRectangle(SearchMatchBrush, new Rect(x, y, cellWidth, _charHeight));
-                }
-                else
-                {
-                    // Skip the fill only when the cell's background is ALREADY WHAT IS UNDERNEATH.
-                    // That is the default background normally, but under DECSCNM the ground is
-                    // the foreground colour - so a cell that resolves back to the default
-                    // background (SGR reverse on a reversed screen, where the two swaps cancel)
-                    // must really be painted, or the inverted ground shows through and the cell
-                    // comes out the wrong way round. Comparing against _defaultBackground
-                    // unconditionally is what made that cell invisible.
-                    var ground = frame.ReverseScreen ? _defaultForeground : _defaultBackground;
-                    if (!ReferenceEquals(bg, ground))
-                    {
-                        context.FillRectangle(bg, new Rect(x, y, cellWidth, _charHeight));
-                    }
-                }
+                // The background and the selection and search highlights were painted for the
+                // whole row by PaintRowBackgrounds before this loop.
 
                 // Blink is a CELL attribute (SGR 5 / SGR 6) and is separate from the cursor
                 // blinking. Both were set by the emulators and ignored here, so text a host
@@ -1547,6 +1522,131 @@ public class TerminalRenderer
         }
 
         return brush;
+    }
+
+    /// <summary>
+    /// Paints one row's cell backgrounds and its selection and search highlights, as one rectangle
+    /// per run of cells with the same colour, with its edges on whole device pixels.
+    /// </summary>
+    /// <remarks>
+    /// One rectangle per CELL left a darker line at every cell edge (BUGS.md B8, measured 23
+    /// November 2026 on a 3270 screen with an explicit black background: 0x0B against 0x10). A cell
+    /// is a fraction of a pixel wide and tall, so two neighbouring rectangles each cover only part
+    /// of the pixel they share, and the ground underneath shows through both. A run is one
+    /// rectangle, so there is no edge inside it, and edges snapped to device pixels (as
+    /// RepaintDirtyRows snaps its bands) leave no part-covered pixel between rows. Runs are
+    /// compared by COLOUR: an RGB background gets a new brush for every cell (GetCellBackground),
+    /// so comparing brush objects made every run one cell long and changed nothing, which is how
+    /// the first try at this failed. Priority per cell, as before: selection, current match, other
+    /// matches, then the cell's own background with reverse video applied.
+    /// </remarks>
+    /// <param name="context">
+    /// The drawing context.
+    /// </param>
+    /// <param name="frame">
+    /// The frame being drawn.
+    /// </param>
+    /// <param name="row">
+    /// The window row; minus one is the line above the top during a smooth scroll.
+    /// </param>
+    /// <param name="aboveTop">
+    /// True for the line above the top.
+    /// </param>
+    /// <param name="lastVisibleColumn">
+    /// The last column on screen (half the line on a double-width row).
+    /// </param>
+    /// <param name="cellWidth">
+    /// The cell width, doubled on a double-width row.
+    /// </param>
+    /// <param name="selStart">
+    /// First selected column on this row.
+    /// </param>
+    /// <param name="selEnd">
+    /// Last selected column on this row, below selStart when none.
+    /// </param>
+    /// <param name="currentStart">
+    /// First column of the current search match on this row.
+    /// </param>
+    /// <param name="currentEnd">
+    /// Last column of the current search match, below currentStart when none.
+    /// </param>
+    /// <param name="matchRow">
+    /// The row in search coordinates.
+    /// </param>
+    private void PaintRowBackgrounds(DrawingContext context, ScreenFrame frame, int row, bool aboveTop,
+        int lastVisibleColumn, double cellWidth, int selStart, int selEnd, int currentStart, int currentEnd, int matchRow)
+    {
+        // Skip the fill only when the brush is ALREADY WHAT IS UNDERNEATH. That is the default
+        // background normally, but under DECSCNM the ground is the foreground colour - so a cell
+        // that resolves back to the default background (SGR reverse on a reversed screen, where
+        // the two swaps cancel) must really be painted, or the inverted ground shows through and
+        // the cell comes out the wrong way round.
+        var ground = frame.ReverseScreen ? _defaultForeground : _defaultBackground;
+        double s = _drawScale;
+        double top = Math.Round(row * _charHeight * s) / s;
+        double bottom = Math.Round((row + 1) * _charHeight * s) / s;
+        IBrush? runBrush = null;
+        int runStart = 0;
+        for (int col = 0; col <= lastVisibleColumn + 1; col++)
+        {
+            IBrush? brush = null;
+            if (col <= lastVisibleColumn)
+            {
+                if (col >= selStart && col <= selEnd)
+                {
+                    brush = SelectionBrush;
+                }
+                else if (col >= currentStart && col <= currentEnd)
+                {
+                    brush = CurrentMatchBrush;
+                }
+                else if (IsInAnySearchMatch(matchRow, col))
+                {
+                    brush = SearchMatchBrush;
+                }
+                else
+                {
+                    TerminalCell cell = aboveTop ? frame.GetCellAboveTop(col) : frame[row, col];
+                    IBrush bg = GetCellBackground(cell);
+                    if (cell.Attributes.HasAttribute(CharacterAttributes.Reverse) != frame.ReverseScreen)
+                    {
+                        bg = GetCellForeground(cell);
+                    }
+
+                    brush = ReferenceEquals(bg, ground) ? null : bg;
+                }
+            }
+
+            if (SameColour(brush, runBrush))
+            {
+                continue;
+            }
+
+            if (runBrush != null)
+            {
+                double left = Math.Round(runStart * cellWidth * s) / s;
+                double right = Math.Round(col * cellWidth * s) / s;
+                context.FillRectangle(runBrush, new Rect(left, top, right - left, bottom - top));
+            }
+
+            runBrush = brush;
+            runStart = col;
+        }
+    }
+
+    // The scale the frame is drawn at (Render's scale), for snapping background edges to device
+    // pixels in PaintRowBackgrounds. One renderer draws one frame at a time, on the UI thread.
+    private double _drawScale = 1.0;
+
+    // Two brushes paint the same: the same object, or two solid brushes of one colour and opacity.
+    private static bool SameColour(IBrush? a, IBrush? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return true;
+        }
+
+        return a is ISolidColorBrush sa && b is ISolidColorBrush sb && sa.Color == sb.Color && sa.Opacity == sb.Opacity;
     }
 
     private IBrush GetCellBackground(TerminalCell cell)

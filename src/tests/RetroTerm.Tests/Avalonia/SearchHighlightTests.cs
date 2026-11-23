@@ -56,8 +56,16 @@ public class SearchHighlightTests
         var shot = RenderedScreenshot.Capture(emulator, "search-history-highlight",
             configureRenderer: r => r.SetSearchMatches(OneMatch(-1, 0, 5), 0));
 
-        Assert.True(LooksHighlighted(shot.DominantColorInCell(0, 0)),
-            "the history match should be highlighted on the top window row");
+        // Look at the TOP of the cell, not its most common colour. Scrolled back, the renderer draws
+        // the "Scrollback: 1 line back" label across rows 0 and 1, and it covers all but the top
+        // four pixel rows of this cell. Measured 23 November 2026: the cell's most common colour was
+        // the label's shade over yellow, so the old check (DominantColorInCell) passed or failed on
+        // a few pixels of the label's shading - it flipped when the background fill changed from
+        // one rectangle per cell to one per run (BUGS.md B8), while the highlight itself was the
+        // same pure yellow in the top rows both times.
+        int middle = (int)(shot.CellWidth / 2);
+        Assert.True(LooksHighlighted(shot.PixelAt(middle, 1)),
+            "the history match should be highlighted on the top window row: " + shot.PixelAt(middle, 1));
     }
 
     [AvaloniaFact]

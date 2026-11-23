@@ -366,6 +366,22 @@ namespace RetroTerm.Tests.Avalonia
             Assert.True(shot.CellHasInk(0, 1));
             Assert.True(shot.CellHasInk(26, 131));
             Assert.True(shot.CellHasInk(27, 0));
+
+            // BUGS.md B8: the empty middle of the screen is ONE colour, x3270's neutral black,
+            // across many cell edges both ways. One rectangle per cell left a darker line (0x0B
+            // against 0x10) at every edge, because cells sit at fractional pixel positions.
+            var black = new SkiaSharp.SKColor(0x10, 0x10, 0x10);
+            int y = (int)(10.5 * shot.CellHeight);
+            for (int x = (int)(20 * shot.CellWidth); x < (int)(40 * shot.CellWidth); x++)
+            {
+                Assert.Equal(black, shot.PixelAt(x, y));
+            }
+
+            int x0 = (int)(30.5 * shot.CellWidth);
+            for (int yy = (int)(5 * shot.CellHeight); yy < (int)(15 * shot.CellHeight); yy++)
+            {
+                Assert.Equal(black, shot.PixelAt(x0, yy));
+            }
         }
 
         [AvaloniaFact]
