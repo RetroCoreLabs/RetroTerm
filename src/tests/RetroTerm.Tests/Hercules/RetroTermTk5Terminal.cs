@@ -48,16 +48,23 @@ namespace RetroTerm.Tests.Hercules
         /// </summary>
         public TerminalSession Session => _session;
 
-        public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings)
+        /// <summary>
+        /// Gets the emulator, for a test that reads the screen size the host chose.
+        /// </summary>
+        public Ibm3270Emulator Emulator => _emulator;
+
+        public static Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings) => OpenAsync(settings, 2);
+
+        public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings, int model)
         {
-            var emulator = new Ibm3270Emulator();
+            var emulator = new Ibm3270Emulator(model);
             var session = new TerminalSession(emulator, "TK5");
             IConnection connection = ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
             {
                 Protocol = ConnectionFactory.ProtocolType.TN3270,
                 Host = settings.Host,
                 Port = settings.Port,
-                EmulatorType = "IBM-3278-2",
+                EmulatorType = "IBM-3278-" + model.ToString(System.Globalization.CultureInfo.InvariantCulture),
             });
             var terminal = new RetroTermTk5Terminal(session, emulator, settings.Host);
             connection.DataReceived += data => terminal.Note("host", data.Span);
