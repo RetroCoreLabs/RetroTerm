@@ -111,6 +111,8 @@ rows in place, this entry becomes a real defect and the old rule comes back.
   replace the sleeps with a deadline poll on the received replies, as
   `TerminalSessionTestServerIntegrationTests.WaitForResponseAsync` does.
 
+**Decided 24 November 2026 (Ronny):** RetroTerm keeps PA1 then break, as the current x3270 source does (its comment says IBM PCOMM does the same). The defect left is the test's reference: Tk5AttnTests compares with the installed s3270 4.5ga6, which sends break only, so it stays red until it runs against an s3270 built from current x3270.
+
 ## B10 - TK5 printer: a JRP job begins on PRT4 and no byte ever reaches the printer
 
 `src\tests\RetroTerm.Tests\Hercules\Tk5PrinterTests.cs` (category Hercules, needs TK5) starts
