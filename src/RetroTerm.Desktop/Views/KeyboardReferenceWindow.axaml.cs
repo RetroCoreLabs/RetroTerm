@@ -45,7 +45,11 @@ public partial class KeyboardReferenceWindow : Window
 
     private void PopulateKeyMappings()
     {
-        if (_emulatorType.Contains("TDV"))
+        if (_emulatorType.StartsWith("IBM-3278", StringComparison.OrdinalIgnoreCase))
+        {
+            Populate3270Keys();
+        }
+        else if (_emulatorType.Contains("TDV"))
         {
             PopulateTDVKeys();
         }
@@ -271,7 +275,130 @@ public partial class KeyboardReferenceWindow : Window
         // TDV-specific tabs (Application, Editing, PUSH) are not populated
     }
 
+    /// <summary>
+    /// The 3270 page: every PC key that presses a 3270 key, read from the emulator's own mapping
+    /// (Ibm3270Emulator.PcKeyToName) by trying every key Avalonia can report, alone, with Shift and
+    /// with Alt. So the page can only say what the keyboard really does, and a key added to the
+    /// mapping appears here the day it is added.
+    /// </summary>
+    private void Populate3270Keys()
+    {
+        var rows = Ibm3270KeyRows();
+        var subtitle = this.FindControl<TextBlock>("SubtitleText");
+        if (subtitle != null)
+        {
+            subtitle.Text = "The PC keys that press IBM 3270 keys";
+        }
+
+        var heading = this.FindControl<TextBlock>("NavigationHeading");
+        if (heading != null)
+        {
+            heading.Text = "A key that sends to the host locks the keyboard until the host answers";
+        }
+
+        var grid = this.FindControl<Grid>("NavigationKeysGrid");
+        if (grid != null)
+        {
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            for (int i = 0; i < rows.Count; i++) grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(150)));
+            grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(150)));
+            grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+            AddKeyHeader(grid, 0, "3270 key");
+            for (int i = 0; i < rows.Count; i++)
+            {
+                AddKeyRow(grid, i + 1, rows[i].PcKey, rows[i].Key3270, rows[i].Description);
+            }
+        }
+
+        // Only the one tab means anything on a 3270: the other three are TDV keys and PUSH keys.
+        var tabs = new List<Avalonia.LogicalTree.ILogical>(Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants(this));
+        for (int i = 0; i < tabs.Count; i++)
+        {
+            if (tabs[i] is TabItem tab)
+            {
+                bool keep = tab.Header as string == "Navigation";
+                tab.IsVisible = keep;
+                if (keep)
+                {
+                    tab.Header = "IBM 3270";
+                    tab.IsSelected = true;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The rows of the 3270 page, in the order of the emulator's key names (Enter first, PF keys
+    /// last). For tests as well as for the window.
+    /// </summary>
+    /// <returns>
+    /// One row per PC key combination that presses a 3270 key.
+    /// </returns>
+    internal static List<(string PcKey, string Key3270, string Description)> Ibm3270KeyRows()
+    {
+        string[] pcKeys = Enum.GetNames(typeof(Avalonia.Input.Key));
+        var found = new List<(string PcKey, string Key3270, string Description)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var order = RetroTerm.Ibm3270.Ibm3270Emulator.AllKeyNamesForReference;
+        for (int k = 0; k < order.Count; k++)
+        {
+            for (int i = 0; i < pcKeys.Length; i++)
+            {
+                for (int m = 0; m < 3; m++)
+                {
+                    bool shift = m == 1;
+                    bool alt = m == 2;
+                    if (RetroTerm.Ibm3270.Ibm3270Emulator.PcKeyToName(pcKeys[i], shift, false, alt) != order[k])
+                    {
+                        continue;
+                    }
+
+                    // Shift that changes nothing (Shift+Enter is Enter) is not a key of its own.
+                    if (shift && RetroTerm.Ibm3270.Ibm3270Emulator.PcKeyToName(pcKeys[i], false, false, false) == order[k])
+                    {
+                        continue;
+                    }
+
+                    string pc = (shift ? "Shift+" : alt ? "Alt+" : string.Empty) + PcKeyLabel(pcKeys[i]);
+                    if (!seen.Add(pc))
+                    {
+                        continue;
+                    }
+
+                    // Pressed on a throwaway emulator that is connected to nothing, so the page asks
+                    // the same code a real press runs whether the key is built (Backspace waits on a
+                    // decision, KEYBOARD.md open question 3) rather than keeping its own list.
+                    var probe = new RetroTerm.Ibm3270.Ibm3270Emulator();
+                    bool built = probe.PressNamedKey(order[k], out _) != NamedKeyResult.NotBuilt;
+                    found.Add((pc, order[k], !built
+                        ? "Not built yet: does nothing"
+                        : RetroTerm.Ibm3270.Ibm3270Emulator.IsAttentionKey(order[k])
+                            ? "Sends to the host"
+                            : "Local: changes the screen, sends nothing"));
+                }
+            }
+        }
+
+        return found;
+    }
+
+    // How a PC key is written on the page: Avalonia's D1 is the 1 key, Back is Backspace, Return
+    // and Enter are the same key.
+    private static string PcKeyLabel(string avaloniaName) => avaloniaName switch
+    {
+        "Back" => "Backspace",
+        "Return" => "Enter",
+        _ when avaloniaName.Length == 2 && avaloniaName[0] == 'D' && char.IsDigit(avaloniaName[1]) => avaloniaName.Substring(1),
+        _ => avaloniaName,
+    };
+
     private void AddKeyHeader(Grid grid, int row)
+    {
+        AddKeyHeader(grid, row, "Sequence");
+    }
+
+    private void AddKeyHeader(Grid grid, int row, string secondColumn)
     {
         var keyHeader = new TextBlock
         {
@@ -286,7 +413,7 @@ public partial class KeyboardReferenceWindow : Window
 
         var seqHeader = new TextBlock
         {
-            Text = "Sequence",
+            Text = secondColumn,
             FontWeight = FontWeight.Bold,
             Foreground = new SolidColorBrush(Color.Parse("#CCCCCC")),
             Margin = new Thickness(0, 0, 0, 10)

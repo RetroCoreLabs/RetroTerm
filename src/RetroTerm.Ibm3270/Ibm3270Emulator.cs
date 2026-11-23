@@ -298,7 +298,7 @@ namespace RetroTerm.Ibm3270
         /// <returns>
         /// The 3270 key name, or null when the PC key is not a 3270 key.
         /// </returns>
-        internal static string? PcKeyToName(string keyName, bool shift, bool control, bool alt)
+        public static string? PcKeyToName(string keyName, bool shift, bool control, bool alt)
         {
             if (alt && !control)
             {
@@ -363,6 +363,22 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// Whether a 3270 key goes to the host (an attention key: Enter, Clear, PA, PF, Attn, Sys Req,
+        /// Cursor Select) rather than only changing the screen (GA23-0059-4 p. 3-12, the AID list).
+        /// </summary>
+        /// <param name="name">
+        /// The key name, as in <see cref="KeyNames"/>.
+        /// </param>
+        /// <returns>
+        /// True for an attention key.
+        /// </returns>
+        public static bool IsAttentionKey(string name)
+        {
+            return name is "ENTER" or "CLEAR" or "PA1" or "PA2" or "PA3" or "ATTN" or "SYSREQ" or "CURSORSELECT"
+                || (name.Length > 2 && name[0] == 'P' && name[1] == 'F');
+        }
+
+        /// <summary>
         /// The keyboards the on-screen keyboard window offers for this terminal: the 3278 and the 3270 PC.
         /// </summary>
         public IReadOnlyList<KeyboardDescription> OnScreenKeyboards => Ibm3270Keyboards.All;
@@ -376,6 +392,11 @@ namespace RetroTerm.Ibm3270
         /// Every key name this terminal knows, built or not.
         /// </summary>
         public IReadOnlyList<string> KeyNames => AllKeyNames;
+
+        /// <summary>
+        /// Every key name, without an emulator, for the Key Reference window.
+        /// </summary>
+        public static IReadOnlyList<string> AllKeyNamesForReference => AllKeyNames;
 
         // Every 3270 key RetroTerm knows by name. The names are the legends on the IBM 3278 keyboard
         // (GA27-2890-4), written without spaces: ERASE EOF is ERASEEOF.
