@@ -19,16 +19,14 @@ namespace RetroTerm.Tests.Configuration
     public class TerminalChoiceTrackerTests
     {
         [Fact]
-        public void Tn3270ShowsOnlyThe3278AndFixesIt()
+        public void Tn3270OffersTheFour3278Models()
         {
             var tracker = new TerminalChoiceTracker();
 
-            bool isFixed = tracker.Update(ConnectionFactory.ProtocolType.TN3270, "VT220", out string[]? choices, out string? select);
+            tracker.Update(ConnectionFactory.ProtocolType.TN3270, "VT220", out string[]? choices, out string? select);
 
-            Assert.True(isFixed);
             Assert.NotNull(choices);
-            Assert.Single(choices);
-            Assert.Equal("IBM-3278-2", choices[0]);
+            Assert.Equal(new[] { "IBM-3278-2", "IBM-3278-3", "IBM-3278-4", "IBM-3278-5" }, choices);
             Assert.Equal("IBM-3278-2", select);
         }
 
@@ -38,9 +36,8 @@ namespace RetroTerm.Tests.Configuration
             var tracker = new TerminalChoiceTracker();
             tracker.Update(ConnectionFactory.ProtocolType.TN3270, "TDV2200", out _, out _);
 
-            bool isFixed = tracker.Update(ConnectionFactory.ProtocolType.Telnet, "IBM-3278-2", out string[]? choices, out string? select);
+            tracker.Update(ConnectionFactory.ProtocolType.Telnet, "IBM-3278-4", out string[]? choices, out string? select);
 
-            Assert.False(isFixed);
             Assert.NotNull(choices);
             Assert.True(choices.Length > 1);
             Assert.Equal("TDV2200", select);
@@ -51,9 +48,8 @@ namespace RetroTerm.Tests.Configuration
         {
             var tracker = new TerminalChoiceTracker();
 
-            bool isFixed = tracker.Update(ConnectionFactory.ProtocolType.SSH, "VT220", out string[]? choices, out string? select);
+            tracker.Update(ConnectionFactory.ProtocolType.SSH, "VT220", out string[]? choices, out string? select);
 
-            Assert.False(isFixed);
             Assert.Null(choices);
             Assert.Null(select);
         }

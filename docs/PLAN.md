@@ -98,7 +98,7 @@ clean-room rewrite in C#.
   - [ ] Seen in the rendered test screen (`ibm3270-screen.png`, 22 November 2026): the 3270 draws on the app's dark-green background and its protected-field blue is dim. wc3270 uses a black background and a bright blue; compare the colours against wc3270 and fix
 - [ ] Move RetroTerm's own telnet client and telnet server onto `RetroIO.Protocols.Telnet`, one at a time, each with its own tests
 - [ ] A RetroTerm connection type for TN3270 that uses the RetroIO TN3270 client (waits for the `retroio` session's Tn3270Client): fill in `ProtocolType.TN3270` in `ConnectionFactory`, which throws today, and create `Ibm3270Emulator` for it. The screen (`src\RetroTerm.Ibm3270\Ibm3270Emulator.cs`) and the local keys are built
-- [ ] Models 2-5 (24x80, 32x80, 43x80, 27x132) and the 3279 colours
+- [ ] The 3279 colours (models 2-5 are built: chosen in the terminal list of a TN3270 connection)
 - [ ] Large and any-size screens, as tnz supports (its README, line 83): the size the user picks (or the window size) is reported to the host in the Query Reply "usable area" and used by Erase/Write Alternate; needs 14-bit and 16-bit buffer addresses (GA23-0059-4 appendix D) once the screen passes 4096 cells. Read how tnz announces the size, then write it from the manual
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works

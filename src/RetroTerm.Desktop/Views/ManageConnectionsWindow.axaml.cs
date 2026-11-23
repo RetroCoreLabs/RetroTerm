@@ -1206,12 +1206,17 @@ public partial class ManageConnectionsWindow : Window
 
         if (_nameBox != null) _nameBox.Text = profile.Name;
 
+        // Read the saved terminal BEFORE the protocol is set: setting it refills the terminal box
+        // and selects that list's first entry, and the box's change handler writes that entry into
+        // the profile. Read afterwards, a saved IBM-3278-5 came back as IBM-3278-2.
+        string savedTerminal = profile.EmulatorType;
+
         // Set the correct protocol radio button
         SetProtocolRadio(profile.Protocol);
 
         // The terminal box follows the protocol through SetProtocolRadio above (its change event
-        // applies ApplyTerminalRuleForProtocol), so a saved TN3270 connection shows the 3278.
-        if (_emulatorCombo != null) _emulatorCombo.SelectedItem = profile.EmulatorType;
+        // applies ApplyTerminalRuleForProtocol), so a saved TN3270 connection shows the 3278 models.
+        if (_emulatorCombo != null) _emulatorCombo.SelectedItem = savedTerminal;
         if (_sizeCombo != null) _sizeCombo.SelectedItem = profile.Size;
         if (_screenSizeModeCombo != null) _screenSizeModeCombo.SelectedItem = profile.ScreenSizeMode;
         if (_languageCombo != null) _languageCombo.SelectedItem = profile.Language;

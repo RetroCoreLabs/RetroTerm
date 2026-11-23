@@ -32,14 +32,12 @@ namespace RetroTerm.Desktop.Helpers
         /// </param>
         public static void Apply(ComboBox box, TerminalChoiceTracker tracker, ConnectionFactory.ProtocolType protocol)
         {
-            bool isFixed = tracker.Update(protocol, box.SelectedItem as string, out string[]? choices, out string? select);
+            tracker.Update(protocol, box.SelectedItem as string, out string[]? choices, out string? select);
             if (choices != null)
             {
                 box.ItemsSource = choices;
                 box.SelectedItem = select;
             }
-
-            box.IsEnabled = !isFixed;
         }
     }
 }

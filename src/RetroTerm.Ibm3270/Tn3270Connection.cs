@@ -33,6 +33,11 @@ namespace RetroTerm.Ibm3270
         private Task? _receiveTask;
 
         /// <summary>
+        /// Gets the TERMINAL-TYPE name this connection answers the host with, e.g. "IBM-3278-4-E".
+        /// </summary>
+        public string TerminalType { get; }
+
+        /// <summary>
         /// Creates a connection; nothing happens until <see cref="ConnectAsync"/>.
         /// </summary>
         /// <param name="host">
@@ -59,6 +64,7 @@ namespace RetroTerm.Ibm3270
             _host = host;
             _port = port;
             Description = host + ":" + port;
+            TerminalType = terminalType;
             _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
             _protocol.RecordReceived += record => DataReceived?.Invoke(record.ToArray());
             _protocol.ProtocolError += message =>

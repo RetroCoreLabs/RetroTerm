@@ -102,11 +102,15 @@ public static class EmulatorFactory
             // without picking a Norwegian terminal first.
             "TEK4014" => new Tek4014Emulator(configuration.Width, configuration.Height, configuration.MaxScrollback),
 
-            // The IBM 3278 model 2 (24 x 80). Its class lives in RetroTerm.Ibm3270, which is net10.0
+            // The IBM 3278 models 2 to 5. The class lives in RetroTerm.Ibm3270, which is net10.0
             // because the RetroIO 3270 packages are, so Core (netstandard2.1) cannot name it and
-            // loads it by type name. It ignores the size settings: a model 2 is 24 x 80 by
-            // definition, and it needs a TN3270 connection, which hands over whole records.
-            "IBM-3278-2" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270"),
+            // loads it by type name. It ignores the size settings: the model fixes the size (24 x 80,
+            // 32 x 80, 43 x 80, 27 x 132), and it needs a TN3270 connection, which hands over whole
+            // records.
+            "IBM-3278-2" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 2),
+            "IBM-3278-3" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 3),
+            "IBM-3278-4" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 4),
+            "IBM-3278-5" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 5),
             _ => throw new NotSupportedException($"Emulator type '{configuration.EmulatorType}' is not supported")
         };
     }
@@ -316,11 +320,11 @@ public static class EmulatorFactory
     /// <returns>
     /// The emulator, made with its parameterless constructor.
     /// </returns>
-    private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName)
+    private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName, int model)
     {
         var type = Type.GetType(assemblyQualifiedName)
             ?? throw new InvalidOperationException($"Emulator type '{assemblyQualifiedName}' not found. Is its assembly shipped with the app?");
-        return Activator.CreateInstance(type) as TerminalEmulatorBase
+        return Activator.CreateInstance(type, model) as TerminalEmulatorBase
             ?? throw new InvalidOperationException($"'{assemblyQualifiedName}' is not a TerminalEmulatorBase.");
     }
 }

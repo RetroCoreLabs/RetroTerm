@@ -180,6 +180,14 @@ public partial class QuickConnectWindow : Window
         if (connectBtn != null) connectBtn.Click += (_, _) => OnConnect();
 
         OnProtocolChanged();
+
+        // A 3278 model is not in the stream list above, so the box could not select it there;
+        // OnProtocolChanged has now put the models in, and the remembered one goes back.
+        if (emulatorBox != null && System.Array.IndexOf(ConnectionFactory.Ibm3278Models, _lastEmulator) >= 0)
+        {
+            emulatorBox.SelectedItem = _lastEmulator;
+        }
+
         UpdateConnectEnabled();
 
         // ENTER CONNECTS FROM ANYWHERE, which is most of what "quick" means here. Handled on the
@@ -272,7 +280,7 @@ public partial class QuickConnectWindow : Window
         if (portPanel != null) portPanel.IsVisible = !serial;
         if (credentials != null) credentials.IsVisible = protocol == ConnectionFactory.ProtocolType.SSH;
 
-        // The terminal box follows the protocol: TN3270 shows the IBM 3278, fixed, and leaving it
+        // The terminal box follows the protocol: TN3270 offers the IBM 3278 models, and leaving it
         // puts the earlier choice back. One rule, shared with Manage Connections.
         var emulatorChoice = this.FindControl<ComboBox>("EmulatorBox");
         if (emulatorChoice != null)

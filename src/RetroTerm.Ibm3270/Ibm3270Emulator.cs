@@ -44,19 +44,11 @@ namespace RetroTerm.Ibm3270
     /// </remarks>
     public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen
     {
-        private static readonly TerminalProfile Model2Profile = new(
-            name: "IBM-3278-2",
-            primaryDeviceAttributes: Array.Empty<byte>(),
-            secondaryDeviceAttributes: Array.Empty<byte>(),
-            features: TerminalFeatures.None,
-            recognisedPrivateModes: Array.Empty<int>(),
-            keyboardLayout: "IBM3270",
-            transportEncoding: TransportEncoding.EightBit,
-            columns: 80,
-            rows: StatusRow + 1);
+        // The operator information area: the row under the model's largest screen (line 25 on a
+        // model 2, line 44 on a model 4).
+        private readonly int _statusRow;
 
-        // Line 25: the row under the host's 24.
-        private const int StatusRow = 24;
+        private readonly TerminalProfile _profile;
 
         private readonly Display3270 _display;
 
@@ -67,9 +59,38 @@ namespace RetroTerm.Ibm3270
         /// Creates a model 2 (24 x 80) display, with line 25 under it.
         /// </summary>
         public Ibm3270Emulator()
-            : base(80, StatusRow + 1, maxScrollback: 0)
+            : this(2)
         {
-            _display = new Display3270(24, 80, 24, 80);
+        }
+
+        /// <summary>
+        /// Creates a 3278 of the given model, with its operator information area under it.
+        /// </summary>
+        /// <remarks>
+        /// Every model starts on the default size, 24 by 80, and switches to its alternate size
+        /// when the host sends Erase/Write Alternate (GA23-0059-4 p. 3-5; RFC 1576 section 4).
+        /// The picture is always as large as the alternate size, with the status row under it;
+        /// while the host uses the default size, the cells outside it are drawn blank.
+        /// </remarks>
+        /// <param name="model">
+        /// The model: 2 (24 x 80), 3 (32 x 80), 4 (43 x 80) or 5 (27 x 132).
+        /// </param>
+        public Ibm3270Emulator(int model)
+            : base(AlternateColumns(model), AlternateRows(model) + 1, maxScrollback: 0)
+        {
+            Model = model;
+            _statusRow = AlternateRows(model);
+            _profile = new TerminalProfile(
+                name: TerminalTypeFor(model),
+                primaryDeviceAttributes: Array.Empty<byte>(),
+                secondaryDeviceAttributes: Array.Empty<byte>(),
+                features: TerminalFeatures.None,
+                recognisedPrivateModes: Array.Empty<int>(),
+                keyboardLayout: "IBM3270",
+                transportEncoding: TransportEncoding.EightBit,
+                columns: AlternateColumns(model),
+                rows: _statusRow + 1);
+            _display = new Display3270(24, 80, AlternateRows(model), AlternateColumns(model));
             _display.InboundRecord += OnInboundRecord;
             _display.ProtocolError += OnProtocolError;
             _display.Alarm += OnAlarm;
@@ -94,9 +115,14 @@ namespace RetroTerm.Ibm3270
         public event BreakRequestedHandler? BreakRequested;
 
         /// <summary>
-        /// The 3278 model 2 screen: 24 rows of 80 columns, and line 25.
+        /// The 3278 screen: the model's alternate size, and the status row under it.
         /// </summary>
-        public override TerminalProfile Profile => Model2Profile;
+        public override TerminalProfile Profile => _profile;
+
+        /// <summary>
+        /// Gets the 3278 model, 2 to 5.
+        /// </summary>
+        public int Model { get; }
 
         /// <summary>
         /// Gets the 3270 screen model, for the key handler and for MCP.
@@ -127,7 +153,7 @@ namespace RetroTerm.Ibm3270
         {
             get
             {
-                Span<char> line = stackalloc char[_display.Columns];
+                Span<char> line = stackalloc char[AlternateColumns(Model)];
                 StatusLine3270.Build(_display, _connection, null, line);
                 return new string(line);
             }
@@ -690,6 +716,34 @@ namespace RetroTerm.Ibm3270
             return null;
         }
 
+        /// <summary>
+        /// The TERMINAL-TYPE a model announces: "IBM-3278-" and the model, with "-E" for the
+        /// extended data stream, as x3270 builds it (telnet.c, the Asprintf of "IBM-%s%s").
+        /// </summary>
+        /// <param name="model">
+        /// The model, 2 to 5.
+        /// </param>
+        /// <returns>
+        /// For example "IBM-3278-4-E".
+        /// </returns>
+        public static string TerminalTypeFor(int model)
+        {
+            AlternateRows(model);
+            return "IBM-3278-" + model.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-E";
+        }
+
+        // The alternate screen sizes (RFC 1576 section 4; x3270 include\3270ds.h, MODEL_n_ROWS).
+        private static int AlternateRows(int model) => model switch
+        {
+            2 => 24,
+            3 => 32,
+            4 => 43,
+            5 => 27,
+            _ => throw new ArgumentOutOfRangeException(nameof(model), model, "a 3278 is model 2, 3, 4 or 5"),
+        };
+
+        private static int AlternateColumns(int model) => model == 5 ? 132 : AlternateRows(model) > 0 ? 80 : 0;
+
         // The extended colour values (GA23-0061-2 p. 2-10); X'00' is the default, so no name.
         private static string? ColourName(byte colour) => colour switch
         {
@@ -734,15 +788,19 @@ namespace RetroTerm.Ibm3270
         private void Paint()
         {
             int columns = _display.Columns;
-            int size = _display.Size;
-            for (int address = 0; address < size; address++)
+            int rows = _display.Rows;
+            int width = AlternateColumns(Model);
+            var blank = new TerminalCell(' ', CharacterAttributes.None, TerminalColor.Default, TerminalColor.Default);
+            for (int row = 0; row < _statusRow; row++)
             {
-                int row = address / columns;
-                int column = address % columns;
-                Buffer.SetCell(row, column, CellFor(address));
+                for (int column = 0; column < width; column++)
+                {
+                    // Outside the size the host is using (the default 24 x 80 on a larger model).
+                    Buffer.SetCell(row, column, row < rows && column < columns ? CellFor((row * columns) + column) : blank);
+                }
             }
 
-            PaintStatusLine(columns);
+            PaintStatusLine(width);
 
             int cursor = _display.CursorAddress;
             Cursor.MoveTo(cursor / columns, cursor % columns);
@@ -753,7 +811,7 @@ namespace RetroTerm.Ibm3270
         // from outside) has no line 25 to draw.
         private void PaintStatusLine(int columns)
         {
-            if (Buffer.Height <= StatusRow)
+            if (Buffer.Height <= _statusRow)
             {
                 return;
             }
@@ -769,7 +827,7 @@ namespace RetroTerm.Ibm3270
                     StatusLine3270.OnlineColumn => CharacterAttributes.Underline,
                     _ => CharacterAttributes.None,
                 };
-                Buffer.SetCell(StatusRow, column, new TerminalCell(line[column], flags, TerminalColor.Default, TerminalColor.Default));
+                Buffer.SetCell(_statusRow, column, new TerminalCell(line[column], flags, TerminalColor.Default, TerminalColor.Default));
             }
         }
 

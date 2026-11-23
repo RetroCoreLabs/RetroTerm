@@ -15,15 +15,18 @@ namespace RetroTerm.Core.Configuration
     /// code, as little as possible in the UI).
     /// </summary>
     /// <remarks>
-    /// TN3270 carries 3270 records, so its only terminal is the IBM 3278 model 2
-    /// (<see cref="ConnectionFactory.EmulatorTypeFor"/>): the form shows that one, fixed. Every other
-    /// protocol offers every stream terminal. Leaving TN3270 puts back the terminal that was chosen
-    /// before it, so a quick look at TN3270 does not lose the person's choice.
+    /// TN3270 carries 3270 records, so its only terminals are the IBM 3278 models 2 to 5
+    /// (<see cref="ConnectionFactory.Ibm3278Models"/>): the form offers those, model 2 first. Every
+    /// other protocol offers every stream terminal. Leaving TN3270 puts back the terminal that was
+    /// chosen before it, so a quick look at TN3270 does not lose the person's choice.
     /// </remarks>
     public sealed class TerminalChoiceTracker
     {
-        private bool _fixed;
-        private string? _beforeFixed;
+        // True while the box offers the 3278 models (the protocol is TN3270).
+        private bool _on3270;
+
+        // The stream terminal chosen before TN3270, to put back when the protocol changes again.
+        private string? _before3270;
 
         /// <summary>
         /// Works out what the terminal box shows after the protocol changed.
@@ -40,30 +43,25 @@ namespace RetroTerm.Core.Configuration
         /// <param name="select">
         /// The terminal to select, or null to leave the selection alone.
         /// </param>
-        /// <returns>
-        /// True when the choice is fixed (the box is shown but cannot be changed).
-        /// </returns>
-        public bool Update(ConnectionFactory.ProtocolType protocol, string? currentChoice, out string[]? choices, out string? select)
+        public void Update(ConnectionFactory.ProtocolType protocol, string? currentChoice, out string[]? choices, out string? select)
         {
-            bool isFixed = protocol == ConnectionFactory.ProtocolType.TN3270;
+            bool on3270 = protocol == ConnectionFactory.ProtocolType.TN3270;
             choices = null;
             select = null;
 
-            if (isFixed && !_fixed)
+            if (on3270 && !_on3270)
             {
-                _beforeFixed = currentChoice;
-                string only = ConnectionFactory.EmulatorTypeFor(protocol, null);
-                choices = new[] { only };
-                select = only;
+                _before3270 = currentChoice;
+                choices = ConnectionFactory.Ibm3278Models;
+                select = ConnectionFactory.EmulatorTypeFor(protocol, currentChoice);
             }
-            else if (!isFixed && _fixed)
+            else if (!on3270 && _on3270)
             {
                 choices = EmulatorFactory.AvailableEmulators;
-                select = _beforeFixed ?? ConnectionFactory.EmulatorTypeFor(protocol, null);
+                select = _before3270 ?? ConnectionFactory.EmulatorTypeFor(protocol, null);
             }
 
-            _fixed = isFixed;
-            return isFixed;
+            _on3270 = on3270;
         }
     }
 }

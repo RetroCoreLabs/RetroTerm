@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 
+using RetroIO.Protocols.Tn3270;
 using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Ibm3270;
@@ -119,6 +120,8 @@ namespace RetroTerm.Tests.Ibm3270
         [Theory]
         [InlineData(ConnectionFactory.ProtocolType.TN3270, "VT220", "IBM-3278-2")]
         [InlineData(ConnectionFactory.ProtocolType.TN3270, null, "IBM-3278-2")]
+        [InlineData(ConnectionFactory.ProtocolType.TN3270, "IBM-3278-5", "IBM-3278-5")]
+        [InlineData(ConnectionFactory.ProtocolType.TN3270, "ibm-3278-4", "IBM-3278-4")]
         [InlineData(ConnectionFactory.ProtocolType.Telnet, "VT220", "VT220")]
         [InlineData(ConnectionFactory.ProtocolType.Telnet, null, "VT100")]
         public void Tn3270AlwaysGetsThe3278AndOtherProtocolsKeepTheirChoice(
@@ -141,6 +144,55 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.IsType<Tn3270Connection>(connection);
             Assert.IsType<Ibm3270Emulator>(emulator);
             connection.Dispose();
+        }
+
+        [Theory]
+        [InlineData("IBM-3278-2", 2, 24, 80, "IBM-3278-2-E")]
+        [InlineData("IBM-3278-3", 3, 32, 80, "IBM-3278-3-E")]
+        [InlineData("IBM-3278-4", 4, 43, 80, "IBM-3278-4-E")]
+        [InlineData("IBM-3278-5", 5, 27, 132, "IBM-3278-5-E")]
+        public void EachModelGetsItsSizeAndAnnouncesItsName(string emulatorType, int model, int rows, int columns, string terminalType)
+        {
+            // Sizes from RFC 1576 section 4 and x3270 include\3270ds.h; the status row sits under them.
+            var connection = (Tn3270Connection)ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
+            {
+                Protocol = ConnectionFactory.ProtocolType.TN3270,
+                Host = "localhost",
+                Port = 3270,
+                EmulatorType = emulatorType,
+            });
+            var emulator = (Ibm3270Emulator)EmulatorFactory.CreateEmulator(emulatorType);
+
+            Assert.Equal(terminalType, connection.TerminalType);
+            Assert.Equal(model, emulator.Model);
+            Assert.Equal(columns, emulator.Buffer.Width);
+            Assert.Equal(rows + 1, emulator.Buffer.Height);
+            connection.Dispose();
+        }
+
+        [Fact]
+        public void TheDefaultTerminalTypeIsTheModel2Name()
+        {
+            // Two places hold the name: the protocol's default and TerminalTypeFor. They must agree.
+            Assert.Equal(Tn3270Protocol.DefaultTerminalType, Ibm3270Emulator.TerminalTypeFor(2));
+        }
+
+        [Fact]
+        public void AModel4ShowsTheAlternateSizeAfterEraseWriteAlternate()
+        {
+            // EWA (X'7E') switches to 43 x 80 (GA23-0059-4 p. 3-5): an A at address 3439 (row 43,
+            // column 80; SBA X'F5' X'6F', 12-bit coded: 53 x 64 + 47) shows,
+            // and line 44 is the status line. EW (X'F5') goes back to 24 x 80 and blanks row 43.
+            var emulator = new Ibm3270Emulator(4);
+            emulator.ProcessData(new byte[] { Command3270.EraseWriteAlternate, 0x02, Order3270.SetBufferAddress, 0xF5, 0x6F, 0xC1 });
+            Assert.Equal(43, emulator.Display.Rows);
+            Assert.Equal("A", emulator.Buffer.GetCell(42, 79).GetString());
+            Assert.Equal("4", emulator.Buffer.GetCell(43, 0).GetString());
+
+            emulator.ProcessData(new byte[] { Command3270.EraseWrite, 0x02 });
+            Assert.Equal(24, emulator.Display.Rows);
+            Assert.Equal(" ", emulator.Buffer.GetCell(42, 79).GetString());
+            Assert.Equal("4", emulator.Buffer.GetCell(43, 0).GetString());
         }
     }
 }

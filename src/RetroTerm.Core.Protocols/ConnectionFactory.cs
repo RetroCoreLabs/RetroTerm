@@ -549,7 +549,7 @@ public static class ConnectionFactory
         {
             ProtocolType.Telnet => CreateTelnetConnection(parameters.Host, parameters.Port, parameters.EmulatorType),
             ProtocolType.SSH => CreateSSHConnection(parameters.Host, parameters.Port, parameters.Username, parameters.Password, parameters.EmulatorType),
-            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port),
+            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port, EmulatorTypeFor(ProtocolType.TN3270, parameters.EmulatorType)),
             ProtocolType.Serial => CreateSerialConnection(parameters),
             ProtocolType.Gateway => throw new InvalidOperationException("Gateway connections are created directly via GatewayConnection, not through the factory."),
             ProtocolType.OpcomSimulator => CreateOpcomSimulatorConnection(),
@@ -558,10 +558,17 @@ public static class ConnectionFactory
     }
 
     /// <summary>
+    /// The terminals a TN3270 connection can use: the IBM 3278 models 2 to 5 (24 x 80, 32 x 80,
+    /// 43 x 80 and 27 x 132; RFC 1576 section 4).
+    /// </summary>
+    public static readonly string[] Ibm3278Models = { "IBM-3278-2", "IBM-3278-3", "IBM-3278-4", "IBM-3278-5" };
+
+    /// <summary>
     /// The terminal a connection must use, whatever was picked. TN3270 carries 3270 records,
-    /// not a character stream, so only the IBM 3278 model 2 can sit on it; every other protocol
-    /// keeps the choice. ONE rule for the connect dialog and for MCP (the two-surface trap in
-    /// CLAUDE.md): both entry points call this before they pick a tab.
+    /// not a character stream, so only an IBM 3278 can sit on it: the model picked, or the model 2
+    /// when anything else was picked. Every other protocol keeps the choice. ONE rule for the
+    /// connect dialog and for MCP (the two-surface trap in CLAUDE.md): both entry points call
+    /// this before they pick a tab.
     /// </summary>
     /// <param name="protocol">
     /// The protocol.
@@ -576,31 +583,41 @@ public static class ConnectionFactory
     {
         if (protocol == ProtocolType.TN3270)
         {
-            return "IBM-3278-2";
+            for (int i = 0; i < Ibm3278Models.Length; i++)
+            {
+                if (string.Equals(chosen, Ibm3278Models[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return Ibm3278Models[i];
+                }
+            }
+
+            return Ibm3278Models[0];
         }
 
         return string.IsNullOrEmpty(chosen) ? "VT100" : chosen!;
     }
 
     /// <summary>
-    /// TN3270: plain TN3270 (RFC 1576) answering as an IBM-3278-2-E. By type name for the same reason
-    /// as Telnet: the class lives in RetroTerm.Ibm3270 (net10.0, on the RetroIO 3270 packages) and
-    /// this layer must not depend on it. Pair it with the IBM-3278-2 emulator, which expects one
-    /// whole 3270 record per DataReceived.
+    /// TN3270: plain TN3270 (RFC 1576) answering as the chosen 3278 model, e.g. IBM-3278-4-E. By
+    /// type name for the same reason as Telnet: the classes live in RetroTerm.Ibm3270 (net10.0, on
+    /// the RetroIO 3270 packages) and this layer must not depend on them. Pair it with the emulator
+    /// of the same model, which expects one whole 3270 record per DataReceived.
     /// </summary>
-    private static IConnection CreateTn3270Connection(string host, int port)
+    private static IConnection CreateTn3270Connection(string host, int port, string emulatorType)
     {
         var type = Type.GetType("RetroTerm.Ibm3270.Tn3270Connection, RetroTerm.Ibm3270");
-        if (type == null)
+        var emulator = Type.GetType("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270");
+        if (type == null || emulator == null)
         {
             throw new InvalidOperationException("Tn3270Connection type not found. Ensure RetroTerm.Ibm3270 is loaded.");
         }
 
-        // Type.Missing takes the constructor's own default terminal type, so the name sent to the
-        // host lives in ONE place (Tn3270Protocol.DefaultTerminalType). Typing it here as well is
+        // The name sent to the host comes from Ibm3270Emulator.TerminalTypeFor, the ONE place that
+        // builds it, so the name and the screen size cannot disagree. Typing "-E" here as well is
         // how the -E fix of 22 November 2026 first failed to reach the wire.
-        return Activator.CreateInstance(type, System.Reflection.BindingFlags.CreateInstance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.OptionalParamBinding,
-            null, new object[] { host, port, Type.Missing }, System.Globalization.CultureInfo.InvariantCulture) as IConnection
+        int model = emulatorType[emulatorType.Length - 1] - '0';
+        string terminalType = (string)emulator.GetMethod("TerminalTypeFor")!.Invoke(null, new object[] { model })!;
+        return Activator.CreateInstance(type, host, port, terminalType) as IConnection
             ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
     }
 

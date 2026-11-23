@@ -72,7 +72,23 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
-        public void ChoosingTn3270ShowsThe3278GreyedAndBackToTelnetRestoresTheChoice()
+        public void QuickConnectRemembersThe3278ModelUsedLast()
+        {
+            QuickConnectWindow.ForgetLastUsed();
+            var first = new QuickConnectWindow();
+            ChooseProtocol(first, ConnectionFactory.ProtocolType.TN3270);
+            first.FindControl<TextBox>("HostBox")!.Text = "localhost";
+            first.FindControl<ComboBox>("EmulatorBox")!.SelectedItem = "IBM-3278-4";
+            Assert.NotNull(first.BuildParameters(out _));
+
+            var second = new QuickConnectWindow();
+
+            Assert.Equal("IBM-3278-4", second.FindControl<ComboBox>("EmulatorBox")!.SelectedItem);
+            QuickConnectWindow.ForgetLastUsed();
+        }
+
+        [AvaloniaFact]
+        public void ChoosingTn3270OffersThe3278ModelsAndBackToTelnetRestoresTheChoice()
         {
             QuickConnectWindow.ForgetLastUsed();
             var window = new QuickConnectWindow();
@@ -83,15 +99,16 @@ namespace RetroTerm.Tests.Avalonia
             ChooseProtocol(window, ConnectionFactory.ProtocolType.TN3270);
             window.FindControl<TextBox>("HostBox")!.Text = "localhost";
 
-            // The greyed box SHOWS the 3278, not the stream terminal picked before (Ronny, 22 November
-            // 2026). The port is 3270, the port 3270 hosts such as Hercules and TK5 listen on
-            // (Ronny, 22 November 2026), not the RFC 1576 telnet port 23.
-            Assert.False(emulatorBox.IsEnabled);
+            // The box SHOWS the 3278, not the stream terminal picked before (Ronny, 22 November
+            // 2026), and offers the four models. The port is 3270, the port 3270 hosts such as
+            // Hercules and TK5 listen on (Ronny, 22 November 2026), not the RFC 1576 telnet port 23.
+            Assert.True(emulatorBox.IsEnabled);
             Assert.Equal("IBM-3278-2", emulatorBox.SelectedItem);
             Assert.Equal("3270", portBox.Text);
+            emulatorBox.SelectedItem = "IBM-3278-4";
             var parameters = window.BuildParameters(out string? error);
             Assert.Null(error);
-            Assert.Equal("IBM-3278-2", parameters!.EmulatorType);
+            Assert.Equal("IBM-3278-4", parameters!.EmulatorType);
             Assert.Equal(ConnectionFactory.ProtocolType.TN3270, parameters.Protocol);
 
             // Back to telnet: the choice is open again and is honoured.
@@ -332,6 +349,26 @@ namespace RetroTerm.Tests.Avalonia
         // ---------------------------------------------------------------- the rendered 3270 screen
 
         [AvaloniaFact]
+        public void AModel5DrawsItsAlternateScreenAndTheStatusLineUnderIt()
+        {
+            // EWA switches a model 5 to 27 x 132 (GA23-0059-4 p. 3-5). An A at the last address
+            // (3563 = 55 x 64 + 43, SBA X'F7' X'6B' in 12-bit code), the status line on row 28.
+            var emulator = new Ibm3270Emulator(5);
+            emulator.ProcessData(new byte[]
+            {
+                RetroIO.Protocols.Tn3270.Command3270.EraseWriteAlternate, 0x02,
+                RetroIO.Protocols.Tn3270.Order3270.StartField, 0x60, 0xD5, 0xC1, 0xD4, 0xC5,
+                RetroIO.Protocols.Tn3270.Order3270.SetBufferAddress, 0xF7, 0x6B, 0xC1,
+            });
+
+            using var shot = RenderedScreenshot.Capture(emulator, "ibm3270-model5");
+
+            Assert.True(shot.CellHasInk(0, 1));
+            Assert.True(shot.CellHasInk(26, 131));
+            Assert.True(shot.CellHasInk(27, 0));
+        }
+
+        [AvaloniaFact]
         public void TheRendered3270ScreenColoursFieldsByTheirAttributes()
         {
             var emulator = new Ibm3270Emulator();
@@ -392,7 +429,7 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
-        public void ManageConnectionsOffersTn3270AndThenShowsThe3278Greyed()
+        public void ManageConnectionsOffersTn3270AndThenThe3278Models()
         {
             var (window, path) = ManageConnections();
             var radio = Field<RadioButton>(window, "_tn3270Radio");
@@ -402,7 +439,7 @@ namespace RetroTerm.Tests.Avalonia
             Assert.Equal("TN3270", radio.Content);
             radio.IsChecked = true;
 
-            Assert.False(terminal.IsEnabled);
+            Assert.True(terminal.IsEnabled);
             Assert.Equal("IBM-3278-2", terminal.SelectedItem);
             Assert.Equal("TN3270", window.ProfileForTesting.Protocol);
             Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
@@ -430,13 +467,13 @@ namespace RetroTerm.Tests.Avalonia
                 Protocol = "TN3270",
                 Host = "localhost",
                 Port = 3270,
-                EmulatorType = "IBM-3278-2",
+                EmulatorType = "IBM-3278-5",
             });
 
             Assert.True(Field<RadioButton>(window, "_tn3270Radio").IsChecked);
             var terminal = Field<ComboBox>(window, "_emulatorCombo");
-            Assert.Equal("IBM-3278-2", terminal.SelectedItem);
-            Assert.False(terminal.IsEnabled);
+            Assert.Equal("IBM-3278-5", terminal.SelectedItem);
+            Assert.True(terminal.IsEnabled);
             Assert.Equal(3270, window.ProfileForTesting.Port);
             Done(window, path);
         }
