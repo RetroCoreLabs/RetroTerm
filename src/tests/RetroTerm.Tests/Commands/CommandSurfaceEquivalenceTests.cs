@@ -517,6 +517,103 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
     }
 
     /// <summary>
+    /// No command may declare a parameter named sessionId. Over MCP that name is taken off as
+    /// the session to run on before the arguments reach the command, so such a parameter
+    /// could be set from a script but never over MCP.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllParameters))]
+    public void NoParameterCollidesWithTheMcpSessionArgument(string commandName, string parameterName)
+    {
+        Assert.False(
+            string.Equals(parameterName, RetroTermToolProvider.SessionIdArgument, StringComparison.OrdinalIgnoreCase),
+            $"{commandName} declares a parameter '{parameterName}', which MCP reads as the session to "
+            + "run on - it could never reach the command over MCP.");
+    }
+
+    /// <summary>
+    /// An argument name the command does not declare is refused on BOTH surfaces, with the SAME
+    /// message, naming the unknown argument and the names the command takes, and the command
+    /// never runs. BUGS.md B13: <c>SCREENSHOT aera=window</c> was refused by the script parser
+    /// but over MCP the name was dropped and the terminal was saved instead of the window.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllCommands))]
+    public async Task AnUnknownArgumentNameIsRefusedOnBothSurfacesWithTheSameMessage(string commandName)
+    {
+        const string unknownName = "aera";
+        var command = Resolve(commandName);
+        Assert.False(CommandParameterValidation.TryCheckName(command, unknownName, out var expected),
+            $"{commandName} really has a parameter named '{unknownName}' - pick another name for this test");
+        Assert.Contains("'" + unknownName + "'", expected!, StringComparison.Ordinal);
+        var parameters = command.Parameters;
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            Assert.Contains(parameters[i].Name, expected!, StringComparison.Ordinal);
+        }
+
+        var supplied = BuildRequired(command);
+        supplied[unknownName] = "window";
+
+        var recorder = _recorders[commandName];
+
+        recorder.Reset();
+        var parsed = _parser.Parse(BuildScriptLine(commandName, supplied));
+        Assert.Single(parsed.Errors);
+        Assert.Equal(expected, parsed.Errors[0].Message);
+        Assert.Equal(0, recorder.CallCount);
+
+        recorder.Reset();
+        var mcp = await CallMcpAsync(commandName, supplied);
+        Assert.True(mcp.IsError ?? false,
+            $"{commandName}: MCP accepted the undeclared argument '{unknownName}' without a word");
+        Assert.StartsWith(expected! + "\n", McpText(mcp), StringComparison.Ordinal);
+        Assert.Equal(0, recorder.CallCount);
+    }
+
+    /// <summary>
+    /// The other side of the name check: every argument an MCP command tool documents in its
+    /// schema is still accepted, one at a time beside the required ones, and reaches the
+    /// command. The schema is read from the real tool list, so an argument the tool advertises
+    /// but the check refuses fails here for the command it breaks.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllCommands))]
+    public async Task EveryArgumentTheMcpToolDocumentsIsAccepted(string commandName)
+    {
+        var command = Resolve(commandName);
+        var tools = _provider.BuildToolList();
+        var toolName = "terminal_" + commandName.ToLowerInvariant();
+
+        for (int i = 0; i < tools.Count; i++)
+        {
+            if (tools[i].Name != toolName) continue;
+
+            var properties = tools[i].InputSchema.GetProperty("properties").EnumerateObject();
+            int checkedCount = 0;
+            while (properties.MoveNext())
+            {
+                var name = properties.Current.Name;
+                if (name == RetroTermToolProvider.SessionIdArgument)
+                {
+                    continue;
+                }
+
+                var supplied = BuildRequired(command);
+                supplied[name] = SampleFor(FindParameter(command, name));
+                var delivered = await RunMcpAsync(commandName, supplied, escapeForMcp: false);
+                Assert.True(delivered.Contains(name), $"{toolName}: documented argument '{name}' did not reach the command");
+                checkedCount++;
+            }
+
+            Assert.Equal(command.Parameters.Count, checkedCount);
+            return;
+        }
+
+        Assert.Fail("no MCP tool named " + toolName);
+    }
+
+    /// <summary>
     /// The mirror of ToolList_ContainsSessionToolsAndOneToolPerCommand: every command
     /// tool must map BACK to a registered command. A hand-written tool that bypasses the
     /// registry also bypasses its escape rules, its required-parameter check and its

@@ -278,6 +278,11 @@ comes from that half hour.
 4. **A timeout still returns what the machine said** — partial output is the most valuable thing on a failure.
 5. **Every wait reports how long it took** — 23 s vs 200 ms is often the whole diagnosis.
 6. **Errors are never swallowed** — a dropped connection aborts a script naming the step, with the screen.
+7. **A name the command does not take is refused, on both surfaces, with the same words** —
+   `SCREENSHOT aera=window` in a script and `terminal_screenshot` with `"aera": "window"` over MCP
+   both answer `SCREENSHOT has no parameter 'aera' - it takes: ... (see HELP SCREENSHOT)` and
+   nothing runs. Over MCP the one extra name every command tool takes is `sessionId`; in a script
+   the extra names are the step keywords `optional=`, `ontimeout=` and `into=`.
 
 ### The script library
 

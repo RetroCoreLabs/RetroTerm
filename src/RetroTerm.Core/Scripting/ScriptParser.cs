@@ -238,10 +238,11 @@ public sealed class ScriptParser
                 intoVariable = value;
                 continue;
             }
-            if (!HasParameter(command, key))
+            // The name rule and its message live in CommandParameterValidation, shared with
+            // the dispatch-time check every MCP call goes through (BUGS.md B13).
+            if (!CommandParameterValidation.TryCheckName(command, key, out var nameError))
             {
-                errors.Add(new ScriptParseError(lineNumber,
-                    $"{command.Name} has no parameter '{key}' — see HELP {command.Name}"));
+                errors.Add(new ScriptParseError(lineNumber, nameError!));
                 continue;
             }
             args.Set(key, value);
@@ -426,19 +427,6 @@ public sealed class ScriptParser
             steps.Add(new ScriptStep(lineNumber, line, kind, null));
         }
         return true;
-    }
-
-    private static bool HasParameter(ISessionCommand command, string name)
-    {
-        var parameters = command.Parameters;
-        for (int i = 0; i < parameters.Count; i++)
-        {
-            if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     /// <summary>

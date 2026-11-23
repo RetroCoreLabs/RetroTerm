@@ -29,7 +29,8 @@ namespace RetroTerm.Core.Commands;
 public static class CommandParameterValidation
 {
     /// <summary>
-    /// Checks that every required parameter is present and that every supplied value
+    /// Checks that every supplied name is a declared parameter, that every required
+    /// parameter is present, and that every supplied value
     /// matches its declared type.
     ///
     /// A value containing '$' is skipped: in a script that is a variable reference which
@@ -56,7 +57,21 @@ public static class CommandParameterValidation
 
         var parameters = command.Parameters;
 
-        // Required parameters first: a missing one makes any type complaint about the
+        // Names first: every supplied name must be one the command declares. Without this
+        // a misspelled name (SCREENSHOT aera=window) was dropped and the command ran with
+        // its default - over MCP with no word, while the script parser refused the line
+        // (BUGS.md B13). A wrong name also explains a "missing required" that follows it,
+        // so it is the more useful message to give first.
+        var names = args.Names.GetEnumerator();
+        while (names.MoveNext())
+        {
+            if (!TryCheckName(command, names.Current, out error))
+            {
+                return false;
+            }
+        }
+
+        // Required parameters next: a missing one makes any type complaint about the
         // others less useful, and "you forgot X" is the more actionable message.
         for (int i = 0; i < parameters.Count; i++)
         {
@@ -88,6 +103,58 @@ public static class CommandParameterValidation
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Checks that a supplied argument name is one the command declares (any case).
+    /// </summary>
+    /// <param name="command">
+    /// The command whose parameter list is the authority.
+    /// </param>
+    /// <param name="name">
+    /// The argument name as supplied.
+    /// </param>
+    /// <param name="error">
+    /// The refusal, naming the unknown argument and every name the command accepts, or null.
+    /// </param>
+    /// <returns>
+    /// True when the command has a parameter of that name.
+    /// </returns>
+    /// <remarks>
+    /// The ONE copy of this rule and its message. The script parser calls it at parse time
+    /// and <see cref="TryValidate"/> calls it at dispatch time, which is where an MCP call
+    /// arrives, so both surfaces refuse the same name with the same words. Names that belong
+    /// to a surface rather than to the command (the script step keywords optional, ontimeout
+    /// and into; MCP's sessionId) are taken off by that surface before its arguments get here.
+    /// </remarks>
+    public static bool TryCheckName(ISessionCommand command, string name, out string? error)
+    {
+        if (command == null) throw new ArgumentNullException(nameof(command));
+        error = null;
+
+        var parameters = command.Parameters;
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        var accepted = new System.Text.StringBuilder();
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            if (i > 0)
+            {
+                accepted.Append(", ");
+            }
+            accepted.Append(parameters[i].Name);
+        }
+
+        error = parameters.Count == 0
+            ? $"{command.Name} has no parameter '{name}' - it takes no parameters (see HELP {command.Name})"
+            : $"{command.Name} has no parameter '{name}' - it takes: {accepted} (see HELP {command.Name})";
+        return false;
     }
 
     /// <summary>

@@ -49,6 +49,15 @@ public sealed class RetroTermToolProvider
     // then reports that instead of pretending the name does not exist.
     private readonly ConfigurationManager? _configurationManager;
 
+    /// <summary>
+    /// The one argument every command tool takes that is NOT a parameter of the command: which
+    /// open session to run it on. It is declared in every command tool's schema (below) and
+    /// taken off before the rest of the arguments go to the registry, where any name the
+    /// command does not declare is refused (BUGS.md B13). It is the only such name; the
+    /// script language's equivalents are its step keywords (optional, ontimeout, into).
+    /// </summary>
+    public const string SessionIdArgument = "sessionId";
+
     public RetroTermToolProvider(ITerminalSessionHost host, CommandRegistry registry, ScriptLibrary scriptLibrary,
         ConfigurationManager? configurationManager = null)
     {
@@ -152,7 +161,7 @@ public sealed class RetroTermToolProvider
             var parameters = command.Parameters;
 
             var schemaParams = new (string Name, string Type, bool Required, string Description, IReadOnlyList<string>? Allowed)[parameters.Count + 1];
-            schemaParams[0] = ("sessionId", "string", true, "The session to operate on", null);
+            schemaParams[0] = (SessionIdArgument, "string", true, "The session to operate on", null);
             for (int p = 0; p < parameters.Count; p++)
             {
                 var param = parameters[p];
@@ -572,6 +581,9 @@ public sealed class RetroTermToolProvider
         }
 
         // Convert JSON arguments to the registry's text args (sessionId stays MCP-level).
+        // Every other name goes through, including a misspelled one: the registry's shared
+        // validator refuses a name the command does not declare, with the same message the
+        // script parser gives (BUGS.md B13), so it must reach it rather than be dropped here.
         // A parameter flagged DecodeEscapes (SEND's text) carries the backslash-escape
         // notation the script parser normally decodes from a quoted string. Over MCP
         // there is NO quoting layer, so the raw JSON value skips the parser — we must
@@ -583,7 +595,7 @@ public sealed class RetroTermToolProvider
             var e = args.GetEnumerator();
             while (e.MoveNext())
             {
-                if (string.Equals(e.Current.Key, "sessionId", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(e.Current.Key, SessionIdArgument, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -624,7 +636,7 @@ public sealed class RetroTermToolProvider
     {
         id = Guid.Empty;
         error = null;
-        var text = GetString(args, "sessionId");
+        var text = GetString(args, SessionIdArgument);
         if (text == null || !Guid.TryParse(text, out id))
         {
             error = Error("missing or invalid sessionId — terminal_open returns one, terminal_list shows open ones");

@@ -65,6 +65,13 @@ public sealed class CommandArgs
         return expanded;
     }
 
+    /// <summary>
+    /// The argument names as supplied, so the shared validator can refuse a name the
+    /// command does not declare (BUGS.md B13: over MCP a misspelled name used to be
+    /// dropped without a word while the script parser refused it).
+    /// </summary>
+    public Dictionary<string, string>.KeyCollection Names => _values.Keys;
+
     public bool Contains(string name) => _values.ContainsKey(name);
 
     public bool TryGet(string name, out string value) => _values.TryGetValue(name, out value!);
