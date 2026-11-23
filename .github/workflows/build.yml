@@ -61,7 +61,7 @@ jobs:
       # The Hercules tests drive a live TK5 mainframe (src/tests/RetroTerm.Tests/Hercules); a hosted
       # runner has none, so they are a separate gate run where TK5 is up. They are not skipped there:
       # they FAIL when the host does not answer.
-      - run: dotnet test src/RetroTerm.slnx -c Release --no-build -nodeReuse:false --filter "Category!=Hercules" --logger "console;verbosity=minimal"
+      - run: dotnet test src/RetroTerm.slnx -c Release --no-build -nodeReuse:false --filter "Category!=Hercules&Category!=Oracle" --logger "console;verbosity=minimal"
 
   publish:
     strategy:

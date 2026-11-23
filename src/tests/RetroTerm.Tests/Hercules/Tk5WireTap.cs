@@ -31,7 +31,11 @@ namespace RetroTerm.Tests.Hercules
     /// <param name="Bytes">
     /// The bytes, telnet layer and all.
     /// </param>
-    internal sealed record Tk5WireChunk(long Milliseconds, bool FromHost, byte[] Bytes);
+    /// <param name="Note">
+    /// Null for bytes. Otherwise a note the test put in the stream at this point with
+    /// <see cref="Tk5WireTap.Mark"/>, such as "key ENTER", and Bytes is empty.
+    /// </param>
+    internal sealed record Tk5WireChunk(long Milliseconds, bool FromHost, byte[] Bytes, string? Note = null);
 
     /// <summary>
     /// A TCP relay between a test client and the TK5 host that keeps every byte both ways, telnet
@@ -149,6 +153,22 @@ namespace RetroTerm.Tests.Hercules
         }
 
         /// <summary>
+        /// Puts a note into the stream between the bytes already read and the next: what the
+        /// person did to the client at this point ("type HERC03", "key ENTER"), so a recording
+        /// made from the chunks knows where each key came (HostRecording.FromChunks).
+        /// </summary>
+        /// <param name="note">
+        /// The note.
+        /// </param>
+        public void Mark(string note)
+        {
+            lock (_chunks)
+            {
+                _chunks.Add(new Tk5WireChunk(_clock.ElapsedMilliseconds, false, Array.Empty<byte>(), note));
+            }
+        }
+
+        /// <summary>
         /// Every byte the host sent, in order, run together.
         /// </summary>
         /// <returns>
@@ -195,7 +215,7 @@ namespace RetroTerm.Tests.Hercules
             var sub = new List<byte>();
             for (int c = 0; c < chunks.Count; c++)
             {
-                if (chunks[c].FromHost != fromHost)
+                if (chunks[c].FromHost != fromHost || chunks[c].Note != null)
                 {
                     continue;
                 }

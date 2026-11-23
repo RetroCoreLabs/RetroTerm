@@ -255,3 +255,35 @@ Not defects, settled from the manual the same day:
   refuses more than 16383 cells (the reply says 12/14-bit addressing only, p. 6-88), and BUFFSZ is a
   2-byte field (p. 6-87). The same check refuses exactly 16384 cells, which 14-bit addresses
   (0 to 16383) could still reach; that limit belongs with the large-screen item in `docs\PLAN.md`.
+
+## B16 - 3270 keyboard after a query reply: RetroTerm leaves it unlocked, s3270 locks it
+
+Found 23 November 2026 by the offline oracle, `src\tests\RetroTerm.Tests\Oracle\HostStreamOracleTests.cs`:
+all five recorded TK5 sessions differ at the same point and nowhere else. TK5 sends a Write
+Structured Field holding a Read Partition Query (`F3 00 05 01 FF 02`) straight after the logon
+panel's Erase/Write, which had unlocked the keyboard. Both terminals send their query reply. Then
+s3270 reports the keyboard **locked** and RetroTerm reports it **unlocked**, until the next host
+write with keyboard restore (`F5 C3 ...`, a few hundred bytes later in the same recording) unlocks
+both again.
+
+- RetroTerm's state comes from RetroIO, `RetroIO.Protocols.Tn3270\src\Display3270.cs` (the query
+  reply path). RetroTerm does not change RetroIO.
+- x3270 locks on purpose (`sf.c`, `kybd_inhibit(true)` after a query reply, noted in
+  `docs\spec\IBM3270\3270-DATA-STREAM.md` section 10).
+- **The manual does not settle it.** GA23-0059-4 p. 3-23 says a Query is acknowledged by any
+  outbound transmission except a read; it does not say the keyboard locks in between. This is open
+  question 7 of `3270-DATA-STREAM.md`. x3270 doing it is not evidence that a real 3274/3279 did.
+- What it means for a user: for the short time between the query reply and the host's next write,
+  RetroTerm takes keys and s3270 does not. On TK5 that time is one network round trip.
+- The oracle test stays RED (four of its five cases; `logon-panel` ends before the query) until
+  the question is settled from IBM's documents or a real terminal and one side is changed. The
+  query reply BYTES are not compared at all: each terminal lists its own features, by design.
+
+## B17 - A failing live Hercules test prints the TK5 password in its output
+
+Found 23 November 2026 while building the offline oracle: when a live TK5 test fails,
+`RetroTermTk5Terminal` (`src\tests\RetroTerm.Tests\Hercules\`) writes every record the client sent
+into the failure message, and the logon record holds the password in EBCDIC hex. Nothing writes it to a
+file in the repository, but it lands in test logs and CI output. Fix: replace the password field's data
+the same way the oracle recorder does before any record is printed, and add a test that a failure
+message never contains it.

@@ -59,6 +59,9 @@
     <Content Include="Conformance\xtermjs\*.text" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Conformance\xtermjs\NOTES*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Conformance\xtermjs\LICENSE-*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- TN3270 sessions recorded from TK5 for the offline s3270 oracle (Oracle\HostStreamOracleTests).
+         Our own recordings, not fetched corpora; no password in them (HostRecording.AssertHolds). -->
+    <Content Include="Oracle\Recordings\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
