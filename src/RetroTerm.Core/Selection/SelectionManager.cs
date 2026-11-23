@@ -118,6 +118,11 @@ public class SelectionManager
             End = (row, col),
             Mode = mode
         };
+
+        // A double click (word) or triple click (line) selects the word or line at once, without
+        // waiting for the mouse to move. Until 23 November 2026 only ExtendSelection widened it, so
+        // a double click that did not move selected nothing at all on every terminal.
+        AdjustSelectionForMode();
     }
 
     /// <summary>

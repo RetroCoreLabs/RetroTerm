@@ -86,6 +86,13 @@ public class HostConfiguration
     public int? CodePage { get; set; }
 
     /// <summary>
+    /// What a double click on a 3270 screen does: true or null moves the cursor there and presses
+    /// Enter (as IBM's tnz does), false selects the word (as wc3270 and x3270 do). Ronny,
+    /// 23 November 2026: a setting per connection. Ignored by every other terminal.
+    /// </summary>
+    public bool? DoubleClickPressesEnter { get; set; }
+
+    /// <summary>
     /// Maximum scrollback lines
     /// </summary>
     public int MaxScrollback { get; set; } = 1000;
@@ -294,6 +301,7 @@ public class HostConfiguration
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
+            DoubleClickPressesEnter = DoubleClickPressesEnter,
             NewLineReceive = NewLineReceive,
             NewLineTransmit = NewLineTransmit,
             LocalEcho = LocalEcho,
@@ -337,6 +345,7 @@ public class HostConfiguration
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
+            DoubleClickPressesEnter = DoubleClickPressesEnter,
             NewLineReceive = string.IsNullOrWhiteSpace(NewLineReceive) ? "AUTO" : NewLineReceive,
             NewLineTransmit = string.IsNullOrWhiteSpace(NewLineTransmit) ? "CR" : NewLineTransmit,
             LocalEcho = LocalEcho,

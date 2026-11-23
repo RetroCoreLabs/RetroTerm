@@ -41,6 +41,10 @@ character position, shown as a blank) that says what kind of field it is:
 The **Tab** key jumps to the start of the next box you can type into; **Shift+Tab** goes back.
 **Home** goes to the first box on the screen. You rarely need the arrow keys.
 
+A mouse click puts the cursor where you click. A double click puts the cursor there and presses
+Enter, which picks a line in a menu; in Manage Connections, on the Keyboard tab, you can make a
+double click select the word instead, as wc3270 does.
+
 ## 3. The attention keys: the ones that talk to the mainframe
 
 | Key on the 3270 | What it usually means to the program | Key in RetroTerm |

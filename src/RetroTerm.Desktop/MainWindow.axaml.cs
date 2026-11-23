@@ -3552,6 +3552,38 @@ public partial class MainWindow : Window
         return string.Empty;
     }
 
+    /// <summary>
+    /// The 3270 introduction on the docs site (docs\IBM3270-INTRODUCTION.md, published by DocFX
+    /// at docs/IBM3270-INTRODUCTION.html). Ronny, 23 November 2026: the Help menu opens the web
+    /// page rather than showing the Markdown inside the app.
+    /// </summary>
+    public const string Ibm3270IntroductionUrl = "https://retrocorelabs.github.io/RetroTerm/docs/IBM3270-INTRODUCTION.html";
+
+    /// <summary>
+    /// Gets or sets what opens a web page, so a test can see the address instead of a browser
+    /// starting. Null opens it with the system's browser through Avalonia's launcher.
+    /// </summary>
+    public System.Func<System.Uri, System.Threading.Tasks.Task>? OpenWebPageForTesting { get; set; }
+
+    private async void OnIbm3270IntroductionClick(object? sender, RoutedEventArgs e)
+    {
+        var uri = new System.Uri(Ibm3270IntroductionUrl);
+        if (OpenWebPageForTesting != null)
+        {
+            await OpenWebPageForTesting(uri);
+            return;
+        }
+
+        try
+        {
+            await Launcher.LaunchUriAsync(uri);
+        }
+        catch (System.Exception ex)
+        {
+            UpdateStatus("Could not open " + Ibm3270IntroductionUrl + ": " + ex.Message);
+        }
+    }
+
     private async void OnAboutClick(object? sender, RoutedEventArgs e)
     {
         var assembly = System.Reflection.Assembly.GetExecutingAssembly();

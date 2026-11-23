@@ -35,5 +35,12 @@ namespace RetroTerm.Core.Terminal.Input
         /// cursor on (the status line, outside the screen).
         /// </returns>
         bool PointerClick(int row, int column, bool doubleClick);
+
+        /// <summary>
+        /// Gets or sets whether a double click presses Enter after placing the cursor. When false,
+        /// PointerClick refuses the second click of a double click, so the canvas keeps the word
+        /// selection it made (a setting per connection, HostConfiguration.DoubleClickPressesEnter).
+        /// </summary>
+        bool DoubleClickPressesEnter { get; set; }
     }
 }

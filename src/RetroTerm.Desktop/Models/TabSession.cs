@@ -64,6 +64,13 @@ public sealed class TabSession : IDisposable
             {
                 _ = Session.RunOnSessionThreadAsync(() => terminal.SetCodePage(codePage));
             }
+
+            // What a double click does on a 3270; null keeps the terminal's default (press Enter).
+            // Read on the UI thread by the canvas, so it is set here and not on the session thread.
+            if (Session.Emulator is Core.Terminal.Input.IPointerCursorTerminal pointer)
+            {
+                pointer.DoubleClickPressesEnter = value?.DoubleClickPressesEnter ?? true;
+            }
         }
     }
 

@@ -100,6 +100,27 @@ public class Ibm3270MouseTests
     }
 
     [AvaloniaFact]
+    public void SetToSelectTheWordADoubleClickSelectsItAndSendsNothing()
+    {
+        // The other choice of the connection's double-click setting (Ronny, 23 November 2026):
+        // as wc3270 and x3270, the word under the mouse is selected and Enter is not pressed.
+        var (window, canvas, emulator, sent) = Build();
+        emulator.DoubleClickPressesEnter = false;
+
+        Point p = At(window, canvas, 0, 2);
+        window.MouseDown(p, MouseButton.Left);
+        window.MouseUp(p, MouseButton.Left);
+        window.MouseDown(p, MouseButton.Left);
+        window.MouseUp(p, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(sent);
+        Assert.True(canvas.GetSelectionManager()!.HasSelection);
+        Assert.Equal(2, emulator.Display.CursorAddress);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public void ADragSelectsTextAndLeavesTheCursorAlone()
     {
         var (window, canvas, emulator, _) = Build();

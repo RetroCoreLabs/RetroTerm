@@ -164,6 +164,11 @@ public static class ConnectionFactory
         public int? CodePage { get; set; }
 
         /// <summary>
+        /// What a double click does on a 3270: null or true presses Enter, false selects the word.
+        /// </summary>
+        public bool? DoubleClickPressesEnter { get; set; }
+
+        /// <summary>
         /// Whether the Delete key sends DEL (0x7F) rather than its terminal's own sequence.
         /// </summary>
         public bool DeleteSendsDel { get; set; }

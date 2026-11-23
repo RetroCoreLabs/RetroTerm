@@ -117,6 +117,26 @@ public class TerminalSizeBoxTests
         });
     }
 
+    [AvaloniaFact]
+    public void TheDoubleClickBoxSavesWithTheConnectionAndReachesTheTab()
+    {
+        WithWindow(window =>
+        {
+            window.LoadProfileForTesting(new HostConfiguration { Name = "tk5", Protocol = "TN3270", Host = "localhost", Port = 3270, EmulatorType = "IBM-3278-2", DoubleClickPressesEnter = false });
+            window.ShowKeyboardTabForTesting();
+            ComboBox box = Find(window, "DoubleClickCombo");
+            Assert.Equal(ManageConnectionsWindow.DoubleClickSelectsWordText, box.SelectedItem);
+
+            box.SelectedIndex = 0;
+            Assert.Null(window.ProfileForTesting.ToHostConfiguration().DoubleClickPressesEnter);
+
+            box.SelectedIndex = 1;
+            HostConfiguration saved = window.ProfileForTesting.ToHostConfiguration();
+            Assert.False(saved.DoubleClickPressesEnter);
+            Assert.False(saved.ToConnectionParameters().DoubleClickPressesEnter);
+        });
+    }
+
     private static void WithWindow(System.Action<ManageConnectionsWindow> test)
     {
         // A configuration file of its own in %TEMP%, never the user's real one.

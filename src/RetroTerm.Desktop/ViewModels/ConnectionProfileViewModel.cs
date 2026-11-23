@@ -45,6 +45,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private bool? _snapshotBackspaceSendsDel;
     private int? _snapshotCodePage;
     private int? _codePage;
+    private bool? _snapshotDoubleClickPressesEnter;
+    private bool? _doubleClickPressesEnter;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
     private string _snapshotNewLineTransmit = ConnectionFactory.NewLineModes.Cr;
@@ -300,6 +302,15 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// What a double click does on a 3270: null or true presses Enter, false selects the word.
+    /// </summary>
+    public bool? DoubleClickPressesEnter
+    {
+        get => _doubleClickPressesEnter;
+        set { if (_doubleClickPressesEnter != value) { _doubleClickPressesEnter = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// Whether Delete sends DEL (0x7F) instead of its terminal's own sequence.
     /// </summary>
     public bool DeleteSendsDel
@@ -431,6 +442,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _onDisconnectScript != _snapshotOnDisconnectScript
                 || _backspaceSendsDel != _snapshotBackspaceSendsDel
                 || _codePage != _snapshotCodePage
+                || _doubleClickPressesEnter != _snapshotDoubleClickPressesEnter
                 || _deleteSendsDel != _snapshotDeleteSendsDel
                 || _newLineReceive != _snapshotNewLineReceive
                 || _newLineTransmit != _snapshotNewLineTransmit
@@ -481,6 +493,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _onDisconnectScript = config.OnDisconnectScript;
         _backspaceSendsDel = config.BackspaceSendsDel;
         _codePage = config.CodePage;
+        _doubleClickPressesEnter = config.DoubleClickPressesEnter;
         _deleteSendsDel = config.DeleteSendsDel;
         // A file written before these existed has null here, and the fallbacks are the
         // behaviour that build had - so an old connection opens behaving exactly as it did.
@@ -562,6 +575,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
+            DoubleClickPressesEnter = _doubleClickPressesEnter,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -605,6 +619,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
+            DoubleClickPressesEnter = _doubleClickPressesEnter,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -654,6 +669,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotLanguage = _language;
         _snapshotBackspaceSendsDel = _backspaceSendsDel;
         _snapshotCodePage = _codePage;
+        _snapshotDoubleClickPressesEnter = _doubleClickPressesEnter;
         _snapshotDeleteSendsDel = _deleteSendsDel;
         _snapshotNewLineReceive = _newLineReceive;
         _snapshotNewLineTransmit = _newLineTransmit;

@@ -163,6 +163,23 @@ public class SelectionManagerTests
     }
 
     [Fact]
+    public void ADoubleClickThatDoesNotMoveSelectsTheWholeWord()
+    {
+        // The press alone: no ExtendSelection, as a double click without a drag.
+        var buffer = new TerminalBuffer(80, 24);
+        string line = "Hello World";
+        for (int i = 0; i < line.Length; i++)
+        {
+            buffer[0, i] = new TerminalCell(line[i]);
+        }
+
+        var manager = new SelectionManager(buffer);
+        manager.StartSelection(0, 8, SelectionMode.Word);
+
+        Assert.True(manager.HasSelection);
+        Assert.Equal("World", manager.GetSelectedText());
+    }
+    [Fact]
     public void GetSelectedText_LineSelection_ShouldSelectFullLines()
     {
         // Arrange

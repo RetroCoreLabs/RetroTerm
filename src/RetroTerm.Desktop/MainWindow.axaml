@@ -141,6 +141,10 @@
                           Click="OnConfigurePushKeysClick"/>
             </MenuItem>
             <MenuItem Header="Help">
+                <MenuItem Name="Ibm3270IntroductionMenuItem"
+                          Header="IBM 3270 Introduction (web page)"
+                          Click="OnIbm3270IntroductionClick"/>
+                <Separator/>
                 <MenuItem Header="About"
                           Click="OnAboutClick"/>
             </MenuItem>

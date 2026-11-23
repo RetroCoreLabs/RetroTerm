@@ -135,6 +135,7 @@ public partial class ManageConnectionsWindow : Window
         return 0;
     }
     private ComboBox? _codePageCombo;
+    private ComboBox? _doubleClickCombo;
     private CheckBox? _deleteSendsDelCheck;
     private ComboBox? _newLineReceiveCombo;
     private ComboBox? _newLineTransmitCombo;
@@ -595,7 +596,39 @@ public partial class ManageConnectionsWindow : Window
             _viewModel.CurrentProfile.CodePage = index <= 0 ? null : RetroIO.Protocols.Tn3270.CodePage.All[index - 1].Number;
         };
         _keyboardPanel.Children.Add(_codePageCombo);
+
+        // What a double click does on a 3270 screen (Ronny, 23 November 2026: a setting per
+        // connection). The first entry is the terminal's default.
+        _keyboardPanel.Children.Add(new TextBlock
+        {
+            Text = "IBM 3270 double click:",
+            Foreground = TextPrimary,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0)
+        });
+        _doubleClickCombo = new ComboBox { Name = "DoubleClickCombo", MinWidth = 280 };
+        _doubleClickCombo.Items.Add(DoubleClickPressesEnterText);
+        _doubleClickCombo.Items.Add(DoubleClickSelectsWordText);
+        _doubleClickCombo.SelectedIndex = 0;
+        _doubleClickCombo.SelectionChanged += (_, _) =>
+        {
+            if (_suppressSelectionChange) return;
+            _viewModel.CurrentProfile.DoubleClickPressesEnter = _doubleClickCombo.SelectedIndex == 1 ? false : null;
+        };
+        _keyboardPanel.Children.Add(_doubleClickCombo);
     }
+
+    /// <summary>
+    /// The double-click box's entry for moving the cursor and pressing Enter (the default).
+    /// </summary>
+    public const string DoubleClickPressesEnterText = "Move the cursor there and press Enter (as tnz)";
+
+    /// <summary>
+    /// The double-click box's entry for selecting the word.
+    /// </summary>
+    public const string DoubleClickSelectsWordText = "Select the word (as wc3270 and x3270)";
 
     /// <summary>
     /// Scripts tab: pick a library script to run on connect (auto-login) and one to
@@ -1313,6 +1346,7 @@ public partial class ManageConnectionsWindow : Window
         _suppressSelectionChange = true;
         if (_backspaceSendsDelCheck != null) _backspaceSendsDelCheck.IsChecked = profile.BackspaceSendsDel;
         if (_codePageCombo != null) _codePageCombo.SelectedIndex = CodePageIndex(profile.CodePage);
+        if (_doubleClickCombo != null) _doubleClickCombo.SelectedIndex = profile.DoubleClickPressesEnter == false ? 1 : 0;
         if (_deleteSendsDelCheck != null) _deleteSendsDelCheck.IsChecked = profile.DeleteSendsDel;
         if (_newLineReceiveCombo != null) _newLineReceiveCombo.SelectedItem = profile.NewLineReceive;
         if (_newLineTransmitCombo != null) _newLineTransmitCombo.SelectedItem = profile.NewLineTransmit;

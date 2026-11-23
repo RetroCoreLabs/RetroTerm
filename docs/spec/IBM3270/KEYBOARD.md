@@ -507,7 +507,7 @@ is clickable on the on-screen keyboard regardless of this table.
 | Alt+Q (or Ctrl+Enter) | CURSOR SELECT | PROPOSAL; neither oracle has a key |
 | Ctrl+Shift+click | CURSOR SELECT at the mouse | x3270 MouseSelect |
 | Click | move the cursor | all oracles |
-| Double click | word select (RetroTerm today) **or** cursor + ENTER (tnz) | Open question 5 |
+| Double click | cursor + ENTER (tnz), the default; **or** select the word (wc3270, x3270) | A setting per connection, Manage Connections, Keyboard tab (Ronny, 23 November 2026) |
 | Ctrl+C, Ctrl+X, Ctrl+V | copy, cut (unprotected only, 6.2), paste (6.3) | wc3270 |
 | PgUp, PgDn | scroll old screens **or** PF7/PF8 | Open question 6 |
 | Alt+K | show/hide the on-screen keyboard | wc3270's keypad key |

@@ -584,6 +584,12 @@ namespace RetroTerm.Ibm3270
         public SessionThreadRunner? SessionThread { get; set; }
 
         /// <summary>
+        /// Gets or sets whether a double click presses Enter (true, the default, as tnz does) or
+        /// selects the word (false, as wc3270 and x3270 do).
+        /// </summary>
+        public bool DoubleClickPressesEnter { get; set; } = true;
+
+        /// <summary>
         /// A mouse click on the screen: the cursor goes to that cell; a double click also presses
         /// Enter (IPointerCursorTerminal, as tnz does).
         /// </summary>
@@ -608,6 +614,13 @@ namespace RetroTerm.Ibm3270
         {
             int columns = _display.Columns;
             if (row < 0 || column < 0 || column >= columns || row >= _display.Size / columns)
+            {
+                return false;
+            }
+
+            // Double click set to select the word (wc3270, x3270): not taken, so the canvas keeps
+            // its word selection and the cursor stays where the first click put it.
+            if (doubleClick && !DoubleClickPressesEnter)
             {
                 return false;
             }
