@@ -110,3 +110,30 @@ rows in place, this entry becomes a real defect and the old rule comes back.
   repeatedly in the full suite with `--logger "console;verbosity=normal"` until it fails. Then
   replace the sleeps with a deadline poll on the received replies, as
   `TerminalSessionTestServerIntegrationTests.WaitForResponseAsync` does.
+
+## B9 - 3270 Attn at TSO's READY: the screen after the next Enter differs from s3270
+
+`src\tests\RetroTerm.Tests\Hercules\Tk5AttnTests.cs` (category Hercules, needs TK5) logs in,
+goes to READY, presses Clear, Attn, then Enter, in s3270 and in RetroTerm, and compares every
+screen. Found 23 November 2026. It is red.
+
+What is known:
+
+- RetroTerm sends what x3270 sends for Attn on plain TN3270: PA1 alone, then IAC BREAK
+  (x3270 `Common\kybd.c` Attn_action lines 994-998, `Common\telnet.c` net_break; RetroTerm
+  `Ibm3270Emulator` ATTN, `Tn3270Protocol.SendBreak`).
+- RetroTerm's records after Attn: sent `6C` (PA1), no host record, sent `7D 40 40` (Enter),
+  then host `F1 C1 11 5D 7F 1D 40 1D C8 4F 1D 40 11 C1 50 13` (a Write: an intensified field
+  holding `4F`, shown as a vertical bar, keyboard NOT restored) and host
+  `F1 C3 11 C1 50 1D C8 D9 C5 C1 C4 E8 ...` (READY on row 2, keyboard restored).
+- RetroTerm's screen at the end of the step: row 1 a bar, row 2 empty, line 25 X SYSTEM.
+  s3270's: row 1 empty, row 2 READY. The Clear after it differs too (RetroTerm shows
+  INVALID COMMAND NAME SYNTAX and READY).
+- One code difference, not shown to be the cause: x3270 sends Attn's PA1 directly
+  (`ctlr_read_modified(AID_PA1, false)`), without the keyboard lock its attention keys set;
+  RetroTerm's Attn locks the keyboard like any attention key.
+
+What is not known: what s3270 received in the same run. No byte trace of the s3270 side was
+taken, so it is not settled whether the host answered the two terminals differently, or answered
+the same and the screens were read at different moments. Next step: run s3270 with its trace
+(`-trace -tracefile`) in the same test and compare the records byte by byte.
