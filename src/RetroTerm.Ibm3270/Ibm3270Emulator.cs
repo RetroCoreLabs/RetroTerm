@@ -81,6 +81,12 @@ namespace RetroTerm.Ibm3270
         // True while the connection runs TN3270E (set by the session through ITn3270EAware).
         private bool _inTn3270E;
 
+        // The TN3270E functions agreed (RFC 2355 10.3, 10.5), and whether an SNA session is
+        // bound now: a BIND-IMAGE came and no UNBIND after it.
+        private bool _bindImageAgreed;
+        private bool _sysReqAgreed;
+        private bool _bound;
+
         // How the last host record went (set by ProcessData, read by the session for TN3270E
         // RESPONSES).
         private HostRecordOutcome _lastRecordOutcome = HostRecordOutcome.Applied;
@@ -343,6 +349,9 @@ namespace RetroTerm.Ibm3270
             _display.FileTransferLimit = old.FileTransferLimit;
 
             _inTn3270E = false;
+            _bindImageAgreed = false;
+            _sysReqAgreed = false;
+            _bound = false;
             _luName = null;
             _lastRecordOutcome = HostRecordOutcome.Applied;
             Paint();
@@ -364,6 +373,12 @@ namespace RetroTerm.Ibm3270
         /// break (IBreakSource).
         /// </summary>
         public event BreakRequestedHandler? BreakRequested;
+
+        /// <summary>
+        /// Raised for Sys Req and Attn under TN3270E, which go to the host as telnet commands (RFC
+        /// 2355 sections 10.5.2 and 11), for the session to hand to the connection.
+        /// </summary>
+        public event Tn3270EKeyHandler? Tn3270EKeyPressed;
 
         /// <summary>
         /// The 3278 screen: the model's alternate size, and the status row under it.
@@ -427,6 +442,10 @@ namespace RetroTerm.Ibm3270
             BeginBatch();
             try
             {
+                // 3270 data takes the screen back from the SSCP (RFC 2355 10.5.2) or from NVT
+                // mode, which erases it first (RFC 2355 9.1).
+                _display.LeaveSscpLuMode();
+                _display.LeaveNvtMode();
                 bool applied = _display.ProcessOutbound(data);
                 _lastRecordOutcome = applied ? HostRecordOutcome.Applied : ErrorKind(data);
                 Paint();
@@ -518,11 +537,77 @@ namespace RetroTerm.Ibm3270
         /// <param name="luName">
         /// The LU name the host gave, or null.
         /// </param>
-        public void Tn3270EChanged(bool on, string? luName)
+        /// <param name="bindImage">
+        /// True when the BIND-IMAGE function was agreed.
+        /// </param>
+        /// <param name="sysReq">
+        /// True when the SYSREQ function was agreed.
+        /// </param>
+        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq)
         {
             _inTn3270E = on;
             _luName = on ? luName : null;
+            _bindImageAgreed = on && bindImage;
+            _sysReqAgreed = on && sysReq;
+            _bound = false;
             Refresh();
+        }
+
+        /// <summary>
+        /// A TN3270E BIND image, UNBIND, SSCP-LU text or NVT text from the host, on the pump
+        /// thread, in order with the 3270 records.
+        /// </summary>
+        /// <remarks>
+        /// BIND-IMAGE: the screen sizes of the BIND are read (RetroIO BindImage, GA23-0061-2
+        /// Figure 1-11) and used (Display3270.ApplyBind). UNBIND: the model's sizes come back
+        /// (Display3270.Unbind). SSCP-LU and NVT text are shown on the screen
+        /// (Display3270.ProcessSscpLuData, ProcessNvtData). Whatever is refused is said through
+        /// <see cref="ProtocolError"/>.
+        /// </remarks>
+        /// <param name="kind">
+        /// What the message is.
+        /// </param>
+        /// <param name="data">
+        /// Its data part.
+        /// </param>
+        public void Tn3270EHostMessageReceived(Tn3270EHostMessage kind, ReadOnlySpan<byte> data)
+        {
+            BeginBatch();
+            try
+            {
+                switch (kind)
+                {
+                    case Tn3270EHostMessage.BindImage:
+                        _bound = true;
+                        if (BindImage.TryRead(data, out BindImage bind, out string? error))
+                        {
+                            _display.ApplyBind(bind);
+                        }
+                        else
+                        {
+                            ProtocolError?.Invoke("TN3270E BIND-IMAGE not used: " + error);
+                        }
+
+                        break;
+                    case Tn3270EHostMessage.Unbind:
+                        _bound = false;
+                        _display.Unbind();
+                        break;
+                    case Tn3270EHostMessage.SscpLuData:
+                        _display.ProcessSscpLuData(data);
+                        break;
+                    case Tn3270EHostMessage.NvtData:
+                        _display.ProcessNvtData(data);
+                        break;
+                }
+
+                Paint();
+                OnInvalidated();
+            }
+            finally
+            {
+                EndBatch();
+            }
         }
 
         /// <summary>
@@ -625,6 +710,7 @@ namespace RetroTerm.Ibm3270
                     case "C": return "CLEAR";
                     case "R": return "RESET";
                     case "A": return "ATTN";
+                    case "S": return "SYSREQ"; // KEYBOARD.md section 8: PC SysRq is Alt+PrintScreen, which Windows takes
                     case "D": return "DUP";
                     case "F": return "FIELDMARK";
                     case "E": return "ERASEEOF";
@@ -798,9 +884,17 @@ namespace RetroTerm.Ibm3270
                         if (_inTn3270E)
                         {
                             // x3270 Attn_action, TN3270E: IAC IP only when an SNA session is
-                            // bound, otherwise Minus Function. Basic TN3270E agrees no BIND-IMAGE,
-                            // so nothing is ever bound here.
-                            _display.RefuseFunction();
+                            // bound (net_bound: a BIND-IMAGE came), otherwise Minus Function.
+                            // RFC 2355 section 11: "the client should transmit a Telnet IP".
+                            if (_bound)
+                            {
+                                Tn3270EKeyPressed?.Invoke(Tn3270EKey.Attention);
+                            }
+                            else
+                            {
+                                _display.RefuseFunction();
+                            }
+
                             return;
                         }
 
@@ -810,12 +904,21 @@ namespace RetroTerm.Ibm3270
                     });
                     return NamedKeyResult.Pressed;
                 case "SYSREQ":
-                    // x3270 SysReq_action, TN3270E: net_abort, which sends IAC AO only when the
-                    // SYSREQ function was agreed. Basic TN3270E agrees none, so nothing happens.
-                    if (!_inTn3270E)
+                    // Plain TN3270: the test request read (Display3270.SysReq, GA23-0059-4 p. 9-3),
+                    // as x3270 SysReq_action sends AID_SYSREQ. TN3270E: telnet Abort Output when
+                    // the SYSREQ function was agreed (RFC 2355 10.5.2), which the connection sends;
+                    // without it nothing, as x3270 net_abort does nothing.
+                    Local(() =>
                     {
-                        Local(() => _display.SysReq());
-                    }
+                        if (!_inTn3270E)
+                        {
+                            _display.SysReq();
+                        }
+                        else if (_sysReqAgreed)
+                        {
+                            Tn3270EKeyPressed?.Invoke(Tn3270EKey.SysReq);
+                        }
+                    });
 
                     return NamedKeyResult.Pressed;
                 case "CURSORSELECT": Local(() => _display.CursorSelect()); return NamedKeyResult.Pressed;

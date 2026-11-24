@@ -28,9 +28,14 @@ namespace RetroTerm.Ibm3270
     /// TN3270E on our side. Everything else is refused.
     /// </para>
     /// <para>
-    /// TN3270E (RFC 2355) asks for one function, RESPONSES (section 10.4), and takes basic TN3270E
-    /// (section 9, no functions) when the host will not have it. There is no BIND image and no
-    /// SYSREQ. Every record carries a 5-byte header. With RESPONSES, each host record's
+    /// TN3270E (RFC 2355) asks for BIND-IMAGE, RESPONSES and SYSREQ (sections 10.3, 10.4, 10.5),
+    /// the three x3270 asks for (Common\telnet.c, tn3270e_request), takes whatever subset the host
+    /// grants, and basic TN3270E (section 9, no functions) when it grants none. BIND-IMAGE, UNBIND,
+    /// SSCP-LU-DATA and NVT-DATA messages are raised through <see cref="HostMessageReceived"/>, and
+    /// our own records carry the data type of the mode the connection is in (3270, SSCP-LU or
+    /// NVT). Built 24 November 2026; no host on this machine offers TN3270E (TK5 measured again
+    /// that day: FF FD 18 first, never FF FD 28), so the bytes come from the RFC. Every record
+    /// carries a 5-byte header. With RESPONSES, each host record's
     /// RESPONSE-FLAG and SEQ-NUMBER are kept until the session has applied the record
     /// (<see cref="HostRecordStarting"/>, <see cref="HostRecordProcessed"/>), and then a positive
     /// or negative response is sent as section 10.4.1 says; our own 3270-DATA messages carry a
@@ -105,11 +110,21 @@ namespace RetroTerm.Ibm3270
         private const byte OpSend = 0x08;
 
         // TN3270E function codes (RFC 2355 section 3).
+        private const byte FunctionBindImage = 0x00;
         private const byte FunctionResponses = 0x02;
+        private const byte FunctionSysReq = 0x04;
 
-        // What this terminal asks for: RESPONSES. BIND-IMAGE, SYSREQ and the printer functions
-        // are not built (docs PLAN.md).
-        private const int FunctionsWeAskFor = 1 << FunctionResponses;
+        // What this terminal asks for: BIND-IMAGE, RESPONSES and SYSREQ, as x3270 does for a
+        // display. The printer functions (DATA-STREAM-CTL, SCS-CTL-CODES) are not built
+        // (docs PLAN.md, the 3287 over TN3270E).
+        private const int FunctionsWeAskFor = (1 << FunctionBindImage) | (1 << FunctionResponses) | (1 << FunctionSysReq);
+
+        // Which data the connection carries now (RFC 2355 sections 9.1, 10.3, 10.5; x3270 keeps
+        // the same four states, Common\telnet.c tn3270e_submode).
+        private Tn3270ESubmode _submode;
+
+        // True between a BIND-IMAGE and the next UNBIND (RFC 2355 10.3).
+        private bool _bound;
 
         // RFC 2355 10.4: sequence numbers run 0 to 32767.
         private const int MaxSequence = 32767;
@@ -211,7 +226,42 @@ namespace RetroTerm.Ibm3270
         /// host may ask for a response to each record, and the terminal must give one (RFC 2355
         /// section 10.4).
         /// </summary>
-        public bool ResponsesAgreed => InTn3270E && (_agreedFunctions & FunctionsWeAskFor) != 0;
+        public bool ResponsesAgreed => InTn3270E && (_agreedFunctions & (1 << FunctionResponses)) != 0;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E is in force with the BIND-IMAGE function: the
+        /// host says when an SNA session with an application starts and ends (RFC 2355 10.3).
+        /// </summary>
+        public bool BindImageAgreed => InTn3270E && (_agreedFunctions & (1 << FunctionBindImage)) != 0;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E is in force with the SYSREQ function: the Sys
+        /// Req key is telnet Abort Output (RFC 2355 10.5.2).
+        /// </summary>
+        public bool SysReqAgreed => InTn3270E && (_agreedFunctions & (1 << FunctionSysReq)) != 0;
+
+        /// <summary>
+        /// Gets a value indicating whether an SNA session with a host application is bound: a
+        /// BIND-IMAGE came and no UNBIND after it (RFC 2355 10.3).
+        /// </summary>
+        public bool Bound => InTn3270E && _bound;
+
+        /// <summary>
+        /// Gets a value indicating whether the connection carries SSCP-LU data now (RFC 2355
+        /// 10.5.2: "While the connection is suspended, any data messages ... SSCP-LU-DATA").
+        /// </summary>
+        public bool InSscpLuMode => InTn3270E && _submode == Tn3270ESubmode.SscpLu;
+
+        /// <summary>
+        /// Gets a value indicating whether the connection carries NVT data now (RFC 2355 9.1).
+        /// </summary>
+        public bool InNvtMode => InTn3270E && _submode == Tn3270ESubmode.Nvt;
+
+        /// <summary>
+        /// A TN3270E message that is not 3270 data: BIND image, UNBIND, SSCP-LU text or NVT text.
+        /// The memory is the data part, without the header, and is only valid during the call.
+        /// </summary>
+        public event Action<Tn3270EHostMessage, ReadOnlyMemory<byte>>? HostMessageReceived;
 
         /// <summary>
         /// Bytes received from the host, any amount, split anywhere.
@@ -229,6 +279,16 @@ namespace RetroTerm.Ibm3270
         /// </param>
         public void SendRecord(ReadOnlySpan<byte> record)
         {
+            if (InTn3270E && _submode == Tn3270ESubmode.Unbound)
+            {
+                // RFC 2355 10.3: with BIND-IMAGE agreed, no 3270-DATA before the first BIND-IMAGE
+                // or after an UNBIND; only SSCP-LU-DATA or NVT-DATA, and the host has sent
+                // neither. x3270 sends nothing then either (net_add_dummy_tn3270e returns false
+                // in E_UNBOUND).
+                ProtocolError?.Invoke("A record from the terminal was not sent: no SNA session is bound (RFC 2355 section 10.3, no 3270-DATA before a BIND-IMAGE).");
+                return;
+            }
+
             if (InTn3270E && _applying && !_answered && _current.ResponseFlag == Tn3270EResponseFlag.AlwaysResponse)
             {
                 // This record is the reply to the host record being applied (a Read Buffer, a
@@ -246,15 +306,26 @@ namespace RetroTerm.Ibm3270
                 // field", from 0 to 32767 and round again (RFC 2355 10.4). Without it the number
                 // stays 0 (RFC 2355 8.1.4; x3270 net_output counts only with RESPONSES). Written
                 // through WriteData, so a 0xFF in it is doubled (RFC 2355 8.1.4).
+                //
+                // In SSCP-LU mode the record is SSCP-LU-DATA (RFC 2355 10.5.2), in NVT mode
+                // NVT-DATA (9.1). RFC 2355 10.4 counts "3270-DATA" messages, so those two carry
+                // 0; x3270 counts every message it sends (net_output, e_xmit_seq), which the
+                // RFC does not say.
+                byte dataType = _submode switch
+                {
+                    Tn3270ESubmode.SscpLu => Tn3270EDataType.SscpLuData,
+                    Tn3270ESubmode.Nvt => Tn3270EDataType.NvtData,
+                    _ => Tn3270EDataType.Data3270,
+                };
                 ushort sequence = 0;
-                if (ResponsesAgreed)
+                if (ResponsesAgreed && dataType == Tn3270EDataType.Data3270)
                 {
                     sequence = _sendSequence;
                     _sendSequence = _sendSequence == MaxSequence ? (ushort)0 : (ushort)(_sendSequence + 1);
                 }
 
                 Span<byte> header = stackalloc byte[Tn3270EHeader.Length];
-                new Tn3270EHeader(Tn3270EDataType.Data3270, 0, 0, sequence).Write(header);
+                new Tn3270EHeader(dataType, 0, 0, sequence).Write(header);
                 TelnetEncoder.WriteData(_out, header);
             }
 
@@ -270,6 +341,45 @@ namespace RetroTerm.Ibm3270
         {
             _out.Clear();
             TelnetEncoder.WriteCommand(_out, TelnetCommand.Break);
+            _write(_out.WrittenMemory);
+        }
+
+        /// <summary>
+        /// Sends the Sys Req key: IAC AO, when the SYSREQ function is agreed and the connection is
+        /// in 3270 or SSCP-LU mode (RFC 2355 10.5.2; x3270 Common\telnet.c, net_abort, sends it
+        /// in those two modes only).
+        /// </summary>
+        /// <remarks>
+        /// The first AO asks the server to suspend the host application's output and pass data
+        /// on the SSCP-LU session; the second resumes it. The mode here changes when the server's
+        /// SSCP-LU-DATA or 3270-DATA arrives, not when AO is sent, as in x3270 (the copy read
+        /// 24 November 2026 changes tn3270e_submode only in process_eor, on received data).
+        /// </remarks>
+        /// <returns>
+        /// False when nothing was sent, because SYSREQ is not agreed or the mode does not allow
+        /// it.
+        /// </returns>
+        public bool SendSysReq()
+        {
+            if (!SysReqAgreed || (_submode != Tn3270ESubmode.Data3270 && _submode != Tn3270ESubmode.SscpLu))
+            {
+                return false;
+            }
+
+            _out.Clear();
+            TelnetEncoder.WriteCommand(_out, TelnetCommand.AbortOutput);
+            _write(_out.WrittenMemory);
+            return true;
+        }
+
+        /// <summary>
+        /// Sends the Attn key in TN3270E: IAC IP (RFC 2355 section 11: "the client should transmit
+        /// a Telnet IP command to the server").
+        /// </summary>
+        public void SendInterruptProcess()
+        {
+            _out.Clear();
+            TelnetEncoder.WriteCommand(_out, TelnetCommand.InterruptProcess);
             _write(_out.WrittenMemory);
         }
 
@@ -502,11 +612,20 @@ namespace RetroTerm.Ibm3270
 
             if (header.DataType != Tn3270EDataType.Data3270)
             {
-                // Basic TN3270E uses 3270-DATA and NVT-DATA only (RFC 2355 section 9). NVT mode is
-                // not shown anywhere yet, as in plain TN3270.
-                ProtocolError?.Invoke("TN3270E data type " + header.DataType + " is not handled; the record was not shown.");
+                ReceiveOtherDataType(header.DataType, record.Length - Tn3270EHeader.Length);
                 return;
             }
+
+            if ((_agreedFunctions & (1 << FunctionBindImage)) != 0 && !_bound)
+            {
+                // RFC 2355 10.3: "data messages with DATA-TYPE set to 3270-DATA ... are not
+                // allowed before the first BIND-IMAGE is received by the client". x3270 drops
+                // such a record without a word (process_eor); here it is said.
+                ProtocolError?.Invoke("A 3270-DATA record came before any BIND-IMAGE, which RFC 2355 section 10.3 does not allow; the record was not shown.");
+                return;
+            }
+
+            _submode = Tn3270ESubmode.Data3270;
 
             byte responseFlag = header.ResponseFlag;
             if (responseFlag != Tn3270EResponseFlag.NoResponse && !ResponsesAgreed)
@@ -529,6 +648,71 @@ namespace RetroTerm.Ibm3270
             _pending.Enqueue(new PendingRecord(responseFlag, header.SequenceNumber));
             ReadOnlySpan<byte> data = record.Slice(Tn3270EHeader.Length);
             RecordReceived?.Invoke(_record.WrittenMemory.Slice(Tn3270EHeader.Length, data.Length));
+        }
+
+        // A TN3270E message that is not 3270-DATA (RFC 2355 8.1.1). The RESPONSE-FLAG of these is
+        // not answered: 8.1.3 gives it a meaning for 3270-DATA and SCS-DATA only, and "For any
+        // other values of the DATA-TYPE field, the RESPONSE-FLAG field must be ignored by the
+        // receiver". x3270 acknowledges an NVT-DATA message that asks (process_eor), which the
+        // RFC does not say.
+        private void ReceiveOtherDataType(byte dataType, int dataLength)
+        {
+            bool bindImage = (_agreedFunctions & (1 << FunctionBindImage)) != 0;
+            bool sysReq = (_agreedFunctions & (1 << FunctionSysReq)) != 0;
+            Tn3270EHostMessage kind;
+            switch (dataType)
+            {
+                case Tn3270EDataType.BindImage:
+                    if (!bindImage)
+                    {
+                        ProtocolError?.Invoke("A BIND-IMAGE message came although the BIND-IMAGE function was not agreed (RFC 2355 section 10.3); it was not used.");
+                        return;
+                    }
+
+                    // RFC 2355 10.3: after it, 3270-DATA is allowed; x3270 process_bind: "A BIND
+                    // implicitly puts us in 3270 mode".
+                    _bound = true;
+                    _submode = Tn3270ESubmode.Data3270;
+                    kind = Tn3270EHostMessage.BindImage;
+                    break;
+
+                case Tn3270EDataType.Unbind:
+                    if (!bindImage)
+                    {
+                        ProtocolError?.Invoke("An UNBIND message came although the BIND-IMAGE function was not agreed (RFC 2355 section 10.3); it was not used.");
+                        return;
+                    }
+
+                    _bound = false;
+                    _submode = Tn3270ESubmode.Unbound;
+                    kind = Tn3270EHostMessage.Unbind;
+                    break;
+
+                case Tn3270EDataType.SscpLuData:
+                    // Part of BIND-IMAGE and of SYSREQ (RFC 2355 10.3, 10.5); not of basic
+                    // TN3270E (section 9).
+                    if (!bindImage && !sysReq)
+                    {
+                        ProtocolError?.Invoke("An SSCP-LU-DATA message came although neither BIND-IMAGE nor SYSREQ was agreed (RFC 2355 sections 9, 10.3, 10.5); it was not shown.");
+                        return;
+                    }
+
+                    _submode = Tn3270ESubmode.SscpLu;
+                    kind = Tn3270EHostMessage.SscpLuData;
+                    break;
+
+                case Tn3270EDataType.NvtData:
+                    // Allowed in every TN3270E, basic included (RFC 2355 section 9).
+                    _submode = Tn3270ESubmode.Nvt;
+                    kind = Tn3270EHostMessage.NvtData;
+                    break;
+
+                default:
+                    ProtocolError?.Invoke("TN3270E data type " + dataType + " is not handled on a display; the record was not shown.");
+                    return;
+            }
+
+            HostMessageReceived?.Invoke(kind, _record.WrittenMemory.Slice(Tn3270EHeader.Length, dataLength));
         }
 
         // IAC SB TN3270E ... IAC SE (RFC 2355 section 7; x3270 tn3270e_negotiate).
@@ -626,6 +810,11 @@ namespace RetroTerm.Ibm3270
         {
             _agreedFunctions = functions;
             _sendSequence = 0;
+
+            // x3270 (tn3270e_negotiate, FUNCTIONS IS): "If the host does not support BIND_IMAGE,
+            // then we must go straight to 3270 mode"; with it, nothing is bound yet.
+            _bound = false;
+            _submode = (functions & (1 << FunctionBindImage)) != 0 ? Tn3270ESubmode.Unbound : Tn3270ESubmode.Data3270;
             SetNegotiated(true);
         }
 
@@ -724,6 +913,22 @@ namespace RetroTerm.Ibm3270
             _out.Clear();
             TelnetEncoder.WriteNegotiation(_out, verb, option);
             _write(_out.WrittenMemory);
+        }
+
+        // The four modes of a TN3270E connection.
+        private enum Tn3270ESubmode
+        {
+            // BIND-IMAGE agreed and no SNA session bound: SSCP-LU or NVT data only.
+            Unbound,
+
+            // 3270-DATA.
+            Data3270,
+
+            // NVT-DATA (RFC 2355 9.1).
+            Nvt,
+
+            // SSCP-LU-DATA (RFC 2355 10.5.2).
+            SscpLu,
         }
 
         // What a host record's header asked for: its RESPONSE-FLAG (NO-RESPONSE when nothing is

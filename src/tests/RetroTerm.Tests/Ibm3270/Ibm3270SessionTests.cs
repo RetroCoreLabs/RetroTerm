@@ -193,6 +193,7 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("SYSREQ", out _));
             await session.FlushAsync();
             Assert.Empty(connection.GetSentData());
+            Assert.Equal(0, connection.SysReqs);
             Assert.Equal(KeyboardLock.None, emulator.Display.Lock);
 
             Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
@@ -215,6 +216,119 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Equal(1, connection.Breaks);
         }
 
+        [Fact]
+        public async Task WithSysReqAgreedSysReqGoesToTheConnectionAndAttnNeedsABoundSession()
+        {
+            // RFC 2355 10.5.2: with SYSREQ agreed the key is telnet AO, which the connection
+            // sends. RFC 2355 11 and x3270 Attn_action: Attn is IP once an SNA session is bound,
+            // Minus Function before.
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new Tn3270ECountingConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.Agree(true, bindImage: true, sysReq: true);
+            await session.FlushAsync();
+            connection.ClearSentData();
+
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("SYSREQ", out _));
+            await session.FlushAsync();
+            Assert.Equal(1, connection.SysReqs);
+            Assert.Empty(connection.GetSentData());
+
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+            Assert.Equal(0, connection.Attentions);
+            Assert.Equal(KeyboardLock.MinusFunction, emulator.Display.Lock);
+
+            // GA23-0061-2 p. 5-61, the Bind the manual suggests for LU type 2, model 2.
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("RESET", out _));
+            connection.Host(Tn3270EHostMessage.BindImage, IbmModel2Bind);
+            await session.FlushAsync();
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+            Assert.Equal(1, connection.Attentions);
+            Assert.Equal(0, connection.Breaks);
+
+            // After an UNBIND nothing is bound again.
+            connection.Host(Tn3270EHostMessage.Unbind, new byte[] { 0x01 });
+            await session.FlushAsync();
+            Assert.Equal(NamedKeyResult.Pressed, emulator.PressNamedKey("ATTN", out _));
+            await session.FlushAsync();
+            Assert.Equal(1, connection.Attentions);
+            Assert.Equal(KeyboardLock.MinusFunction, emulator.Display.Lock);
+        }
+
+        [Fact]
+        public async Task TheBindsScreenSizesAreUsedAndTheUnbindGivesTheModelsBack()
+        {
+            // A model 4 (24 x 80, 43 x 80) bound with X'7E' 32 x 80: one size for the session,
+            // Erase/Write Alternate runs as Erase/Write (GA23-0061-2 p. 1-21).
+            var emulator = new Ibm3270Emulator(4);
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new Tn3270ECountingConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.Agree(true, bindImage: true);
+            await session.FlushAsync();
+
+            byte[] bind = (byte[])IbmModel2Bind.Clone();
+            bind[20] = 32;
+            bind[21] = 80;
+            bind[24] = 0x7E;
+            connection.Host(Tn3270EHostMessage.BindImage, bind);
+            connection.SimulateReceive(new byte[] { Command3270.EraseWriteAlternate, 0x02 });
+            await session.FlushAsync();
+            Assert.Equal(32, emulator.Display.Rows);
+
+            connection.Host(Tn3270EHostMessage.Unbind, new byte[] { 0x01 });
+            connection.SimulateReceive(new byte[] { Command3270.EraseWriteAlternate, 0x02 });
+            await session.FlushAsync();
+            Assert.Equal(43, emulator.Display.Rows);
+        }
+
+        [Fact]
+        public async Task SscpLuTextIsShownAndEnterSendsTheOperatorsTextAlone()
+        {
+            var emulator = new Ibm3270Emulator();
+            var session = new TerminalSession(emulator, "Test");
+            var connection = new Tn3270ECountingConnection();
+            await session.ConnectAsync(connection, TestContext.Current.CancellationToken);
+            connection.Agree(true, sysReq: true);
+            await session.FlushAsync();
+            connection.ClearSentData();
+
+            // "IKJ" NL, from the SSCP (GA23-0061-2 p. 5-37).
+            connection.Host(Tn3270EHostMessage.SscpLuData, new byte[] { 0xC9, 0xD2, 0xD1, 0x15 });
+            await session.FlushAsync();
+            Assert.StartsWith("IKJ ", await RowAsync(session, 0));
+            Assert.True(emulator.Display.SscpLuMode);
+
+            Assert.True(emulator.HandleText("LOGOFF"));
+            Assert.True(emulator.HandleKey("Enter", false, false, false));
+            await session.FlushAsync();
+            Assert.Equal(new byte[] { 0xD3, 0xD6, 0xC7, 0xD6, 0xC6, 0xC6 }, Assert.Single(connection.GetSentData()));
+
+            // 3270 data from the application takes the screen back.
+            connection.SimulateReceive(Screen);
+            await session.FlushAsync();
+            Assert.False(emulator.Display.SscpLuMode);
+            Assert.Equal(6, emulator.Display.CursorAddress);
+        }
+
+        [Fact]
+        public void AltSIsSysReq()
+        {
+            // KEYBOARD.md section 8: Alt+S, because the PC's own SysRq is Alt+PrintScreen.
+            Assert.Equal("SYSREQ", Ibm3270Emulator.PcKeyToName("S", shift: false, control: false, alt: true));
+        }
+
+        // GA23-0061-2 p. 5-61, "Bind Default": the LU type 1 table with the LU type 2 changes
+        // (byte 9 X'00', byte 10 X'87', byte 14 X'02', byte 18 X'00', byte 24 X'02' model 2).
+        private static readonly byte[] IbmModel2Bind =
+        {
+            0x31, 0x01, 0x03, 0x03, 0xB1, 0x90, 0x30, 0x80, 0x00, 0x00, 0x87, 0x87, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+        };
+
         // A connection whose TN3270E state the test sets, and which counts breaks.
         private sealed class Tn3270ECountingConnection : InMemoryConnection, IBreakConnection, ITn3270EConnection
         {
@@ -222,18 +336,36 @@ namespace RetroTerm.Tests.Ibm3270
 
             public bool InTn3270E { get; private set; }
 
+            public event System.Action<Tn3270EHostMessage, System.ReadOnlyMemory<byte>>? HostMessageReceived;
+
             public string? GrantedLuName { get; private set; }
+
+            public bool BindImageAgreed { get; private set; }
+
+            public bool SysReqAgreed { get; private set; }
 
             public int Breaks { get; private set; }
 
+            public int SysReqs { get; private set; }
+
+            public int Attentions { get; private set; }
+
             public void SendBreak() => Breaks++;
 
-            public void Agree(bool on)
+            public void SendSysReq() => SysReqs++;
+
+            public void SendAttention() => Attentions++;
+
+            public void Agree(bool on, bool bindImage = false, bool sysReq = false)
             {
                 InTn3270E = on;
                 GrantedLuName = on ? "TCP00034" : null;
+                BindImageAgreed = on && bindImage;
+                SysReqAgreed = on && sysReq;
                 Tn3270EChanged?.Invoke(on);
             }
+
+            public void Host(Tn3270EHostMessage kind, byte[] data) => HostMessageReceived?.Invoke(kind, data);
         }
         // A connection that can send a break, and remembers how many records went before it.
         private sealed class BreakCountingConnection : InMemoryConnection, IBreakConnection

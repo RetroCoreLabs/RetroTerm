@@ -205,7 +205,8 @@ counting from 0 with RESPONSES (back to 0 after 32767, RFC 2355 s.10.4) and 0000
 data types are reported rather than shown. A refused device type, or functions the host adds on
 its own, end TN3270E with WONT TN3270E and the connection goes on as plain TN3270 (x3270
 backoff_tn3270e). In TN3270E, Attn locks the keyboard with Minus Function and Sys Req does
-nothing, as x3270 does when no SNA session is bound and SYSREQ is not agreed. Not tested against
+nothing, as x3270 does, when no SNA session is bound and SYSREQ is not agreed (BIND-IMAGE and
+SYSREQ are asked for since 24 November 2026; see below). Not tested against
 a live host: TK5 never offers TN3270E (measured again 23 November 2026: its first bytes are
 `FF FD 18`, then TERMINAL-TYPE SEND, then BINARY and EOR, and no `FF FD 28`).
 
@@ -237,8 +238,15 @@ a record starts and how it went (`IHostRecordResponseConnection`, filled from
   printer, or one that threw), no response is sent and an error is reported.
 
 Where RetroTerm differs from x3270 (Common/telnet.c, read 23 November 2026):
-- x3270 asks for BIND-IMAGE, RESPONSES and SYSREQ; RetroTerm asks for RESPONSES only, because the
-  others are not built.
+- Since 24 November 2026 RetroTerm asks for BIND-IMAGE, RESPONSES and SYSREQ, as x3270 does
+  (`28 03 07 00 02 04`). With BIND-IMAGE agreed no 3270-DATA flows either way until a BIND-IMAGE
+  comes [RFC 2355 s.10.3]; the BIND's bytes 20-24 set the screen sizes (GA23-0061-2 Figure 1-11,
+  RetroIO `BindImage` and `Display3270.ApplyBind`); UNBIND gives the model's sizes back. With
+  SYSREQ, Sys Req sends `FF F5` (IAC AO); SSCP-LU-DATA is shown as text (GA23-0061-2 p. 5-37) and
+  our records go out as SSCP-LU-DATA until 3270-DATA comes again. NVT-DATA switches to a plain
+  ASCII text screen (RFC 2355 s.9.1). Attn sends `FF F4` (IAC IP) once a session is bound. Still
+  not tested against a live TN3270E host: TK5 was traced again on 24 November 2026 with s3270
+  4.5ga6 and still starts `FF FD 18`, never `FF FD 28`.
 - x3270 decides "held until the output" from the command (PDS_OKAY_OUTPUT for the reads); if such
   a record never actually sent output, x3270 would send no positive response at all. RetroTerm
   decides from what really happened: a positive response still owed when the record is done is

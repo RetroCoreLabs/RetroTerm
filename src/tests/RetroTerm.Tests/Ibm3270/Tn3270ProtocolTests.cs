@@ -128,11 +128,12 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(SendDeviceType);
             Assert.Equal(Bytes("FF FA 28 02 07", "'IBM-3278-2-E", "FF F0"), wire.ToArray());
 
-            // Granted: the client asks for RESPONSES (RFC 2355 s.7.2, s.10.4; function X'02').
-            // The host here grants none, which is basic TN3270E (RFC 2355 s.9).
+            // Granted: the client asks for BIND-IMAGE, RESPONSES and SYSREQ (RFC 2355 s.7.2,
+            // s.10.3 to s.10.5; functions X'00', X'02', X'04'). The host here grants none, which is
+            // basic TN3270E (RFC 2355 s.9).
             wire.Clear();
             p.Feed(DeviceTypeIs);
-            Assert.Equal(Bytes("FF FA 28 03 07 02 FF F0"), wire.ToArray());
+            Assert.Equal(Bytes("FF FA 28 03 07 00 02 04 FF F0"), wire.ToArray());
             Assert.Equal("IBM-3278-2-E", p.GrantedDeviceType);
             Assert.Equal("TCP00034", p.GrantedLuName);
             Assert.False(p.InTn3270E);
@@ -210,9 +211,10 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(Bytes("FF FA 28 03 04 FF F0"));
             wire.Clear();
 
-            p.Feed(Bytes("05 00 00 00 00 41 42 FF EF"));
+            // SCS-DATA (X'01') is printer data, not handled on a display.
+            p.Feed(Bytes("01 00 00 00 00 41 42 FF EF"));
             Assert.Empty(records);
-            Assert.Contains("data type 5", errors[0]);
+            Assert.Contains("data type 1", errors[0]);
 
             p.Feed(Bytes("00 00 02 00 01 F5 42 FF EF"));
             Assert.Single(records);

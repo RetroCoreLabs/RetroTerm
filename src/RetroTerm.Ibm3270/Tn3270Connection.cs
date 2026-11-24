@@ -95,6 +95,7 @@ namespace RetroTerm.Ibm3270
             };
             _protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
             _protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
+            _protocol.HostMessageReceived += OnProtocolHostMessage;
             _protocol.ProtocolError += message =>
             {
                 ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
@@ -127,6 +128,22 @@ namespace RetroTerm.Ibm3270
         /// Gets the LU name the host gave in TN3270E, or null (plain TN3270, or not agreed yet).
         /// </summary>
         public string? GrantedLuName => _protocol.GrantedLuName;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E runs with the BIND-IMAGE function.
+        /// </summary>
+        public bool BindImageAgreed => _protocol.BindImageAgreed;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E runs with the SYSREQ function.
+        /// </summary>
+        public bool SysReqAgreed => _protocol.SysReqAgreed;
+
+        /// <summary>
+        /// Raised for a TN3270E BIND image, UNBIND, SSCP-LU text or NVT text, on the receive
+        /// thread, in order with <see cref="DataReceived"/>. The memory is a copy.
+        /// </summary>
+        public event Action<Tn3270EHostMessage, ReadOnlyMemory<byte>>? HostMessageReceived;
 
         /// <summary>
         /// Raised with each complete 3270 record from the host, without telnet framing.
@@ -241,6 +258,36 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// Sends the Sys Req key as telnet Abort Output (RFC 2355 10.5.2), when SYSREQ is agreed.
+        /// </summary>
+        public void SendSysReq()
+        {
+            bool sent;
+            lock (_gate)
+            {
+                sent = _protocol.SendSysReq();
+            }
+
+            if (!sent)
+            {
+                // x3270 net_abort does nothing in this case either; the log says why.
+                ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Tn3270Connection",
+                    "Sys Req not sent: the TN3270E SYSREQ function is not agreed, or the connection is not in 3270 or SSCP-LU mode (RFC 2355 section 10.5.2)");
+            }
+        }
+
+        /// <summary>
+        /// Sends the Attn key in TN3270E as telnet Interrupt Process (RFC 2355 section 11).
+        /// </summary>
+        public void SendAttention()
+        {
+            lock (_gate)
+            {
+                _protocol.SendInterruptProcess();
+            }
+        }
+
+        /// <summary>
         /// The session starts applying the next host record (TN3270E RESPONSES).
         /// </summary>
         public void HostRecordStarting()
@@ -340,6 +387,7 @@ namespace RetroTerm.Ibm3270
             };
             protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
             protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
+            protocol.HostMessageReceived += OnProtocolHostMessage;
             protocol.ProtocolError += message =>
             {
                 ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
@@ -384,6 +432,14 @@ namespace RetroTerm.Ibm3270
             {
                 SetStatus(ConnectionStatus.Disconnected);
             }
+        }
+
+        // A host message other than 3270 data: copied, because the protocol's memory is only valid
+        // during the call, and raised after the feed with the records, in order.
+        private void OnProtocolHostMessage(Tn3270EHostMessage kind, ReadOnlyMemory<byte> data)
+        {
+            byte[] copy = data.ToArray();
+            _raiseAfterFeed.Add(() => HostMessageReceived?.Invoke(kind, copy));
         }
 
         // Raises what the last Feed produced, in the order it was produced, outside _gate.

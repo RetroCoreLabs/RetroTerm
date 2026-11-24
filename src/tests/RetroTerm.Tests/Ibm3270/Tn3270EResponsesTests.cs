@@ -98,16 +98,20 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(SendDeviceType);
             wire.Clear();
 
-            // DEVICE-TYPE IS: FUNCTIONS REQUEST RESPONSES (RFC 2355 7.2, code X'02').
+            // DEVICE-TYPE IS: FUNCTIONS REQUEST BIND-IMAGE RESPONSES SYSREQ (RFC 2355 7.2, codes
+            // X'00', X'02', X'04'; the list x3270 asks for).
             p.Feed(DeviceTypeIs);
-            Assert.Equal(Bytes("FF FA 28 03 07 02 FF F0"), wire.ToArray());
+            Assert.Equal(Bytes("FF FA 28 03 07 00 02 04 FF F0"), wire.ToArray());
             Assert.False(p.InTn3270E);
 
+            // The host grants RESPONSES alone: a subset is taken (RFC 2355 7.2.1).
             wire.Clear();
             p.Feed(Bytes("FF FA 28 03 04 02 FF F0"));
             Assert.Empty(wire);
             Assert.True(p.InTn3270E);
             Assert.True(p.ResponsesAgreed);
+            Assert.False(p.BindImageAgreed);
+            Assert.False(p.SysReqAgreed);
             Assert.Empty(errors);
         }
 
@@ -135,17 +139,20 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(DeviceTypeIs);
             wire.Clear();
 
-            // The host asks for BIND-IMAGE, RESPONSES, SYSREQ and an unknown code X'30': we ask
-            // back for RESPONSES only (RFC 2355 7.2.1; x3270 b8_and).
-            p.Feed(Bytes("FF FA 28 03 07 00 02 04 30 FF F0"));
-            Assert.Equal(Bytes("FF FA 28 03 07 02 FF F0"), wire.ToArray());
+            // The host asks for BIND-IMAGE, DATA-STREAM-CTL (a printer function), RESPONSES,
+            // SYSREQ and an unknown code X'30': we ask back for the three we want (RFC 2355
+            // 7.2.1; x3270 b8_and).
+            p.Feed(Bytes("FF FA 28 03 07 00 01 02 04 30 FF F0"));
+            Assert.Equal(Bytes("FF FA 28 03 07 00 02 04 FF F0"), wire.ToArray());
             Assert.False(p.InTn3270E);
 
-            // It then asks for RESPONSES: accepted by sending the same list back in IS.
+            // It then asks for those three: accepted by sending the same list back in IS.
             wire.Clear();
-            p.Feed(Bytes("FF FA 28 03 07 02 FF F0"));
-            Assert.Equal(Bytes("FF FA 28 03 04 02 FF F0"), wire.ToArray());
+            p.Feed(Bytes("FF FA 28 03 07 00 02 04 FF F0"));
+            Assert.Equal(Bytes("FF FA 28 03 04 00 02 04 FF F0"), wire.ToArray());
             Assert.True(p.ResponsesAgreed);
+            Assert.True(p.BindImageAgreed);
+            Assert.True(p.SysReqAgreed);
         }
 
         [Fact]
@@ -178,8 +185,9 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(DeviceTypeIs);
             wire.Clear();
 
-            // IS RESPONSES SYSREQ: SYSREQ was never asked for (x3270 "Host illegally added").
-            p.Feed(Bytes("FF FA 28 03 04 02 04 FF F0"));
+            // IS RESPONSES SCS-CTL-CODES: SCS-CTL-CODES was never asked for (x3270 "Host
+            // illegally added").
+            p.Feed(Bytes("FF FA 28 03 04 02 03 FF F0"));
 
             Assert.Equal(Bytes("FF FC 28"), wire.ToArray());
             Assert.Contains("not asked for", errors[0]);

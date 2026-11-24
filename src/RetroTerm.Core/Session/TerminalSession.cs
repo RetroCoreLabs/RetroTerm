@@ -269,6 +269,13 @@ public partial class TerminalSession : IDisposable
             breakSource.BreakRequested += OnEmulatorBreakRequested;
         }
 
+        // Keys a TN3270E connection sends as telnet commands (the 3270 Sys Req and Attn).
+        if (Emulator is ITn3270EAware tn3270eKeys)
+        {
+            tn3270eKeys.Tn3270EKeyPressed -= OnEmulatorTn3270EKeyPressed;
+            tn3270eKeys.Tn3270EKeyPressed += OnEmulatorTn3270EKeyPressed;
+        }
+
         // An emulator that shows the connection on its screen (the 3270's line 25) starts from
         // the state the connection is in now.
         TellEmulatorConnectionStatus(Status);
@@ -328,9 +335,62 @@ public partial class TerminalSession : IDisposable
     {
         if (Emulator is ITn3270EAware aware)
         {
-            string? luName = on && _connection is ITn3270EConnection tn3270e ? tn3270e.GrantedLuName : null;
-            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on, luName));
+            ITn3270EConnection? tn3270e = on ? _connection as ITn3270EConnection : null;
+            string? luName = tn3270e?.GrantedLuName;
+            bool bindImage = tn3270e != null && tn3270e.BindImageAgreed;
+            bool sysReq = tn3270e != null && tn3270e.SysReqAgreed;
+            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on, luName, bindImage, sysReq));
         }
+    }
+
+    /// <summary>
+    /// Hands a TN3270E message that is not 3270 data (BIND image, UNBIND, SSCP-LU or NVT text)
+    /// to the emulator, on the pump thread, after every record that arrived before it. Raised
+    /// by the connection on its own thread.
+    /// </summary>
+    /// <param name="kind">
+    /// What the message is.
+    /// </param>
+    /// <param name="data">
+    /// Its data part; the connection's copy, valid after the call.
+    /// </param>
+    private void OnConnectionTn3270EHostMessage(Tn3270EHostMessage kind, ReadOnlyMemory<byte> data)
+    {
+        if (Emulator is ITn3270EAware aware)
+        {
+            _ = _pump.RunAsync(() => aware.Tn3270EHostMessageReceived(kind, data.Span));
+            return;
+        }
+
+        ApplicationLogger.Log(LogCategory.Session, LogLevel.Warn, "TerminalSession",
+            $"TN3270E {kind} message dropped: the emulator does not take TN3270E messages");
+    }
+
+    /// <summary>
+    /// Sends a key the emulator asked to go as a telnet command (Sys Req, Attn under TN3270E).
+    /// Raised on the pump thread after any data the same key sent.
+    /// </summary>
+    /// <param name="key">
+    /// Which key.
+    /// </param>
+    private void OnEmulatorTn3270EKeyPressed(Tn3270EKey key)
+    {
+        if (_connection is ITn3270EConnection tn3270e && _connection.IsConnected)
+        {
+            if (key == Tn3270EKey.SysReq)
+            {
+                tn3270e.SendSysReq();
+            }
+            else
+            {
+                tn3270e.SendAttention();
+            }
+
+            return;
+        }
+
+        ApplicationLogger.Log(LogCategory.Session, LogLevel.Warn, "TerminalSession",
+            $"TN3270E key {key} asked for but the connection cannot send it (status: {_connection?.Status})");
     }
 
     /// <summary>
@@ -418,6 +478,7 @@ public partial class TerminalSession : IDisposable
         if (_connection is ITn3270EConnection tn3270e)
         {
             tn3270e.Tn3270EChanged += OnConnectionTn3270EChanged;
+            tn3270e.HostMessageReceived += OnConnectionTn3270EHostMessage;
             OnConnectionTn3270EChanged(tn3270e.InTn3270E);
         }
 
@@ -511,6 +572,11 @@ public partial class TerminalSession : IDisposable
             if (outgoing is IBreakSource outgoingBreaks)
             {
                 outgoingBreaks.BreakRequested -= OnEmulatorBreakRequested;
+            }
+
+            if (outgoing is ITn3270EAware outgoingTn3270eKeys)
+            {
+                outgoingTn3270eKeys.Tn3270EKeyPressed -= OnEmulatorTn3270EKeyPressed;
             }
 
             replacement.GetBuffer().CopyFrom(outgoing.GetBuffer());
@@ -626,6 +692,7 @@ public partial class TerminalSession : IDisposable
         if (conn is ITn3270EConnection tn3270eConn)
         {
             tn3270eConn.Tn3270EChanged -= OnConnectionTn3270EChanged;
+            tn3270eConn.HostMessageReceived -= OnConnectionTn3270EHostMessage;
             OnConnectionTn3270EChanged(false);
         }
 
@@ -986,6 +1053,7 @@ public partial class TerminalSession : IDisposable
         if (_connection is ITn3270EConnection tn3270e)
         {
             tn3270e.Tn3270EChanged -= OnConnectionTn3270EChanged;
+            tn3270e.HostMessageReceived -= OnConnectionTn3270EHostMessage;
         }
 
         if (_connection is IPrintJobEndConnection printJobEnd)
@@ -1150,6 +1218,11 @@ public partial class TerminalSession : IDisposable
             if (Emulator is IBreakSource breaks)
             {
                 breaks.BreakRequested -= OnEmulatorBreakRequested;
+            }
+
+            if (Emulator is ITn3270EAware tn3270eKeys)
+            {
+                tn3270eKeys.Tn3270EKeyPressed -= OnEmulatorTn3270EKeyPressed;
             }
 
             // Nothing TDV-specific to unsubscribe any more: TDV replies come through DataToSend
