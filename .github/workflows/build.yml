@@ -64,7 +64,11 @@ jobs:
       - run: pwsh src/tools/fetch-conformance-corpora.ps1
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      # nuget.config reads these two values to log in to the RetroIO feed on GitHub Packages.
       - run: dotnet restore src/RetroTerm.slnx
+        env:
+          RETROCORE_NUGET_USER: ${{ github.actor }}
+          RETROCORE_NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: dotnet build src/RetroTerm.slnx -c Release --no-restore -nodeReuse:false
       # The main suite takes about two and a half minutes locally.
       # The Hercules tests drive a live TK5 mainframe (src/tests/RetroTerm.Tests/Hercules); a hosted
@@ -105,7 +109,13 @@ jobs:
           dotnet-version: '10.0.x'
       # The one test project with no Windows dependency, run on the platform being shipped.
       - run: dotnet test src/tests/RetroTerm.Core.Protocols.Kermit.Tests/RetroTerm.Core.Protocols.Kermit.Tests.csproj -c Release -nodeReuse:false --logger "console;verbosity=minimal"
+        env:
+          RETROCORE_NUGET_USER: ${{ github.actor }}
+          RETROCORE_NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: dotnet publish src/RetroTerm.Desktop/RetroTerm.Desktop.csproj -c Release -r ${{ matrix.rid }} -o out/${{ matrix.rid }} -nodeReuse:false
+        env:
+          RETROCORE_NUGET_USER: ${{ github.actor }}
+          RETROCORE_NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # The binary is renamed to carry its runtime, so four artifacts do not all unpack to the
       # same file name when downloaded together.
       - name: Name the binary by runtime

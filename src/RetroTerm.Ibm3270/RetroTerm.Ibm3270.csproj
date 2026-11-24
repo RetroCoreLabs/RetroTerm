@@ -23,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Local feed for now (src\nuget.config); 0.1.0-local.* picks the newest pack at restore. -->
-    <PackageReference Include="RetroIO.Protocols.Tn3270" Version="0.1.0-local.*" />
+    <!-- From GitHub Packages (src\nuget.config); the version is the RetroIO tag it was published from. -->
+    <PackageReference Include="RetroIO.Protocols.Tn3270" Version="0.1.0-alpha.3" />
   </ItemGroup>
 
 </Project>
