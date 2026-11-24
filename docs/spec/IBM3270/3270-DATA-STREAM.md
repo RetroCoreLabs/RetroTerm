@@ -904,7 +904,8 @@ Always sent on Query and every Query List form.
 
 Length rules (p. 6-87): bytes 0-20 always; 21-26 must be present if any self-defining parameter
 follows; may be left off when there are none; BUFFSZ may be left off when not applicable.
-Xr/Yr unknown -> X'FFFFFFFF' (not allowed if Load PS is supported) (p. 6-89).
+Xr/Yr unknown -> X'FFFFFFFF' (not allowed if Load PS is supported) (p. 6-89). RetroIO has Load PS
+since 24 November 2026, so it sends UNITS mm and `DotDistanceX`/`DotDistanceY` (see section 15).
 
 **How large or odd screen sizes are reported:** W and H are the usable area of the display surface
 (p. 6-89); W x H is the most characters a nonloadable character set can show. With CELLUNITS = 0
@@ -1797,7 +1798,7 @@ column, and match the table above. What RetroIO does for each column of those tw
 | Selection | R | not modelled: no operator attribute selection | NC | - |
 | Indicators | R | not modelled: no selection indicators | 7 | - |
 | INPID / INOP | R | INOP back to Read Modified in the normal read state: a record kept for a retry is dropped, so a Read Modified reads the screen again (p. 3-14, 3-19). INPID is always 0 | NR | - |
-| PS Content / PS LCID | NC | nothing (no programmed symbols) | NC | - |
+| PS Content / PS LCID | NC | left alone (programmed symbols since 24 November 2026, section 15) | NC | left alone |
 
 Row "Bind SSCP" is 9 in every column but INPID/INOP, which is R, so the same resets are right when
 the LU was SSCP-owned. Tests: `BindAndSscpLuTests` in RetroIO (`ABindResetsTheInboundReplyModeToField`,
@@ -1940,23 +1941,66 @@ Print oddities, written down rather than guessed at:
   on to byte 17.
 - SKIP points at "Note 1", but the note about skip suppression is note 2 (p. 5-21).
 - Rule 2's header is printed B'1' (p. 5-29). Read as written it cannot be told from the first bit of
-  rule 3's B'110' or rule 4's B'1110'; B'10' would make the four a clean prefix code. **NOT
-  VERIFIED** - the page image shows B'1'.
+  rule 3's B'110' or rule 4's B'1110'. **Settled by the manual's own example (read 24 November
+  2026):** p. 5-32 says "With comparison rule 2, the header is B'10'" and its printed bit string
+  starts `10`; decoded with a B'10' header it gives exactly Figure 5-3, with B'1' it does not.
+  RetroIO builds B'10' (test `Rule2ReadWithTheOneBitHeaderOfPage529DoesNotGiveFigure53`).
 - The example's slice-pair 7 is printed X'12FF' (p. 5-30), but Figure 5-3 on p. 5-28 gives slice 13
-  as X'02' and slice 14 as X'FF'. One of the two is a misprint; which is not known.
+  as X'02' and slice 14 as X'FF'. **Settled:** Figures 5-4, 5-5 and 5-6 (p. 5-31 to 5-33) all use
+  X'02FF' for pair 7, and all three printed bit strings decode to X'02FF'. X'12FF' on p. 5-30 is the
+  misprint.
+- Rule 3 compares slices 1 and 2 "with a 1 element" (text, p. 5-29), but Figure 5-6 (p. 5-33)
+  compares the first slice-pair with X'0000', and its printed bit string decodes to Figure 5-3 only
+  that way. RetroIO follows the example: zero (red/green proved: with all-ones the rule 3 tests fail).
+- Rule 2's Figure 5-5 row 2 shows only three element cells; the bit string has the fourth ("0").
 - p. 5-27 calls the printer forms "type 6" and p. 5-28 says the rules work on "Type 5 (printer)"
   data; types 5 and 6 are column loading uncompressed and compressed (p. 5-19), so both may be right.
 - The single-plane COLOR rule (p. 5-24) rejects B'000', but byte 12 (p. 5-20) defines X'00' as "All
   planes", and the triple-plane rule takes X'00'.
 
-**What RetroIO does today** (read in the code, 24 November 2026): Load PS is NOT built and there are
-no programmed symbols. A Write Structured Field holding X'06' is refused out loud: `ProtocolError`
-"Structured field X'06' is not built (...)", and the rest of that transmission is not run (p. 5-1).
-The Character Sets query reply says so to the host: flags X'82' (ALT and GF only - LOADABLE and EXT
-are 0), FORM 0 (no Load PS format), and both descriptors (the base set, LCID X'F0', and the Graphic
-Escape set, LCID X'F1') have LOAD = 0. SA, SFE and MF character set values are stored as sent and
-not checked against any LCID, so a host that names a loadable LCID gets no error from RetroIO; what
-is drawn is up to the caller (RetroTerm). Nothing here was built or changed for Load PS.
+**What RetroIO does (built 24 November 2026, `ProgrammedSymbols.cs`, tests `ProgrammedSymbolsTests`):**
+
+- Six loadable sets, RWS X'02' to X'07' (one per PS key A to F, p. 6-25). The numbers are RetroIO's
+  choice; SET X'00' and X'01' are the base and Graphic Escape sets.
+- Slot size = SDW x SDH = `CellWidth` x `CellHeight` (MS = 0, one slot size). A Load PS arriving with
+  a different slot size than the set was loaded with starts that set again, blank (RetroIO's choice;
+  the manual's devices have one fixed size).
+- Basic and extended form; types 1 to 6, the compression with all four rules; CLEAR, SKIP, APA, CB,
+  OB, MULTID, USET, SDPP; LW/LH; ECHAR; Symbol Envelope Table and Terminator. PSCS = 1: smaller
+  shapes are taken and placed top left.
+- Refused out loud (`ProtocolError`, rest of the WSF not run): type 8 (vector - the manual names it
+  but gives no data format), 2-byte sets (SUBSN, ST.SUBS non-zero), reserved bits and values, LCID
+  outside X'40'-X'EF'/X'FF', CHAR outside X'41'-X'FE', an RWS that is not one of the six, shapes
+  larger than the slot, LW/LH other than 9/16 for types 1 and 2, more shapes than ECHAR allows or
+  after X'FE', data cut inside a shape, a bad compression header, fewer than 4 or more than 11
+  terminator bits, an envelope entry of the wrong length or with a pair wider than the cell.
+- Errors before the store changes leave it and its LCID alone; errors while loading keep what was
+  loaded and the new LCID (p. 5-22).
+- COLOR on a colour screen (triple-plane): X'00' all planes, X'01'/X'02'/X'04' one plane, X'F1'-X'F7'
+  the planes of that colour (the low three bits), other planes of the slot left alone (RetroIO's
+  reading: p. 5-24 does not say what happens to the planes a colour value does not name). On a
+  single-plane screen only X'00' is taken (RetroIO's reading of the contradiction above).
+- A set with several Symbol Envelope pair counts: a change of NW or NH makes a new, all-zero table
+  (RetroIO's choice). With MULTID leaving two stores on one LCID, `Find` returns the lower RWS
+  (RetroIO's choice).
+- The sets survive every reset but power on (Table C-1, PS Content / PS LCID column).
+- The Character Sets reply now says X'B2' (ALT, LOADABLE, EXT, GF), byte 5 X'40' (PSCS), FORM
+  X'7E000000' (types 1 to 6; bit 0 is the high bit, as everywhere in the manual), DL 7, then the base
+  and GE descriptors and one descriptor per loadable set: SET = RWS, flags LOAD (+ TRIPLE on a colour
+  screen, + CB as last loaded), its current LCID (X'FF' when free), CGCSGID 0 (p. 6-28).
+- The Usable Area reply now sends millimetres and real Xr/Yr (p. 6-89, 6-93 forbid X'FFFFFFFF' with
+  Load PS): `DotDistanceX`/`DotDistanceY`, defaulting to x3270's canned 3279-2 values 10/741 mm and
+  2/111 mm (an ASSUMPTION about the renderer, not a measurement).
+- Still not done: SA, SFE and MF character set values are stored as sent and not checked against the
+  LCIDs (p. 5-22 says a reference to a released LCID "will be an error"); skip suppression is stored
+  (`SkipSuppress`) but nothing draws rows closer; the PS selection keys (operator picking a set) are
+  not built.
+
+**API for a renderer:** `Display3270.ProgrammedSymbols.Find(lcid)` returns the
+`ProgrammedSymbolSet` (or null), then `set.GetDot(code, x, y)` gives the plane mask of one dot (0 =
+off; bit 0 blue, bit 1 red, bit 2 green; ORed when shown, so the colour is X'F0' + mask), or
+`set.GetSymbol(code)` the whole slot row by row, `SlotWidth` x `SlotHeight`. `GetEnvelope(code)`
+gives the envelope pairs. The LCID comes from `GetFieldCharacterSet` / `GetCharacterCharacterSet`.
 
 ---
 
