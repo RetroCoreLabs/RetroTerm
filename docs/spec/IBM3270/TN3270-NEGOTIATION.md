@@ -502,4 +502,5 @@ only the four cases above were measured.
 7. Does a real z/OS TN3270E server accept `IBM-3279-n` names in DEVICE-TYPE (IBM page says yes,
    RFC 2355 lists only 3278)? No such server here.
 8. Is there any host that expects a "3278T" (APL) terminal-type string? Nothing found in tnz.
-9. The telnet AO byte value (245) was not read from RFC 854.
+9. Settled 24 November 2026: RFC 854 (held as `RFC\rfc854.txt`), page 14, command table: "Abort
+   output  245  The function AO."

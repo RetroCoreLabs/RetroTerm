@@ -547,6 +547,17 @@ the section 8 bindings, used by both the panel and the real-key path. (PROPOSAL.
 
 ## 9. Open questions
 
+Questions 2 to 11 are choices, not facts a manual can settle, and they were decided on 22 and
+23 November 2026 (recorded in `docs\PLAN.md`, "Decided by Ronny" and "Settled without asking"):
+2 - the keys that never reach the host get a RetroTerm job, can be reassigned, and have a tooltip;
+3 - Backspace erases left (wc3270, Ronny's choice on 23 November); 4 - insert room the IBM way;
+5 - double-click moves the cursor and sends Enter; 6 - Page Up / Page Down send PF7 / PF8;
+7 - Alt+letter gives the 3270 key on the front of the key; 8 - numeric fields are enforced per
+GA23-0061-2 figure 6-2; 9 - an operator error locks until Reset; 10 - keys pressed while locked
+are refused. Question 11 (the main-block return key) is not in either list and is still open.
+Question 1 needs a source this repository does not hold (a KB 3270 Plus manual); question 12 is
+a choice not yet made.
+
 1. **Second legends on the KB 3270 Plus** (SysRq, Test, ExSel, Attn, CrSel, ErInp, Ident, Pause):
    are they reached with ALT? The seasip page does not say, and the photos do not show them.
 2. **Which keys to draw**: the KB 3270 Plus native layout has 3270 PC session keys (Help, WS Ctrl,

@@ -912,8 +912,16 @@ key input is affected.
 4. **Fonts for the APL symbols.** Lucida Console lacks 64 of the 110 GE
    characters. Draw them ourselves, ship or name a second font for them, or rely on
    system font fallback (whether Avalonia does that on Windows is NOT VERIFIED)?
-5. **X'F1' as the APL local id** in SA/SFE/MF: both oracles use it; no IBM page
-   read here says so.
+5. **X'F1' as the APL local id** in SA/SFE/MF. Settled 24 November 2026:
+   GA23-0061-2 p. 2-10 (read from the page image), attribute type X'43': "X'F1' -
+   Select APL/Text character set (see Note 3)"; Note 3 on p. 2-11 (image): "X'F1' cannot
+   be used in the extended field attribute. This value is supported only if the APL/Text
+   character set is present. If used it is rejected." So on a 3274 it is an SA value
+   only, not an SFE/MF one; GA23-0059-4 p. 4-19 lists X'F0' to X'F7' for both without
+   that limit. GA23-0059-4 does not
+   fix the number: p. 6-26 says nonloadable sets get an LCID from X'F0' to X'F7'
+   (1-byte) as given in the Character Sets reply, so the host learns it from that reply.
+   RetroIO's Character Sets reply gives the GE set X'F1', which agrees with both.
 6. **French 297 X'79'**: µ (ICU, later CECP) or \` (1987 manual)?
 7. **CGCSGID character set number**: 697 for the base pages and 695 for the euro
    pages, as x3270 sends; tnz always sends 697. Not checked against an IBM
