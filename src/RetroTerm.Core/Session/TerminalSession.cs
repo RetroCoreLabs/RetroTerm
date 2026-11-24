@@ -339,7 +339,8 @@ public partial class TerminalSession : IDisposable
             string? luName = tn3270e?.GrantedLuName;
             bool bindImage = tn3270e != null && tn3270e.BindImageAgreed;
             bool sysReq = tn3270e != null && tn3270e.SysReqAgreed;
-            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on, luName, bindImage, sysReq));
+            bool responses = tn3270e != null && tn3270e.ResponsesAgreed;
+            _ = _pump.RunAsync(() => aware.Tn3270EChanged(on, luName, bindImage, sysReq, responses));
         }
     }
 
@@ -389,6 +390,10 @@ public partial class TerminalSession : IDisposable
             if (key == Tn3270EKey.SysReq)
             {
                 tn3270e.SendSysReq();
+            }
+            else if (key == Tn3270EKey.ErrorConditionCleared)
+            {
+                tn3270e.SendErrorConditionCleared();
             }
             else
             {

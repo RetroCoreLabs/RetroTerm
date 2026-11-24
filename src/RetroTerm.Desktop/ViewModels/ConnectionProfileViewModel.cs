@@ -68,8 +68,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private string? _snapshotPrinterTractorColour;
     private string? _printerTractorColour;
 
-    // The TN3270E ASSOCIATE display LU (CONNSAVE printer_associate). The window has no box for
-    // it yet; it is carried here so saving the connection in the window does not drop it.
+    // The TN3270E ASSOCIATE display LU (CONNSAVE printer_associate, RFC 2355 section 7.1.1):
+    // the display whose partner printer a 3287 connection asks for. Set on the Printer tab.
+    private string? _snapshotPrinterAssociate;
     private string? _printerAssociate;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
@@ -411,6 +412,16 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 3287 printer over TN3270E: the display LU whose partner printer to ask for (the ASSOCIATE
+    /// form of RFC 2355 section 7.1.1); null to take any printer the host gives.
+    /// </summary>
+    public string? PrinterAssociate
+    {
+        get => _printerAssociate;
+        set { if (_printerAssociate != value) { _printerAssociate = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
     /// 3287 printer, PDF only: true draws each sheet as tractor feed paper.
     /// </summary>
     public bool? PrinterTractorPaper
@@ -571,6 +582,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _printerLinesPerPage != _snapshotPrinterLinesPerPage
                 || _printerTractorPaper != _snapshotPrinterTractorPaper
                 || _printerTractorColour != _snapshotPrinterTractorColour
+                || _printerAssociate != _snapshotPrinterAssociate
                 || _deleteSendsDel != _snapshotDeleteSendsDel
                 || _newLineReceive != _snapshotNewLineReceive
                 || _newLineTransmit != _snapshotNewLineTransmit
@@ -839,6 +851,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotPrinterDeletePdf = _printerDeletePdf;
         _snapshotPrinterQuietSeconds = _printerQuietSeconds;
         _snapshotPrinterLinesPerPage = _printerLinesPerPage;
+        _snapshotPrinterAssociate = _printerAssociate;
         _snapshotPrinterTractorPaper = _printerTractorPaper;
         _snapshotPrinterTractorColour = _printerTractorColour;
         _snapshotDeleteSendsDel = _deleteSendsDel;

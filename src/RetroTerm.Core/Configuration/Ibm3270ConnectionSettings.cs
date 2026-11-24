@@ -374,6 +374,51 @@ namespace RetroTerm.Core.Configuration
         // bytes", NVT ASCII.
         private const int LuNameLength = 8;
 
+        /// <summary>
+        /// Reads a printer_associate value: the display LU whose partner printer TN3270E asks for.
+        /// CONNSAVE and the Manage Connections window both go through here, so both refuse the
+        /// same names with the same words.
+        /// </summary>
+        /// <param name="text">
+        /// The value as typed; blank means none.
+        /// </param>
+        /// <param name="lu">
+        /// The trimmed LU name, or null when the value is blank or refused.
+        /// </param>
+        /// <returns>
+        /// Null when the value is usable, otherwise what is wrong with it.
+        /// </returns>
+        public static string? CheckPrinterAssociate(string? text, out string? lu)
+        {
+            lu = null;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
+            string name = text.Trim();
+            if (name.Length > LuNameLength)
+            {
+                return "'" + PrinterAssociateArgument + "' is an LU name of at most 8 characters (RFC 2355 section 7.1.1), got " + name;
+            }
+
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                bool letterOrDigit = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+                if (!letterOrDigit && c != '@' && c != '#' && c != '$')
+                {
+                    // Letters, digits and the three national characters: what an SNA
+                    // network name is made of (GA23-0061-2 does not hold the rule; the
+                    // RFC says only "NVT ASCII"). A space or a control byte would end or
+                    // break the subnegotiation.
+                    return "'" + PrinterAssociateArgument + "' may hold letters, digits, @, # and $ only, got " + name;
+                }
+            }
+
+            lu = name;
+            return null;
+        }
         // The highest TCP port; the window's card reader port box takes 1 to this.
         private const int HighestPort = 65535;
 
@@ -641,28 +686,10 @@ namespace RetroTerm.Core.Configuration
 
             if (args.Contains(PrinterAssociateArgument))
             {
-                string? lu = args.GetString(PrinterAssociateArgument);
-                lu = string.IsNullOrWhiteSpace(lu) ? null : lu!.Trim();
-                if (lu != null)
+                string? problem = CheckPrinterAssociate(args.GetString(PrinterAssociateArgument), out string? lu);
+                if (problem != null)
                 {
-                    if (lu.Length > LuNameLength)
-                    {
-                        return "'" + PrinterAssociateArgument + "' is an LU name of at most 8 characters (RFC 2355 section 7.1.1), got " + lu;
-                    }
-
-                    for (int i = 0; i < lu.Length; i++)
-                    {
-                        char c = lu[i];
-                        bool letterOrDigit = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-                        if (!letterOrDigit && c != '@' && c != '#' && c != '$')
-                        {
-                            // Letters, digits and the three national characters: what an SNA
-                            // network name is made of (GA23-0061-2 does not hold the rule; the
-                            // RFC says only "NVT ASCII"). A space or a control byte would end or
-                            // break the subnegotiation.
-                            return "'" + PrinterAssociateArgument + "' may hold letters, digits, @, # and $ only, got " + lu;
-                        }
-                    }
+                    return problem;
                 }
 
                 choices.PrinterAssociateGiven = true;

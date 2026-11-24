@@ -99,7 +99,13 @@ public sealed class TabSession : IDisposable
         }
 
         _quietTimeTimer = new System.Threading.Timer(
-            _ => _ = Session.RunOnSessionThreadAsync(() => { printer.CheckQuietTime(DateTime.UtcNow); }),
+            _ => _ = Session.RunOnSessionThreadAsync(() =>
+            {
+                // A not-ready printer tries its waiting jobs again first, so a job the quiet time
+                // ends now goes behind them.
+                printer.RetryWhenNotReady(DateTime.UtcNow);
+                printer.CheckQuietTime(DateTime.UtcNow);
+            }),
             null,
             TimeSpan.FromSeconds(1),
             TimeSpan.FromSeconds(1));

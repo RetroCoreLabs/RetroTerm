@@ -120,6 +120,10 @@ namespace RetroTerm.Ibm3270
         private bool _applying;
         private bool _answered;
 
+        // True after an Intervention Required response went to the host, until ERR-COND-CLEARED
+        // (RFC 2355 10.4.1). A new TN3270E agreement starts a new session, so it starts false.
+        private bool _interventionReported;
+
         // The TN3270E subnegotiation command codes (RFC 2355 section 3; x3270 include\tn3270e.h).
         private const byte OpAssociate = 0x00;
         private const byte OpConnect = 0x01;
@@ -595,10 +599,56 @@ namespace RetroTerm.Ibm3270
             // goes even when a positive one went ahead of a reply the record produced before the
             // error was found, because the host must hear that the record failed; x3270 does
             // the same (process_eor: tn3270e_nak whenever rv is negative).
-            byte status = outcome.Value == HostRecordOutcome.CommandReject
-                ? Tn3270EResponseStatus.CommandReject
-                : Tn3270EResponseStatus.OperationCheck;
+            byte status = outcome.Value switch
+            {
+                HostRecordOutcome.CommandReject => Tn3270EResponseStatus.CommandReject,
+                HostRecordOutcome.InterventionRequired => Tn3270EResponseStatus.InterventionRequired,
+                _ => Tn3270EResponseStatus.OperationCheck,
+            };
             SendResponse(positive: false, status);
+            if (status == Tn3270EResponseStatus.InterventionRequired)
+            {
+                // The host has now heard "Printer is not ready"; it "would normally refrain from
+                // sending any further data to the printer" until ERR-COND-CLEARED (10.4.1).
+                _interventionReported = true;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether an Intervention Required response has gone to the host
+        /// and no ERR-COND-CLEARED has followed it yet.
+        /// </summary>
+        public bool InterventionReported => _interventionReported;
+
+        /// <summary>
+        /// The printer is ready again: sends REQUEST with ERR-COND-CLEARED (RFC 2355 section
+        /// 10.4.1), when an Intervention Required response went to the host before it.
+        /// </summary>
+        /// <remarks>
+        /// "If and when the error condition at the client has been resolved, the client must send
+        /// to the server a data message whose header DATA-TYPE field is set to REQUEST, and whose
+        /// REQUEST-FLAG is set to ERR-COND-CLEARED." The RFC ties the message to the error the host
+        /// was told about, so nothing is sent when the host was never told: TN3270E not in force,
+        /// RESPONSES not agreed, or every refused record asked for no response.
+        /// </remarks>
+        /// <returns>
+        /// True when the message was sent.
+        /// </returns>
+        public bool SendErrorConditionCleared()
+        {
+            if (!_interventionReported || !ResponsesAgreed)
+            {
+                return false;
+            }
+
+            Span<byte> message = stackalloc byte[Tn3270EHeader.Length];
+            int length = Tn3270EHeader.WriteErrorConditionCleared(message);
+            _out.Clear();
+            TelnetEncoder.WriteData(_out, message.Slice(0, length));
+            TelnetEncoder.WriteCommand(_out, TelnetCommand.EndOfRecord);
+            _write(_out.WrittenMemory);
+            _interventionReported = false;
+            return true;
         }
 
         // A RESPONSE message: header with DATA-TYPE RESPONSE, the host record's own sequence
@@ -988,6 +1038,7 @@ namespace RetroTerm.Ibm3270
         {
             _agreedFunctions = functions;
             _sendSequence = 0;
+            _interventionReported = false;
 
             // x3270 (tn3270e_negotiate, FUNCTIONS IS): "If the host does not support BIND_IMAGE,
             // then we must go straight to 3270 mode"; with it, nothing is bound yet.

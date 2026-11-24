@@ -461,6 +461,49 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Equal(1, Count(wire, positive));
         }
 
+        [Fact]
+        public void InterventionRequiredIsStatusOneAndErrCondClearedFollowsIt()
+        {
+            var (p, wire, _, errors) = CreateWithResponses();
+
+            // ERR-COND-CLEARED before anything was refused: the host was told of no error, so
+            // nothing goes (RFC 2355 10.4.1 ties it to an earlier Intervention Required).
+            Assert.False(p.SendErrorConditionCleared());
+            Assert.Empty(wire);
+
+            // A record with ERROR-RESPONSE, SEQ-NUMBER 5, refused because the printer is not
+            // ready: NEGATIVE-RESPONSE with status X'01', "Printer is not ready (equivalent to
+            // 'Intervention Required')".
+            p.Feed(HostRecord("01", "00 05"));
+            Apply(p, HostRecordOutcome.InterventionRequired);
+            Assert.Equal(Bytes("02 00 01 00 05 01 FF EF"), wire.ToArray());
+            Assert.True(p.InterventionReported);
+
+            // Ready again: DATA-TYPE REQUEST (X'06'), REQUEST-FLAG ERR-COND-CLEARED (X'00'), no
+            // data portion, then IAC EOR. Once only.
+            wire.Clear();
+            Assert.True(p.SendErrorConditionCleared());
+            Assert.Equal(Bytes("06 00 00 00 00 FF EF"), wire.ToArray());
+            Assert.False(p.InterventionReported);
+            wire.Clear();
+            Assert.False(p.SendErrorConditionCleared());
+            Assert.Empty(wire);
+            Assert.Empty(errors);
+        }
+
+        [Fact]
+        public void ARefusalTheHostDidNotAskToHearIsNotFollowedByErrCondCleared()
+        {
+            var (p, wire, _, _) = CreateWithResponses();
+
+            // NO-RESPONSE: no response goes, so the host never heard Intervention Required.
+            p.Feed(HostRecord("00", "00 06"));
+            Apply(p, HostRecordOutcome.InterventionRequired);
+            Assert.Empty(wire);
+            Assert.False(p.SendErrorConditionCleared());
+            Assert.Empty(wire);
+        }
+
         private static int Count(byte[] haystack, byte[] needle)
         {
             int count = 0;

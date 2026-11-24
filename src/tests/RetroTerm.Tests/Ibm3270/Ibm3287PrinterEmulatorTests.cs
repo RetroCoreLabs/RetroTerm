@@ -14,6 +14,7 @@ using RetroIO.Protocols.Tn3270;
 using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Ibm3270;
 using RetroTerm.Tests.TDV;
 
@@ -176,6 +177,86 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public void AFailedJobMakesThePrinterNotReadyAndIsWrittenWhenTheFolderWorksAgain()
+        {
+            var output = new SwitchableOutput(_folder) { Fails = true };
+            var printer = new Ibm3287PrinterEmulator(() => _now);
+            printer.Configure(output, 0);
+            printer.ConnectionStatusChanged(ConnectionStatus.Connected);
+
+            printer.ProcessData(PrintLine("FIRST"));
+            printer.EndOfJobReceived();
+            Assert.False(printer.IsReady);
+            Assert.Contains("job 1 was not written: folder is read-only", printer.NotReadyReason, StringComparison.Ordinal);
+            Assert.Contains("NOT READY, 1 job waiting", ScreenText(printer), StringComparison.Ordinal);
+
+            // Plain TN3270 cannot tell the host, so the next job is still taken, and waits
+            // behind the first one.
+            printer.ProcessData(PrintLine("SECOND"));
+            Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
+            printer.EndOfJobReceived();
+            Assert.Equal(2, printer.Jobs.Count);
+            Assert.True(printer.Jobs[1].Failed);
+            Assert.Equal(1, output.Attempts);
+
+            // Fixed, but the retry waits its 10 seconds.
+            output.Fails = false;
+            _now = Start.AddSeconds(Ibm3287PrinterEmulator.NotReadyRetrySeconds - 1);
+            Assert.False(printer.RetryWhenNotReady(_now));
+            Assert.Empty(Files());
+
+            _now = Start.AddSeconds(Ibm3287PrinterEmulator.NotReadyRetrySeconds);
+            Assert.True(printer.RetryWhenNotReady(_now));
+            Assert.True(printer.IsReady);
+            Assert.Null(printer.NotReadyReason);
+            Assert.Null(printer.LastProblem);
+            string[] files = Files();
+            Assert.Equal(2, files.Length);
+            Assert.Equal("FIRST" + Environment.NewLine, File.ReadAllText(files[0]));
+            Assert.Equal("SECOND" + Environment.NewLine, File.ReadAllText(files[1]));
+            Assert.False(printer.Jobs[0].Failed);
+            Assert.False(printer.Jobs[1].Failed);
+            Assert.DoesNotContain("NOT READY", ScreenText(printer), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void WithResponsesANotReadyPrinterRefusesRecordsAndSaysWhenItIsReady()
+        {
+            var output = new SwitchableOutput(_folder) { Fails = true };
+            var printer = new Ibm3287PrinterEmulator(() => _now);
+            printer.Configure(output, 0);
+            printer.ConnectionStatusChanged(ConnectionStatus.Connected);
+            printer.Tn3270EChanged(true, "PRT0001", bindImage: false, sysReq: false, responses: true);
+            var raised = new List<Tn3270EKey>();
+            printer.Tn3270EKeyPressed += raised.Add;
+
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC8, 0xC9 });
+            Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
+            printer.EndOfJobReceived();
+            Assert.False(printer.IsReady);
+
+            // Not ready: the record is refused, unprinted, as Intervention Required (GA23-0061-2
+            // p. 4-26, "The printout is suppressed").
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC1 });
+            Assert.Equal(HostRecordOutcome.InterventionRequired, printer.LastRecordOutcome);
+            Assert.Equal(0, printer.Printer.PendingBytes);
+            printer.ProcessData(PrintLine("REFUSED"));
+            Assert.Equal(HostRecordOutcome.InterventionRequired, printer.LastRecordOutcome);
+            Assert.Empty(raised);
+
+            output.Fails = false;
+            _now = Start.AddSeconds(Ibm3287PrinterEmulator.NotReadyRetrySeconds);
+            Assert.True(printer.RetryWhenNotReady(_now));
+            Assert.Equal(new[] { Tn3270EKey.ErrorConditionCleared }, raised.ToArray());
+            Assert.Equal("HI" + Environment.NewLine, File.ReadAllText(Assert.Single(Files())));
+
+            // Ready: records print again.
+            printer.ProcessData(PrintLine("AFTER"));
+            Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
+            Assert.True(printer.Printer.PendingBytes > 0);
+        }
+
+        [Fact]
         public void TheStatusScreenListsTheJobFile()
         {
             Ibm3287PrinterEmulator printer = Create();
@@ -318,6 +399,34 @@ namespace RetroTerm.Tests.Ibm3270
             public string Description => "nowhere";
 
             public string Write(PrintJob job, int number, DateTime localTime) => throw new IOException("disk full");
+        }
+
+        // Text files in the test folder, or a refusal while Fails is set (a read-only folder).
+        private sealed class SwitchableOutput : IPrintJobOutput
+        {
+            private readonly TextPrintJobOutput _text;
+
+            public SwitchableOutput(string folder)
+            {
+                _text = new TextPrintJobOutput(folder);
+            }
+
+            public bool Fails { get; set; }
+
+            public int Attempts { get; private set; }
+
+            public string Description => _text.Description;
+
+            public string Write(PrintJob job, int number, DateTime localTime)
+            {
+                Attempts++;
+                if (Fails)
+                {
+                    throw new UnauthorizedAccessException("folder is read-only");
+                }
+
+                return _text.Write(job, number, localTime);
+            }
         }
 
         private sealed class PrinterConnection : InMemoryConnection, IPrintJobEndConnection

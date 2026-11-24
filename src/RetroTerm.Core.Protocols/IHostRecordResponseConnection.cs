@@ -11,9 +11,10 @@ namespace RetroTerm.Core.Protocols;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The kinds are the ones a TN3270E negative response can carry for a display (RFC 2355 section
-/// 10.4.1): Command Reject and Operation Check. Intervention Required and Component Disconnected
-/// are printer conditions and have no kind here.
+/// The kinds are the ones a TN3270E negative response can carry (RFC 2355 section 10.4.1):
+/// Command Reject and Operation Check for any terminal, and Intervention Required ("Printer is not
+/// ready") for a printer. Component Disconnected ("Printer is powered off or not connected") has
+/// no kind here: a printer that answers the host is connected by definition.
 /// </para>
 /// <para>
 /// Which error is which comes from GA23-0059-4 Appendix A: "For non-SNA environments, all 3270
@@ -40,6 +41,14 @@ public enum HostRecordOutcome
     /// address, a structured field (Operation Check).
     /// </summary>
     OperationCheck,
+
+    /// <summary>
+    /// A printer that is not ready refused the record without printing it (Intervention
+    /// Required; RFC 2355 section 10.4.1 gives SNA sense X'08020000'). GA23-0061-2 p. 4-26, the
+    /// Intervention Required sense bit: "A command attemped [sic] to start a printer but found it
+    /// not ready. The printout is suppressed."
+    /// </summary>
+    InterventionRequired,
 }
 
 /// <summary>

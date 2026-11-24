@@ -55,6 +55,9 @@ public partial class ManageConnectionsWindow : Window
     private CheckBox? _printerDeletePdfCheck;
     private TextBox? _printerQuietBox;
     private TextBox? _printerLinesPerPageBox;
+    private StackPanel? _printerAssociatePanel;
+    private TextBox? _printerAssociateBox;
+    private TextBlock? _printerAssociateProblem;
     private CheckBox? _printerTractorCheck;
     private ComboBox? _printerTractorColourCombo;
 
@@ -230,6 +233,9 @@ public partial class ManageConnectionsWindow : Window
         // Dirty tracking => update save button
         _viewModel.CurrentProfile.PropertyChanged += (_, args) =>
         {
+            if (args.PropertyName == nameof(ConnectionProfileViewModel.Protocol) ||
+                args.PropertyName == nameof(ConnectionProfileViewModel.EmulatorType))
+                UpdatePrinterAssociateVisible();
             if (args.PropertyName == nameof(ConnectionProfileViewModel.CanSave) ||
                 args.PropertyName == nameof(ConnectionProfileViewModel.IsDirty))
             {
@@ -825,6 +831,38 @@ public partial class ManageConnectionsWindow : Window
             };
         }
 
+        // The partner display (CONNSAVE printer_associate, RFC 2355 section 7.1.1 ASSOCIATE).
+        // Only a 3287 over TN3270 asks for one, so the box is shown only for that connection
+        // (UpdatePrinterAssociateVisible). A refused name is said under the box, the way the
+        // Terminal tab's size box does, and the stored name stays as it was.
+        _printerAssociatePanel = new StackPanel { Spacing = 4, IsVisible = false };
+        _printerAssociatePanel.Children.Add(CreateLabeledTextBox("Partner display LU (TN3270E ASSOCIATE; empty: any printer the host gives)", out _printerAssociateBox));
+        _printerAssociateProblem = new TextBlock
+        {
+            Name = "PrinterAssociateProblem",
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.Parse("#E5A50A")),
+            IsVisible = false,
+        };
+        _printerAssociatePanel.Children.Add(_printerAssociateProblem);
+        _printerAssociatePanel.Name = "PrinterAssociatePanel";
+        if (_printerAssociateBox != null)
+        {
+            _printerAssociateBox.Name = "PrinterAssociateBox";
+            _printerAssociateBox.Width = 160;
+            _printerAssociateBox.HorizontalAlignment = HorizontalAlignment.Left;
+            _printerAssociateBox.PropertyChanged += (_, e) =>
+            {
+                // Watched through the property: TextChanged does not fire on a set from code.
+                if (e.Property != TextBox.TextProperty || _suppressSelectionChange) return;
+                string? problem = Ibm3270ConnectionSettings.CheckPrinterAssociate(_printerAssociateBox.Text, out string? lu);
+                ShowPrinterAssociateProblem(problem);
+                if (problem == null)
+                    _viewModel.CurrentProfile.PrinterAssociate = lu;
+            };
+        }
+        _printerPanel.Children.Add(_printerAssociatePanel);
         _printerTractorCheck = new CheckBox
         {
             Name = "PrinterTractorCheck",
@@ -866,6 +904,21 @@ public partial class ManageConnectionsWindow : Window
         });
     }
 
+    // The partner display box: only a 3287 on TN3270 sends ASSOCIATE (RFC 2355 section 7.1.1).
+    private void UpdatePrinterAssociateVisible()
+    {
+        if (_printerAssociatePanel == null) return;
+        var profile = _viewModel.CurrentProfile;
+        _printerAssociatePanel.IsVisible = string.Equals(profile.Protocol, "TN3270", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(profile.EmulatorType, ConnectionFactory.Ibm3287, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ShowPrinterAssociateProblem(string? problem)
+    {
+        if (_printerAssociateProblem == null) return;
+        _printerAssociateProblem.Text = problem ?? string.Empty;
+        _printerAssociateProblem.IsVisible = problem != null;
+    }
     // The band colour only means something with the tractor paper look on.
     private void UpdatePrinterTractorEnabled()
     {
@@ -1662,6 +1715,9 @@ public partial class ManageConnectionsWindow : Window
         if (_printerTractorCheck != null) _printerTractorCheck.IsChecked = profile.PrinterTractorPaper == true;
         if (_printerTractorColourCombo != null)
             _printerTractorColourCombo.SelectedIndex = System.Array.IndexOf(ConnectionFactory.TractorPaperColours.Choices, ConnectionFactory.TractorPaperColours.Normalise(profile.PrinterTractorColour));
+        if (_printerAssociateBox != null) _printerAssociateBox.Text = profile.PrinterAssociate ?? "";
+        ShowPrinterAssociateProblem(null);
+        UpdatePrinterAssociateVisible();
         UpdatePrinterDeleteEnabled();
         UpdatePrinterTractorEnabled();
         _suppressSelectionChange = false;

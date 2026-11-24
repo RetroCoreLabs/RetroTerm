@@ -75,6 +75,22 @@ public interface ITn3270EConnection
     /// Sends the Attn key in TN3270E: telnet Interrupt Process (RFC 2355 section 11).
     /// </summary>
     void SendAttention();
+
+    /// <summary>
+    /// Gets a value indicating whether the RESPONSES function was agreed: the host can be told
+    /// how each record went (RFC 2355 section 10.4).
+    /// </summary>
+    /// <remarks>
+    /// Set before <see cref="Tn3270EChanged"/> is raised with true.
+    /// </remarks>
+    bool ResponsesAgreed { get; }
+
+    /// <summary>
+    /// A printer that answered Intervention Required is ready again: sends REQUEST with
+    /// ERR-COND-CLEARED (RFC 2355 section 10.4.1). Does nothing when the host was never told of
+    /// the error, and says so in the log.
+    /// </summary>
+    void SendErrorConditionCleared();
 }
 
 /// <summary>

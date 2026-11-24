@@ -356,6 +356,12 @@ namespace RetroTerm.Tests.Ibm3270
 
             public void SendAttention() => Attentions++;
 
+            public bool ResponsesAgreed => false;
+
+            public int ErrorConditionsCleared { get; private set; }
+
+            public void SendErrorConditionCleared() => ErrorConditionsCleared++;
+
             public void Agree(bool on, bool bindImage = false, bool sysReq = false)
             {
                 InTn3270E = on;

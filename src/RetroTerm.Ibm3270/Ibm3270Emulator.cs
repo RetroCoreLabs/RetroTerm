@@ -543,7 +543,10 @@ namespace RetroTerm.Ibm3270
         /// <param name="sysReq">
         /// True when the SYSREQ function was agreed.
         /// </param>
-        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq)
+        /// <param name="responses">
+        /// Not used by a display: its responses are the connection's business.
+        /// </param>
+        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq, bool responses)
         {
             _inTn3270E = on;
             _luName = on ? luName : null;

@@ -307,6 +307,28 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// Gets a value indicating whether TN3270E runs with the RESPONSES function.
+        /// </summary>
+        public bool ResponsesAgreed => _protocol.ResponsesAgreed;
+
+        /// <summary>
+        /// Sends REQUEST ERR-COND-CLEARED (RFC 2355 10.4.1), when the host was told Intervention
+        /// Required before.
+        /// </summary>
+        public void SendErrorConditionCleared()
+        {
+            bool sent;
+            lock (_gate)
+            {
+                sent = _protocol.SendErrorConditionCleared();
+            }
+
+            ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Tn3270Connection", sent
+                ? "Printer ready again: TN3270E REQUEST ERR-COND-CLEARED sent (RFC 2355 section 10.4.1)"
+                : "Printer ready again, but no ERR-COND-CLEARED sent: the host was never told Intervention Required (RFC 2355 section 10.4.1)");
+        }
+
+        /// <summary>
         /// The session starts applying the next host record (TN3270E RESPONSES).
         /// </summary>
         public void HostRecordStarting()

@@ -33,6 +33,14 @@ namespace RetroTerm.Core.Terminal.Emulators
         /// Attn: telnet Interrupt Process (RFC 2355 section 11).
         /// </summary>
         Attention,
+
+        /// <summary>
+        /// Not a key: a printer that answered Intervention Required is ready again, and the
+        /// connection sends REQUEST ERR-COND-CLEARED (RFC 2355 section 10.4.1). It goes the same
+        /// way as the keys because it is the same thing, a message from the emulator that only
+        /// the TN3270E connection can put on the wire.
+        /// </summary>
+        ErrorConditionCleared,
     }
 
     /// <summary>
@@ -67,7 +75,11 @@ namespace RetroTerm.Core.Terminal.Emulators
         /// <param name="sysReq">
         /// True when the SYSREQ function was agreed (RFC 2355 section 10.5).
         /// </param>
-        void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq);
+        /// <param name="responses">
+        /// True when the RESPONSES function was agreed: the host hears how each record went (RFC
+        /// 2355 section 10.4).
+        /// </param>
+        void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq, bool responses);
 
         /// <summary>
         /// A TN3270E message that is not 3270 data arrived (BIND image, UNBIND, SSCP-LU text,

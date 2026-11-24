@@ -131,6 +131,83 @@ public class ConnSave3270WindowTests
     }
 
     [AvaloniaFact]
+    public async Task ThePartnerDisplayRoundTripsThroughCommandWindowAndFile()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            // Saved by the command, as a script or an MCP call saves it.
+            var manager = new ConfigurationManager(path);
+            var registry = new CommandRegistry();
+            ConnectionCommands.RegisterAll(registry, manager);
+            using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+            var saved = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+                .Set("name", "prt").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+                .Set("emulator", "IBM-3287-1").Set("printer_associate", "TERM0001"));
+            Assert.True(saved.Success, saved.Error);
+
+            // Read back by the window: the box shows it, because this is a 3287 on TN3270.
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "prt")!);
+            window.ShowPrinterTabForTesting();
+            window.Show();
+            TextBox box = FindNamed<TextBox>(window, "PrinterAssociateBox");
+            TextBlock problem = FindNamed<TextBlock>(window, "PrinterAssociateProblem");
+            Assert.True(FindNamed<StackPanel>(window, "PrinterAssociatePanel").IsVisible);
+            Assert.Equal("TERM0001", box.Text);
+            Assert.False(problem.IsVisible);
+
+            // Not asserted here: IsDirty. A CONNSAVE'd profile already reads as changed when it is
+            // opened (BUGS.md B25, protocol "tn3270" against the window's "TN3270"), so it would
+            // prove nothing. The file round trip below is the proof.
+
+            // A name CONNSAVE would refuse is refused here with the same words, and the stored
+            // name stays as it was.
+            box.Text = "TERM00001";
+            Assert.True(problem.IsVisible);
+            Assert.Contains("at most 8 characters", problem.Text, System.StringComparison.Ordinal);
+            Assert.Equal("TERM0001", window.ProfileForTesting.PrinterAssociate);
+            box.Text = "A B";
+            Assert.Contains("letters, digits, @, # and $", problem.Text, System.StringComparison.Ordinal);
+
+            // A good name is taken, the message goes, and the file carries it.
+            box.Text = " LU#2 ";
+            Assert.False(problem.IsVisible);
+            Assert.Equal("LU#2", window.ProfileForTesting.PrinterAssociate);
+            await reread.UpdateAsync(window.ProfileForTesting.ToHostConfiguration());
+
+            // A picture of the Printer tab, to look at (images\rendered), taken with a refusal showing.
+            box.Text = "TOO-LONG-NAME";
+            using (var frame = global::Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(window))
+            {
+                string folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(ConnSave3270WindowTests).Assembly.Location)!,
+                    "..", "..", "..", "Avalonia", "images", "rendered");
+                System.IO.Directory.CreateDirectory(folder);
+                using var file = System.IO.File.Create(System.IO.Path.Combine(folder, "manage-connections-3287-partner-display.png"));
+                frame!.Save(file, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            }
+
+            // A display terminal sends no ASSOCIATE, so the box goes away.
+            window.ProfileForTesting.EmulatorType = "IBM-3278-2";
+            Assert.False(FindNamed<StackPanel>(window, "PrinterAssociatePanel").IsVisible);
+            window.Close();
+
+            var again = new ConfigurationManager(path);
+            await again.LoadAsync();
+            Assert.Equal("LU#2", ConnectionCommands.FindByName(again, "prt")!.PrinterAssociate);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ALargerScreenRoundTripsThroughCommandWindowFileAndTerminal()
     {
         string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");

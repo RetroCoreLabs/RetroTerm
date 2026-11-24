@@ -70,6 +70,26 @@ namespace RetroTerm.Ibm3270
     /// connection passes on as the same end-of-job signal as Abort Output. One printer, two
     /// transports. Built 24 November 2026 from the RFC; no real TN3270E host has sent it a job.
     /// </para>
+    /// <para>
+    /// <b>Not ready (Intervention Required).</b> A real 3287 is not ready "when it is out of paper,
+    /// its cover is open, or it is mechanically disabled" (GA23-0061-2 p. 2-50, Error Conditions). This printer has
+    /// no paper or cover; the one thing that can honestly stop it is a job that cannot be
+    /// written: the output folder is not writable, the disk is full, the print command fails.
+    /// So a failed write makes the printer not ready. The job is kept, not lost, and written
+    /// again every <see cref="NotReadyRetrySeconds"/> seconds; jobs that end meanwhile wait behind
+    /// it in order. While it is not ready and the host can hear about it (TN3270E with the
+    /// RESPONSES function), each record is refused without printing it and answered Intervention
+    /// Required: "A command attemped to start a printer but found it not ready. The printout is
+    /// suppressed." (GA23-0061-2 p. 4-26). When every waiting job is written the printer is ready,
+    /// and the connection sends REQUEST ERR-COND-CLEARED (RFC 2355 section 10.4.1) if the host
+    /// was told. Without RESPONSES the host cannot be told, so records are still taken and wait
+    /// as jobs: refusing them there would lose them with nobody knowing.
+    /// </para>
+    /// <para>
+    /// A record the host sent with NO-RESPONSE while the printer is not ready is refused too, and
+    /// the host does not hear of it: the printer cannot see a record's RESPONSE-FLAG. The status
+    /// screen's Problem line says so. No real TN3270E host has been measured doing that.
+    /// </para>
     /// </remarks>
     public sealed class Ibm3287PrinterEmulator : TerminalEmulatorBase, IConnectionStatusAware, IPrintJobEndAware, ITn3270EAware, IHostRecordOutcomeTerminal
     {
@@ -83,6 +103,13 @@ namespace RetroTerm.Ibm3270
         /// The quiet time when the connection does not set one: 5 seconds (Ronny, 23 November 2026).
         /// </summary>
         public const int DefaultQuietSeconds = 5;
+
+        /// <summary>
+        /// How often a printer that is not ready tries its waiting job again: 10 seconds. Our
+        /// choice, not from any manual: often enough that a fixed folder is noticed soon, seldom
+        /// enough that a failing print command is not started every second.
+        /// </summary>
+        public const int NotReadyRetrySeconds = 10;
 
         private const int ScreenColumns = 80;
         private const int ScreenRows = 24;
@@ -109,6 +136,18 @@ namespace RetroTerm.Ibm3270
         // True while the connection runs TN3270E, and the printer LU the server gave.
         private bool _inTn3270E;
         private string? _luName;
+
+        // True while TN3270E runs with RESPONSES: only then can a refusal reach the host.
+        private bool _responses;
+
+        // Not ready: the jobs that could not be written yet, oldest first, each with its index in
+        // _jobs (where it is listed as FAILED until it is written). Empty means ready.
+        private readonly List<HeldJob> _held = new List<HeldJob>();
+        private DateTime _nextRetryUtc;
+        private string? _notReadyReason;
+
+        // True when the record being applied was refused because the printer is not ready.
+        private bool _refusedNotReady;
 
         /// <summary>
         /// Creates a printer on the system clock.
@@ -201,14 +240,47 @@ namespace RetroTerm.Ibm3270
         public override void ProcessData(ReadOnlySpan<byte> data)
         {
             _lastDataUtc = _utcNow();
+            if (RefuseWhileNotReady(data.Length))
+            {
+                return;
+            }
+
             _printer.ProcessRecord(data);
             Repaint();
         }
 
         /// <summary>
-        /// Gets how the last record went (3270 or SCS), for a TN3270E response.
+        /// Gets how the last record went (3270 or SCS), for a TN3270E response: Intervention
+        /// Required when it was refused because the printer is not ready.
         /// </summary>
-        public HostRecordOutcome LastRecordOutcome => _printer.LastOutcome;
+        public HostRecordOutcome LastRecordOutcome => _refusedNotReady ? HostRecordOutcome.InterventionRequired : _printer.LastOutcome;
+
+        /// <summary>
+        /// Gets a value indicating whether the printer is ready: no job is waiting to be written.
+        /// </summary>
+        public bool IsReady => _held.Count == 0;
+
+        /// <summary>
+        /// Gets why the printer is not ready (the last write failure), or null when it is ready.
+        /// </summary>
+        public string? NotReadyReason => _notReadyReason;
+
+        // Called first for every record: refuses it, unprinted, when the printer is not ready and
+        // the host can be told (see the class remarks). True when refused.
+        private bool RefuseWhileNotReady(int length)
+        {
+            _refusedNotReady = false;
+            if (_held.Count == 0 || !_inTn3270E || !_responses)
+            {
+                return false;
+            }
+
+            _refusedNotReady = true;
+            OnProtocolError("a record of " + length.ToString(CultureInfo.InvariantCulture)
+                + " bytes was refused, not printed: the printer is not ready (answered Intervention Required if the host asked for a response)");
+            Repaint();
+            return true;
+        }
 
         /// <summary>
         /// Gets a value indicating whether the connection runs TN3270E.
@@ -216,13 +288,10 @@ namespace RetroTerm.Ibm3270
         public bool InTn3270E => _inTn3270E;
 
         /// <summary>
-        /// A printer has no keys, so it never raises this.
+        /// A printer has no keys. Raised with <see cref="Tn3270EKey.ErrorConditionCleared"/> when
+        /// the printer is ready again, so the connection can tell the host (RFC 2355 10.4.1).
         /// </summary>
-        event Tn3270EKeyHandler? ITn3270EAware.Tn3270EKeyPressed
-        {
-            add { }
-            remove { }
-        }
+        public event Tn3270EKeyHandler? Tn3270EKeyPressed;
 
         /// <summary>
         /// The connection's TN3270E state changed; the status screen shows it and the printer LU.
@@ -239,10 +308,14 @@ namespace RetroTerm.Ibm3270
         /// <param name="sysReq">
         /// Not used by a printer.
         /// </param>
-        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq)
+        /// <param name="responses">
+        /// True when the RESPONSES function was agreed: a refused record reaches the host.
+        /// </param>
+        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq, bool responses)
         {
             _inTn3270E = on;
             _luName = on ? luName : null;
+            _responses = on && responses;
             Repaint();
         }
 
@@ -261,6 +334,11 @@ namespace RetroTerm.Ibm3270
             if (kind == Tn3270EHostMessage.ScsData)
             {
                 _lastDataUtc = _utcNow();
+                if (RefuseWhileNotReady(data.Length))
+                {
+                    return;
+                }
+
                 _printer.ProcessScs(data);
                 Repaint();
                 return;
@@ -336,21 +414,92 @@ namespace RetroTerm.Ibm3270
 
             _jobNumber++;
             DateTime local = _utcNow().ToLocalTime();
-            try
+            _jobs.Add(new PrintedJob(_jobNumber, local, job.PageCount, "waiting", false, endedBy));
+            _held.Add(new HeldJob(job, _jobs.Count - 1));
+
+            // A job that ends while others wait goes behind them, so the files keep their order.
+            if (_held.Count == 1)
             {
-                string result = _output.Write(job, _jobNumber, local);
-                _jobs.Add(new PrintedJob(_jobNumber, local, job.PageCount, result, false, endedBy));
+                WriteHeldJobs();
             }
-            catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException
-                || ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception || ex is ArgumentException)
+            else
             {
-                // Not swallowed: the job is listed as failed with the reason, the reason is the
-                // screen's "last problem", and it goes to the log.
-                string message = "job " + _jobNumber.ToString(CultureInfo.InvariantCulture) + " was not written: " + ex.Message;
-                _jobs.Add(new PrintedJob(_jobNumber, local, job.PageCount, ex.Message, true, endedBy));
-                OnProtocolError(message);
+                _jobs[_jobs.Count - 1] = _jobs[_jobs.Count - 1] with { Result = "waiting: the printer is not ready", Failed = true };
             }
         }
+
+        /// <summary>
+        /// A printer that is not ready tries its waiting jobs again, at most every
+        /// <see cref="NotReadyRetrySeconds"/> seconds. The app calls this about once a second on
+        /// the session thread, with <see cref="CheckQuietTime"/>; a test calls it with the time it
+        /// wants.
+        /// </summary>
+        /// <param name="utcNow">
+        /// The time now, UTC.
+        /// </param>
+        /// <returns>
+        /// True when the printer became ready.
+        /// </returns>
+        public bool RetryWhenNotReady(DateTime utcNow)
+        {
+            if (_held.Count == 0 || utcNow < _nextRetryUtc)
+            {
+                return false;
+            }
+
+            bool ready = WriteHeldJobs();
+            Repaint();
+            return ready;
+        }
+
+        // Writes the waiting jobs in order and stops at the first that fails; that failure makes
+        // (or keeps) the printer not ready. True when the printer is ready afterwards.
+        private bool WriteHeldJobs()
+        {
+            bool wasNotReady = _notReadyReason != null;
+            while (_held.Count > 0)
+            {
+                HeldJob held = _held[0];
+                PrintedJob listed = _jobs[held.ListIndex];
+                try
+                {
+                    string result = _output.Write(held.Job, listed.Number, listed.LocalTime);
+                    _jobs[held.ListIndex] = listed with { Result = result, Failed = false };
+                    _held.RemoveAt(0);
+                }
+                catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException
+                    || ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception || ex is ArgumentException)
+                {
+                    // Not swallowed: the job is listed as failed with the reason, the reason is
+                    // the screen's "last problem", it goes to the log, and the printer is not
+                    // ready until the job is written.
+                    _jobs[held.ListIndex] = listed with { Result = ex.Message, Failed = true };
+                    _notReadyReason = "job " + listed.Number.ToString(CultureInfo.InvariantCulture) + " was not written: " + ex.Message;
+                    _nextRetryUtc = _utcNow() + TimeSpan.FromSeconds(NotReadyRetrySeconds);
+                    OnProtocolError(_notReadyReason + " (printer not ready; tried again every "
+                        + NotReadyRetrySeconds.ToString(CultureInfo.InvariantCulture) + " s)");
+                    return false;
+                }
+            }
+
+            _notReadyReason = null;
+            if (wasNotReady)
+            {
+                _lastProblem = null;
+                ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Ibm3287Printer", "printer ready again: every waiting job is written");
+                if (_inTn3270E && _responses)
+                {
+                    // The connection sends REQUEST ERR-COND-CLEARED if it told the host
+                    // Intervention Required (RFC 2355 10.4.1).
+                    Tn3270EKeyPressed?.Invoke(Tn3270EKey.ErrorConditionCleared);
+                }
+            }
+
+            return true;
+        }
+
+        // A job not written yet, and where it is listed in _jobs.
+        private readonly record struct HeldJob(PrintJob Job, int ListIndex);
 
         private void OnProtocolError(string message)
         {
@@ -407,6 +556,13 @@ namespace RetroTerm.Ibm3270
 
         private string StateText()
         {
+            if (_held.Count > 0)
+            {
+                // Before the connection: a job waits to be written whether or not the host is there.
+                return "NOT READY, " + _held.Count.ToString(CultureInfo.InvariantCulture) + (_held.Count == 1 ? " job" : " jobs")
+                    + " waiting; tried again every " + NotReadyRetrySeconds.ToString(CultureInfo.InvariantCulture) + " s";
+            }
+
             if (_connection != ConnectionStatus.Connected)
             {
                 return "not printing";

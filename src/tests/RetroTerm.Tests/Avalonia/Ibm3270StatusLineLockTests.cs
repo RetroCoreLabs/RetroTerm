@@ -78,7 +78,7 @@ namespace RetroTerm.Tests.Avalonia
             // GA23-0061-2 p. 5-35 and Appendix B p. B-2: the System Operator symbol, a stick
             // figure in a box, in column 3 (from 1) while the SSCP-LU session owns the screen.
             Ibm3270Emulator emulator = Screen(0);
-            emulator.Tn3270EChanged(true, "TCP00034", bindImage: true, sysReq: true);
+            emulator.Tn3270EChanged(true, "TCP00034", bindImage: true, sysReq: true, responses: false);
             emulator.Tn3270EHostMessageReceived(RetroTerm.Core.Protocols.Tn3270EHostMessage.SscpLuData, new byte[] { 0xC9, 0xD2, 0xD1 });
 
             var cell = emulator.Buffer.GetCell(24, StatusLine3270.BoxColumn);
