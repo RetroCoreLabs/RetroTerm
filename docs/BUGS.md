@@ -216,3 +216,28 @@ Measured the same day: SSH.NET against `localhost:3270` (an IPv4-only listener) 
 5083 and 5032 ms, against `127.0.0.1:3270` after 3015 and 3011 ms, with a 3 s read timeout set in
 both - the 2 s difference is the connect. Fixing it means either a change in SSH.NET or connecting
 the socket in RetroTerm and running SSH over it; neither is done.
+
+## B18 - add-mcp-to-claude-code.ps1 registers the server for one folder only
+
+Found 24 November 2026 while updating the MCP docs: `src\tools\add-mcp-to-claude-code.ps1` runs
+`claude mcp add` without `--scope user`, so the server is registered only for the folder the script
+runs in, not for every project.
+
+## B19 - The published release has no .mcp.json, no add-mcp script and no README
+
+`DISTRIBUTION-README.md` describes a release folder holding `.mcp.json` and
+`add-mcp-to-claude-code.ps1`; neither `src\tools\build-release.bat` nor `.github\workflows\build.yml`
+copies them (or the README) into the published output.
+
+## B20 - terminal_open takes any misspelled protocol as telnet
+
+`terminal_open`'s `protocol` text says "telnet, ssh or serial"; the code also accepts `tn3270`,
+`gateway` and `opcomsimulator`, and any other word, a typo included, quietly becomes telnet instead of
+being refused by name. Fix: declare the allowed words on the argument (the same rule as SCREENSHOT's
+`area`) so a wrong one is refused on both surfaces.
+
+## B21 - The parser's into= message names five commands; the code allows many more
+
+The script parser's refusal for `into=` says only WAITFOR, WAITIDLE, READSCREEN, READNEW and STATUS
+return a value to store; the code allows it on every command that produces output. The message must
+come from the same rule the code uses.

@@ -91,7 +91,7 @@ dependency, not preference, so each one reuses what the ones above it forced int
 | 12 | DEC VT340 | **Sixel and ReGIS shipped** - selectable as `VT340`. Sixel images land at the cursor; ReGIS draws vectors, circles and colour on a plane of its own. The ReGIS commands that draw are implemented and the rest are counted, readable through the emulator. |
 | 13 | DEC VT420 | **Margins shipped** - selectable as `VT420`. DECLRMM and DECSLRM confine printing, wrapping AND editing to a column range: insert/delete character stop at the margins, and insert/delete line move only the columns inside the region. `CSI s` correctly stays SCOSC when the mode is off. The whole rectangle family is in: DECFRA, DECERA, DECSERA, DECCRA, DECCARA, DECRARA and DECSACE - whose default extent is a STREAM, not a rectangle. |
 | 14 | DEC VT52 / VT102 | **Both shipped.** `VT52`: single-letter escapes, `ESC Y` direct addressing through the parser's raw-byte path, `ESC / Z` identification - and a VT-family terminal can drop into it with DECANM. `VT102`: answers `CSI ? 6 c`, so a host knows it may use the editing sequences instead of redrawing whole lines. |
-| 15 | IBM 3270 | Not started, and deliberately not begun blind. There is no 3270 manual or data-stream reference anywhere in this repository - building one from recollection would invent EBCDIC orders, AID codes and structured fields that may not match any real host. The scaffolding that exists (a `TN3270` protocol that throws, a cell field-attribute slot) is honest about that. Needs a spec before it needs code. |
+| 15 | IBM 3270 | **Built** - a connection with the `TN3270` protocol gets an IBM 3278 terminal (models 2 to 5), with fields, PF/PA keys, EBCDIC code pages and IND$FILE transfers, from the IBM manuals now kept in `docs/spec/IBM3270/`. Tested against MVS 3.8J (TK5) on Hercules. Start with [the 3270 introduction](docs/IBM3270-INTRODUCTION.md). |
 
 ### Keyboard, connections, and the rest
 
@@ -127,6 +127,23 @@ dependency, not preference, so each one reuses what the ones above it forced int
 - The setup, the full tool list and the language reference are in
   **[MCP and Scripting](docs/MCP-AND-SCRIPTING.md)**.
 
+### Using the MCP server
+
+- **Transport**: streamable HTTP at `http://127.0.0.1:5715/mcp`, listening on 127.0.0.1 only.
+  On by default; File → Preferences... → MCP tab turns it off or changes the port, from the
+  next start. If two copies of RetroTerm run, only the first one gets the port.
+- **Claude Code**: `claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp`
+  (add `--scope user` for every project), then `/mcp` to see it connected.
+- **Claude Desktop, VS Code, Cursor and other clients**: the configuration for each is in
+  [MCP and Scripting, section 1.1](docs/MCP-AND-SCRIPTING.md#11-connecting-a-client). Claude
+  Desktop needs a small bridge program, because it only starts stdio servers.
+- **54 tools**: six hand-written ones (`terminal_open`, `terminal_close`, `terminal_list`,
+  `terminal_build`, `terminal_run_script`, `terminal_scripts`) and one `terminal_<name>` tool for
+  each of the 48 script commands. Every tool is listed with its arguments in
+  [section 1.2](docs/MCP-AND-SCRIPTING.md#12-the-tools).
+- **The program**: the published exe is `RetroTerm.exe`; `src	oolsuild-release.bat` writes it
+  to `src\publish\`.
+
 ## Status
 
 Version `1.10.26.9`, tagged and released as
@@ -138,8 +155,7 @@ binaries: Windows x64, Linux x64, macOS Intel and macOS Apple silicon.
   measured 2026-09-28 (the main suite takes about two minutes in Release).
 - **Fourteen terminal types are selectable and tested**; the table above says exactly what each
   one claims and what it deliberately does not.
-- **Telnet, SSH and serial connections work.** IBM 3270 is not started, for the reason the table
-  gives.
+- **Telnet, SSH, serial and TN3270 connections work.**
 - **Not yet settled**: the things only a real host or a human eye can - mouse reporting driven by
   a program that actually tracks the pointer, bracketed paste in a real shell, and the flagged
   assumptions in the ND graphics protocol. Each is listed with what would settle it in

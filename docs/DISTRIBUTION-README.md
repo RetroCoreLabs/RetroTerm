@@ -33,8 +33,10 @@ machine.
 |---|---|
 | `RetroTerm.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release the same file is named `RetroTerm-win-x64.exe`; the Linux and macOS builds are separate files, see above). Nothing to install and no .NET runtime needed. |
 | `README.md` | This file. |
-| `.mcp.json` | A ready-made Claude Code project configuration that points at RetroTerm's MCP server. Copy it into the folder you run Claude Code from. |
-| `add-mcp-to-claude-code.ps1` | The same thing as a one-line script: registers the server with Claude Code for your user. |
+| `.mcp.json` | A ready-made Claude Code project configuration that points at RetroTerm's MCP server. Copy it into the folder you run Claude Code from. In the repository it is `docs/distribution-mcp.json`. |
+| `add-mcp-to-claude-code.ps1` | The same thing as a one-line script (`src/tools/add-mcp-to-claude-code.ps1` in the repository): registers the server with Claude Code for the folder it is run in. |
+
+Note: `src/tools/build-release.bat` and the release workflow do not copy these two files (or this README) into the published folder today; a published folder may hold only the exe. Both files are optional - the command line below does the same job.
 
 There are no other files to ship. The MCP server, the terminal fonts, the themes and the
 help text are all inside the exe. Native libraries are unpacked by the exe itself on first
@@ -100,13 +102,15 @@ http://127.0.0.1:5715/mcp
 
 Either of these. Both do the same thing.
 
-**Per user, once:**
+**Once, for every project** (`--scope user`; leave it out and the server is registered for the
+current folder only):
 
 ```powershell
-claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp
+claude mcp add --transport http --scope user retroterm http://127.0.0.1:5715/mcp
 ```
 
-`add-mcp-to-claude-code.ps1` in this folder runs exactly that line.
+`add-mcp-to-claude-code.ps1` runs the same line without `--scope user`, so it registers the
+server for the folder it is run in.
 
 **Per project:** copy `.mcp.json` from this folder into the folder you start Claude Code in.
 It contains:
@@ -129,7 +133,9 @@ If you changed the port in Preferences, change it in the URL too. Then start Cla
 ### Any other MCP client
 
 Anything that speaks MCP over streamable HTTP can use the same URL. There is no
-authentication and no API key, because the server only answers on the local machine.
+authentication and no API key, because the server only answers on the local machine. The
+exact configuration for Claude Desktop (which needs a stdio bridge), VS Code and Cursor is in
+`docs/MCP-AND-SCRIPTING.md`, section 1.1, in the repository.
 
 ### The tools
 
@@ -157,6 +163,16 @@ have. The set, grouped:
 - **Scripts:** `terminal_run_script`, `terminal_scripts`, `terminal_sleep`.
 - **Machines:** `terminal_gateway`, `terminal_opcom` for the ND-100 gateway and the OPCOM
   console.
+- **IBM 3270:** `terminal_statusline`, `terminal_fields`, `terminal_setfield`,
+  `terminal_cursor`, `terminal_waitunlock`, `terminal_codepage`, `terminal_hostsend`,
+  `terminal_hostreceive` (IND$FILE), `terminal_submit` (JCL to the card reader).
+- **Pictures:** `terminal_screenshot` (PNG, `area=terminal` or `area=window`),
+  `terminal_recordstart` and `terminal_recordstop` (an animated PNG film).
+- **Build:** `terminal_build` says which build of RetroTerm is answering.
+- **Help:** `terminal_help`.
+
+That is all 54 tools. Each one, with its arguments, is in `docs/MCP-AND-SCRIPTING.md`,
+section 1.2, in the repository.
 
 ### How to drive a machine well
 

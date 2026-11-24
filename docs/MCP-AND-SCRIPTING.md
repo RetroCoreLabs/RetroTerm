@@ -13,83 +13,338 @@ It waits for text on the *rendered screen*, exactly what a human sees.
 
 ## 1. The MCP server
 
-Every running RetroTerm hosts an MCP server on **localhost only**:
+Every running RetroTerm hosts an MCP server inside the program itself. Read from
+`src\RetroTerm.Mcp\McpServerHost.cs` and `src\RetroTerm.Desktop\MainWindow.Mcp.cs`:
 
-- URL: `http://127.0.0.1:5715/mcp` (streamable HTTP)
-- Enable/disable and port: **Preferences → MCP tab** ("Enable MCP" + "MCP port").
-  Changes take effect the next time RetroTerm starts.
-- Preferences is the ONLY place the port comes from. The `RETROTERM_MCP_PORT` environment
-  variable used to override it and was removed on 27 August 2026: a setting the dialog cannot
-  show is a setting nobody can debug. Pinned by `NoEnvironmentVariableConfigurationTests`, which
-  fails if any environment variable comes back into the app's configuration. The port is the
-  preference if one is set, otherwise 5715.
-- Starts with the app, stops with the app. Failure to bind (port in use) is logged and
-  shown in the status bar; the app runs fine without it.
+| Fact | Value |
+|------|-------|
+| Transport | MCP **streamable HTTP** (the official `ModelContextProtocol` C# SDK, `WithHttpTransport`). No stdio, no separate process. |
+| Address | `http://127.0.0.1:5715/mcp` - the path is always `/mcp` |
+| Bind address | `127.0.0.1` only, written into the code, not a setting. The tools type into live machines, so the server must never be reachable from the network. To drive it from another computer, use an SSH tunnel to the port. |
+| Default port | **5715** |
+| Turn it on or off, change the port | **File → Preferences... → MCP tab**: "Enable MCP" and "MCP port" (1 to 65535). It is on by default. A change takes effect the next time RetroTerm starts. Saved as `mcp-enabled=` and `mcp-port=` in `%APPDATA%\RetroTerm\preferences.txt`. |
+| Anything else that sets the port | Nothing. There is no environment variable and no command-line flag. `RETROTERM_MCP_PORT` used to exist and was removed on 27 August 2026, because the dialog could show one port while the server listened on another. `NoEnvironmentVariableConfigurationTests` fails if one comes back. |
+| Authentication | None. It answers on the local machine only. |
+| Lifetime | Starts with the window, stops when the program closes. RetroTerm must be running, with its window open, while the tools are used. |
+| Where sessions appear | Every session a client opens is a **visible tab** in the RetroTerm window, so you watch it type. View → MCP Log shows every call and its answer (section 2.5). |
 
-### Connect Claude Code
+**Two copies of RetroTerm running.** Only the first one gets the port. The second one cannot
+listen on it: the start fails, the reason is written to the log and to the status bar
+("MCP server failed to start: ..."), and that copy runs on without an MCP server. A client
+therefore always reaches the copy that started first, which may be an older build than the
+one you just started.
+
+**Which build is answering.** The server reports its real build, never a fixed "1.0.0":
+
+- in the MCP handshake, the server name `RetroTerm` and the version from `BuildIdentity.Short`;
+- in the server instructions (below), the full line from `BuildIdentity.Describe()`:
+  version, commit, branch, whether the tree had uncommitted changes, and the build date;
+- from the tool `terminal_build`, which needs no session: the same line, then `version:`,
+  `commit:`, `branch:`, `built:`, and a NOTE line when the build was made from a tree with
+  uncommitted changes.
+
+**The server instructions**, sent to every client at the handshake, word for word from
+`McpServerHost.cs` (the build line is filled in at run time):
+
+> RetroTerm terminal control. THIS SERVER IS *build line*. Check that against the build you
+> expect before trusting a test result - more than one copy of RetroTerm can be running and
+> only the first gets this port. Open a PERSISTENT session with terminal_open, then drive it
+> with terminal_send / terminal_waitfor / terminal_readscreen. Sequence steps by waiting on the
+> RENDERED screen (terminal_waitfor), never with fixed delays. On a fresh SINTRAN connection
+> send ESC first (terminal_sendraw bytes=ESC). terminal_help lists the command set.
+
+---
+
+## 1.1 Connecting a client
+
+Every example uses the default port, 5715. If you changed the port in Preferences, change it
+in the URL too. RetroTerm must be running when the client uses the tools.
+
+### Claude Code
+
+One command line. Checked against the Claude Code documentation,
+[code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp), on 24 November 2026:
 
 ```powershell
+# for this project folder only (the default scope, "local"; kept in ~/.claude.json)
 claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp
+
+# for every project you open
+claude mcp add --transport http --scope user retroterm http://127.0.0.1:5715/mcp
+
+# written into .mcp.json in the project folder, shared with everyone who uses the folder
+claude mcp add --transport http --scope project retroterm http://127.0.0.1:5715/mcp
 ```
 
-RetroTerm must be running when the LLM uses the tools. Every session the LLM opens is
-a **visible tab** in the RetroTerm window — you watch it type.
+The `.mcp.json` form, the same thing written by hand in the project folder
+(`docs\distribution-mcp.json` in this repository holds exactly this):
 
-### The tools
+```json
+{
+  "mcpServers": {
+    "retroterm": {
+      "type": "http",
+      "url": "http://127.0.0.1:5715/mcp"
+    }
+  }
+}
+```
 
-Session lifetime:
+Check it: `claude mcp list` in a shell shows `retroterm` with its state, or `/mcp` inside
+Claude Code. The tools then appear as `mcp__retroterm__terminal_open` and so on.
 
-| Tool | What it does |
-|------|--------------|
-| `terminal_open` | Opens a PERSISTENT session → returns a `sessionId`. Three ways to say where: `name=<stored connection>` (opens it exactly as saved, serial included — no other parameters needed), `host`+`port` for ad-hoc telnet/ssh, or `protocol=serial` with `port_name` (+ `baud`, `data_bits`, `parity`, `stop_bits`, defaults 9600 8N1) for ad-hoc serial. Sessions survive across calls and turns — never open-and-close per command; reconnecting mid-program can hang the line. |
-| `terminal_close` | Closes a session. |
+`src\tools\add-mcp-to-claude-code.ps1` runs the first command line above, so it registers the
+server for the folder it is run in, not for every project.
 
-**A serial port is exclusive.** `terminal_open` refuses a COM port a tab or pop-out window already
-holds, and says which — because Windows gives the port to one owner, and a second open fails with
-"Access to the path 'COM11' is denied", which reads like a device permissions problem and is not one.
-The check is shared with the UI connect path (`MainWindow.SerialPortAlreadyInUse`) rather than copied
-into each: it lived only in the UI path until 30 August 2026, and the day MCP learned to open serial
-at all, one remote call could take the console port out from under a live session.
-| `terminal_list` | Lists open sessions, so a later turn can find one opened earlier. |
+### Claude Desktop
 
-Talking (one tool per registered command — the same set as the script language):
+Claude Desktop starts its local MCP servers as programs it talks to over standard input and
+output (stdio), from its configuration file. RetroTerm's server is HTTP only, so Claude Desktop
+needs a small bridge program between the two. The bridge used here is `mcp-remote`
+([github.com/geelen/mcp-remote](https://github.com/geelen/mcp-remote)), which needs Node.js.
 
-| Tool | What it does |
-|------|--------------|
-| `terminal_send` | Send EXACTLY the given text — nothing is appended. Put the carriage return in the text itself (`"LIST-FILES\r"`). |
-| `terminal_sendraw` | Send bare bytes: hex pairs (`1B0D`) or the keyword `ESC`. ESC wakes a SINTRAN line and recovers a wedged one. |
-| `terminal_waitfor` | **The important one.** Wait until a pattern appears on the RENDERED screen. `where`: `tail` (prompt matching, default), `screen`, `scrollback`. `regex=true` for regular expressions. A timeout still returns the screen and the elapsed time. |
-| `terminal_waitidle` | Wait until the screen stops changing for N ms. |
-| `terminal_readscreen` | The visible screen as plain text + cursor position. |
-| `terminal_readnew` | Scrollback lines added since the last `readnew` + the current screen — for capturing long listings that scrolled past. |
-| `terminal_status` | Connected?, emulator, size, bytes in/out, **time since last byte** (tells busy from broken). |
-| `terminal_help` | The generated command reference. |
-| `terminal_sendkey` | Send a named TDV function key (e.g. HJELP), mode-aware, from the key registry. |
+The configuration file, from
+[modelcontextprotocol.io/docs/develop/connect-local-servers](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
+(Settings → Developer → Edit Config opens it):
 
-Beyond the terminal — every registered command is also an MCP tool (`terminal_<name>`):
+| System | File |
+|--------|------|
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-| Tool | What it does |
-|------|--------------|
-| `terminal_connect` / `terminal_disconnect` | Connect a stored name, ad-hoc host/port, or ad-hoc serial (`protocol=serial port_name=COM11 baud=115200 ...`); deliberate disconnect. |
-| `terminal_connlist` / `terminal_connshow` / `terminal_connsave` / `terminal_conndel` | Manage the stored connections (same list as Quick Connect), including the onconnect/ondisconnect hooks. Serial connections use `port_name`/`baud`/`data_bits`/`parity`/`stop_bits`; giving `host`/`port` with `protocol=Serial` is refused by name, never silently dropped. |
-| `terminal_sendfile` / `terminal_receivefile` | Kermit send/receive. |
-| `terminal_reset` / `terminal_clear` / `terminal_echo` / `terminal_snapshot` / `terminal_logstart` / `terminal_logstop` | Emulator control, notes, screen snapshot, raw traffic log. |
-| `terminal_tracestart` / `terminal_tracestop` / `terminal_traceread` / `terminal_traceclear` | The protocol monitor. Each entry has a unique, ever-increasing id; `traceread` with `sinceid=` polls incrementally (`[id]` per line) so a client only ever sees new entries. |
-| `terminal_opcom` | The OPCOM debugger: `action=` for memory, registers per level, CPU stop/start/step/breakpoint, IOX, boot (all values octal). |
-| `terminal_keybind` | TDV keyboard bindings: `action=` list/bind/unbind/defaults (source `vk=`+`mods=`, target `grid=`). |
-| `terminal_gateway` | ND-100 gateway state: listening, port, emulator/disk connected, registered terminals with ident codes and free/in-use flags. |
+```json
+{
+  "mcpServers": {
+    "retroterm": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://127.0.0.1:5715/mcp", "--allow-http", "--transport", "http-only"]
+    }
+  }
+}
+```
 
-Scripts:
+`--allow-http` lets the bridge use a plain `http://` address, and `--transport http-only`
+stops it trying the older SSE transport, which RetroTerm does not offer. Quit Claude Desktop
+completely and start it again after editing the file. Its MCP logs are in
+`%APPDATA%\Claude\logs` (`mcp*.log`).
 
-| Tool | What it does |
-|------|--------------|
-| `terminal_run_script` | Run a stored script by `name` or inline DSL via `script`. Returns a per-step transcript with timings; stops at the first failing step and **hands the live session back** for single-command poking. |
-| `terminal_scripts` | List stored scripts, or save one (`save` + `script`; parse-validated before saving). |
+I have not verified this Claude Desktop setup against a running RetroTerm; the file location
+and the JSON shape come from the two pages above.
+
+### VS Code (GitHub Copilot)
+
+`.vscode/mcp.json` in the workspace, top-level key `servers`, from
+[code.visualstudio.com/docs/agents/reference/mcp-configuration](https://code.visualstudio.com/docs/agents/reference/mcp-configuration):
+
+```json
+{
+  "servers": {
+    "retroterm": {
+      "type": "http",
+      "url": "http://127.0.0.1:5715/mcp"
+    }
+  }
+}
+```
+
+For every workspace, the command **MCP: Open User Configuration** opens the user-level file,
+which takes the same shape. The same page says newer Copilot set-ups also read
+`~/.copilot/mcp-config.json`, with the top-level key `mcpServers` instead of `servers`.
+
+### Cursor
+
+`.cursor/mcp.json` in the project, or `~/.cursor/mcp.json` for every project, from
+[cursor.com/docs/context/mcp](https://cursor.com/docs/context/mcp):
+
+```json
+{
+  "mcpServers": {
+    "retroterm": {
+      "url": "http://127.0.0.1:5715/mcp"
+    }
+  }
+}
+```
+
+### Any other MCP client
+
+Give it the URL `http://127.0.0.1:5715/mcp` and choose the transport called "streamable HTTP"
+(some clients just say "HTTP"). No key, no header, no token. A client that can only start
+stdio programs needs a bridge such as `mcp-remote`, as for Claude Desktop above. SSE (the
+older HTTP transport) is not offered.
+
+---
+
+## 1.2 The tools
+
+**54 tools.** They are generated, not written by hand, so this list was taken from the source
+on 24 November 2026 by reading every command class the desktop registers
+(`GetOrCreateCommandRegistry` in `MainWindow.Mcp.cs`) and the hand-written list in
+`RetroTermToolProvider.cs`:
+
+- **6 hand-written tools**: `terminal_open`, `terminal_close`, `terminal_list`,
+  `terminal_build`, `terminal_run_script`, `terminal_scripts`.
+- **48 command tools**, one per command in the command registry, named `terminal_` + the
+  command name in lower case. These are the same 48 commands the script language (section 2)
+  runs, with the same parameters, defaults and checks. A command added to the registry becomes
+  a tool with no change to the MCP code.
+
+The aliases `IND$PUT` and `IND$GET` are not tools: an MCP tool name cannot hold a `$`, so they
+exist in scripts only, and over MCP the same two commands are `terminal_hostsend` and
+`terminal_hostreceive`.
+
+`terminal_help` returns the same reference, generated from the running build - use it when
+this page and the program disagree, and tell us, because then this page is wrong.
+
+### How every command tool behaves
+
+- **`sessionId` is required** on every command tool: the id `terminal_open` returned. It is the
+  only argument that is not a parameter of the command.
+- **The schema comes from the command's own description**: the type (`string`, `integer`,
+  `boolean`), whether it is required, the default (added to the description as
+  "(default N)"), and for a parameter with a fixed set of words, a JSON Schema `enum`.
+  SCREENSHOT's and RECORDSTART's `area` are the ones with such a list today.
+- **The tool description** is the command's one-line summary followed by
+  "Script DSL equivalent:" and the script example.
+- **A wrong argument name is refused, and nothing runs.** On a command tool the answer is
+  `SCREENSHOT has no parameter 'aera' - it takes: file, settle, area (see HELP SCREENSHOT)`,
+  word for word the same as the script parser gives. A hand-written tool answers the same way
+  from its own list, for example `terminal_open has no parameter 'hots' - it takes: name,
+  protocol, ... (see tools/list)`. Before this rule a misspelled name was read as "not given"
+  and the default was used without a word (BUGS.md B13, B14).
+- **A wrong value is refused by name**: a whole number that is not one, a true/false that is
+  not one (`true/false`, `1/0`, `on/off`, `yes/no` are accepted), a word outside the list.
+- **Escapes**: SEND's, ECHO's and PASTE's `text` take the backslash escapes `\r \n \t \e \xHH
+  \NNN` over MCP exactly as inside a quoted script string, so `"SYSTEM\r"` sends a carriage
+  return, not two characters. WAITFOR's `pattern` is deliberately not decoded, so a regular
+  expression like `\d+` arrives unchanged.
+- **The result** is text: the error (if any), then the command's output, then
+  `[took N ms]`. A failed command comes back with the MCP error flag set and the reason in the
+  text; nothing fails silently.
+- **All times are in milliseconds.** `timeout=300` is 0.3 seconds.
+
+### The hand-written tools
+
+| Tool | Arguments | What it does and returns |
+|------|-----------|--------------------------|
+| `terminal_open` | `name` (a stored connection; every other argument is then ignored), `protocol` (telnet, ssh, serial; telnet when left out - the code also accepts tn3270), `host`, `port` (23), `emulator` (VT100), `width`, `height` (the terminal's own size: 80 by 24 for a VT, 80 by 25 for a TDV), `username`, `password` (ssh), `port_name`, `baud` (9600), `data_bits` (8), `parity` (none, odd, even, mark, space), `stop_bits` (1, 1.5, 2) | Opens a **persistent** session as a new visible tab and returns `sessionId: <id>` and what it connected to. Three ways to say where: `name=`, `host`+`port`, or `protocol=serial` with `port_name`. `host`/`port` with serial is refused by name. Refused while a dialog is open in RetroTerm (a tab built under a modal dialog breaks the window), and refused for a COM port another tab already holds, naming that tab - a port has one owner, and the second open would otherwise fail with a misleading "Access to the path 'COM11' is denied". Keep the session across calls and turns; reconnecting in the middle of a program can hang the line. |
+| `terminal_close` | `sessionId` (required) | Closes that session's tab, popped-out windows included. Returns `closed <id>`. |
+| `terminal_list` | none | One line per open session, popped-out windows included: id, connected or disconnected, terminal type, title. `no open sessions` when there are none. |
+| `terminal_build` | none, and no session needed | Which build is answering (see above). |
+| `terminal_run_script` | `sessionId` (required), `name` (a stored script) or `script` (inline script text) | Parses the script first (parse errors come back without running anything), runs it, and returns `SCRIPT OK` or `SCRIPT FAILED`, step count and total time, then one line per step with its time; READSCREEN-type steps include their output, and a failure includes the screen at the failing step. The session stays open for single commands afterwards. |
+| `terminal_scripts` | `save` (name), `script` (text; required with `save`) | Without arguments, lists the stored scripts. With `save`, parses the script first and saves it only if it has no errors, answering with the step count and the file it wrote. |
+
+### The command tools
+
+Required parameters are in **bold**. Defaults in brackets. Every one also takes `sessionId`.
+
+**Typing and waiting**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_send` | **`text`** | Sends exactly the text, nothing appended. End with `\r` yourself. |
+| `terminal_sendraw` | **`bytes`** | Hex byte pairs without separators (`1B0D`), or `ESC`. ESC wakes a SINTRAN line. |
+| `terminal_sendkey` | **`key`**, `shift` [false] | Presses a named terminal key - see "Key names for SENDKEY" below. |
+| `terminal_waitfor` | **`pattern`**, `regex` [false], `where` [tail] (tail, screen, scrollback), `timeout` [30000], `tailrows` [1] | **The one to sequence on.** Waits until the text is on the rendered screen. `tail` looks at the last non-blank rows, which is how a prompt is matched. A timeout still returns the screen and the time waited. |
+| `terminal_waitidle` | **`ms`**, `timeout` [30000] | Waits until the screen has not changed for `ms`. |
+| `terminal_sleep` | **`ms`** | Waits a fixed time. Discouraged: fixed delays are how logins race. |
+| `terminal_paste` | `text` (left out: the system clipboard) | Pastes the way the Paste menu does: national characters converted, bracketed paste applied. Not the same as SEND, which does neither. |
+| `terminal_localkey` | **`key`**, `shift` [false] | Presses a key AT THE TERMINAL, not sent to the host. A single character is typed; a longer word is an Avalonia key name (Left, Right, Up, Down, Enter, Escape, Tab, F1, Add, Subtract, D0). The only way to reach the ReGIS graphics input cursor and the zoom shortcuts. |
+
+**Reading the screen**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_readscreen` | `strip` [true] | The rendered screen as plain text, with the cursor position. |
+| `terminal_readnew` | none | Scrollback lines added since the last READNEW, then the current screen - for listings that scrolled past. |
+| `terminal_status` | none | Connected or not, terminal type, screen size, bytes in and out, and the time since the last byte (tells busy from broken). |
+| `terminal_unhandled` | none | The sequences this session was sent and did not act on, the ND graphics modes and ReGIS commands included. The first thing to read when a screen looks wrong and nothing has failed. |
+| `terminal_snapshot` | **`file`** | Writes the rendered screen as text to a file (the folder must exist). |
+| `terminal_screenshot` | **`file`**, `settle` [250], `area` [terminal] (terminal, window) | Saves a PNG with Sixel, ReGIS and vector graphics drawn in. Waits until the screen has been quiet for `settle` ms (0 = take it now). `area=terminal` is the terminal area of the tab only; `area=window` is the whole program window showing the tab (menu, tabs, status bar), or the popped-out window. Both are drawn by the program into an offscreen picture, not captured from the screen: the operating system's frame and anything lying on top of the window are not in it. `area=window` is refused when the tab is not the selected one, rather than photographing a different tab. Returns the path and the size in bytes; an empty file is reported as a failure. |
+| `terminal_recordstart` | **`file`**, `area` [terminal] (terminal, window), `interval` [100] (20 to 10000) | Starts filming the screen as an animated PNG. The screen is looked at every `interval` ms and a frame is added only when the picture changed; each frame lasts as long as it was shown. The first frame is taken at once, so a recording that cannot draw is refused here. One recording per session; an existing file is replaced; the folder must exist. |
+| `terminal_recordstop` | none | Finishes the file and returns its path, picture size, number of pictures and frames, and length. If the recording had already ended by itself (the area could no longer be drawn, or the picture changed size), it says why. Closing the tab also finishes the file. **Planned, not built** (docs/PLAN.md): an MP4 beside the PNG when ffmpeg is installed, with the reply naming every file written. Today the result is the animated PNG only. |
+
+**IBM 3270**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_statusline` | none | The status line: the 3270's line 25 with the keyboard lock and why; on a VT tab, the line the host writes. |
+| `terminal_fields` | none | Every 3270 field, one line each: position, length, protected or input, numeric, hidden, bright, modified, colour and text. A hidden field never shows its text. |
+| `terminal_setfield` | **`field`**, **`text`** | Empties the input field with that FIELDS number (from 1) and types the text. Nothing is sent until an attention key such as `IBM.ENTER`. |
+| `terminal_cursor` | **`row`**, **`col`** | Moves the 3270 cursor (both counted from 1). |
+| `terminal_waitunlock` | `timeout` [30000] | Waits until the host unlocks the keyboard (it has answered). |
+| `terminal_codepage` | `number` [0] | Without a number: the EBCDIC code page in use and the ones to choose from. With one (277 for Denmark and Norway): changes it and draws the screen again. Every tab starts on 037. |
+| `terminal_hostsend` | **`path`**, **`dataset`**, `mode` [ascii] (ascii, binary), `options` [""], `timeout` [120000] | Sends a PC file to a host data set with IND$FILE PUT. TSO must be at READY (not in ISPF). Without quotes, TSO puts the user id in front of the data set name. `options` adds host options such as `RECFM(F) LRECL(80)`. Script alias `IND$PUT`. |
+| `terminal_hostreceive` | **`path`**, **`dataset`**, `mode` [ascii] (ascii, binary), `options` [""], `timeout` [120000] | Receives a host data set into a PC file with IND$FILE GET. The file is replaced only when the host says the transfer is complete. `options` such as `APPEND`. Script alias `IND$GET`. |
+| `terminal_submit` | **`path`**, `timeout` [30000] | Sends a JCL text file to the host's card reader, which runs it as a batch job (Hercules' socket card reader; port 3505 on TK5). The reader's port, and its host if it is not the connection's own, are set on the connection (Manage Connections, Protocol tab); with none set it refuses. A line longer than 80 columns, or a byte that is not plain ASCII, is refused with its line number and nothing is sent. Answers with the number of cards and bytes sent. It cannot see the JES2 job number. |
+
+**The terminal itself**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_emulation` | **`type`** | Changes the terminal type on a live connection, keeping screen and connection: VT100, VT220, VT320, VT340, VT420, VT52, VT102, VT240, XTERM, XTERM-256COLOR, TDV1200, TDV2215, TDV2200, TEK4014. |
+| `terminal_reset` | none | Resets the terminal (modes, character sets, screen) - recovers a garbled display. |
+| `terminal_clear` | none | Clears the screen and the scrollback. |
+| `terminal_echo` | **`text`** | Writes a local note on the screen; nothing is sent to the host. |
+| `terminal_zoom` | `percent` (50 to 400), `step` | Reads, sets or steps the display zoom. No arguments reports it; giving both is refused. |
+| `terminal_keybind` | **`action`** (list, bind, unbind, defaults), `vk`, `mods` [""], `grid`, `shifted` [false], `save` [true] | TDV keyboard bindings: a Windows virtual-key code plus shift/ctrl/alt/meta, bound to a TDV grid position such as G53 (HJELP). |
+| `terminal_help` | `command` | The generated command reference, or the full help for one command. |
+
+**Connections**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_connect` | `name`, `host`, `port` [23], `protocol` [telnet] (telnet, ssh, serial), `username`, `password`, `port_name`, `baud` [9600], `data_bits` [8], `parity` [none], `stop_bits` [1] | Connects this session: a stored name (then the rest is ignored), ad-hoc host and port, or ad-hoc serial. |
+| `terminal_disconnect` | none | Deliberate disconnect; does not run the connection's on-disconnect script. |
+| `terminal_connlist` | none | The stored connections (name, target, protocol; `*` = favourite) - the same list as Quick Connect. |
+| `terminal_connshow` | **`name`** | The details of one stored connection. |
+| `terminal_connsave` | **`name`**, `host`, `port` [23], `protocol` [Telnet] (Telnet, SSH, Serial), `port_name`, `baud` [9600], `data_bits` [8], `parity` [none], `stop_bits` [1], `emulator` [VT100], `username`, `width`, `height`, `favorite` [false], `onconnect`, `ondisconnect` | Creates a stored connection, or updates one (only the values given change). `onconnect`/`ondisconnect` name library scripts; an empty string clears them. |
+| `terminal_conndel` | **`name`** | Deletes a stored connection. |
+
+**Files, logs and traces**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_sendfile` | **`path`** | Kermit send (start the remote receive first); several files separated by `;`. |
+| `terminal_receivefile` | **`dir`** | Kermit receive into an existing folder (start the remote send first). |
+| `terminal_logstart` | **`file`**, `format` [text] (text, hex, raw) | Logs the raw session traffic, both directions, to a file. |
+| `terminal_logstop` | none | Stops the log and closes the file. |
+| `terminal_tracestart` | `raw` [true] | Starts the protocol trace, the same decoded stream as the Protocol Monitor window. |
+| `terminal_tracestop` | none | Stops it; what was recorded stays readable. |
+| `terminal_traceread` | `sinceid` [0], `max` [200], `raw` [false], `hex` [false] | Trace entries, each line starting with its id. Ids are unique, always increasing, and survive TRACECLEAR, so poll with `sinceid=` the last id + 1 and you only ever see new entries. |
+| `terminal_traceclear` | none | Empties the trace buffer; ids keep counting. |
+
+**Norsk Data machines**
+
+| Tool | Parameters | What it does |
+|------|-----------|--------------|
+| `terminal_opcom` | **`action`**, `addr`, `endaddr`, `value`, `reg`, `level` [0], `endlevel`, `count` [1], `pass`, `timeout` [10000] | The ND-100 OPCOM debugger, all values **octal**. `action`: status, passthrough, readmem, writemem, dumpmem, readreg, writereg, readintreg, writeintreg, dumpregs, dumpintregs, ioxread, ioxwrite, stop, start, masterclear, step, breakpoint, escape, boot. |
+| `terminal_gateway` | `action` [status] (status, terminals) | The ND-100 gateway: listening or not, port, emulator and disk connected, and the registered terminals. |
+
+### Key names for SENDKEY
+
+A key is `FAMILY.KEY` or a bare `KEY`. The families are `TDV`, `IBM` and `VT`. A bare name is
+looked up in the tab's own terminal; a family that does not match the tab is refused and
+nothing is sent (`IBM.PF3` on a TDV tab fails). Upper or lower case does not matter.
+
+- **IBM (3270 tabs)**, from `Ibm3270Emulator.BuildKeyNames`: `ENTER`, `CLEAR`, `PA1`, `PA2`,
+  `PA3`, `PF1` to `PF24`, `RESET`, `TAB`, `BACKTAB`, `HOME`, `LEFT`, `RIGHT`, `UP`, `DOWN`,
+  `NEWLINE`, `BACKSPACE`, `DELETE`, `INSERT`, `END`, `ERASEEOF`, `ERASEINPUT`, `DUP`,
+  `FIELDMARK`, `ATTN`, `SYSREQ`, `CURSORSELECT`. ENTER, CLEAR, the PA and the PF keys send the
+  screen to the host; the others act on the terminal. `ATTN` in plain TN3270 sends PA1 and then
+  a Telnet BREAK; in TN3270E it is refused. `SYSREQ` does nothing in TN3270E.
+- **TDV**: the legends printed on the TDV2200 keyboard (`HJELP`, `ANGRE`, `F1` .. `F8`, ...)
+  or a grid position such as `G53` or `F51`. A legend and a grid position can name the same
+  key: `F1` and `F51` are one key. The sequence sent follows the terminal's mode (extended, or
+  2115 compatibility). Programmable PUSH keys have no fixed sequence and are refused.
+  `docs\TDV-KEYBOARD-COMPLETE-REFERENCE.md` has the full table.
+- **VT**: no key names yet; SENDKEY on a VT tab is refused - use `terminal_sendraw`.
 
 ### Security
 
-The server binds to `127.0.0.1` only — hard-coded, not configurable. This tool types
-arbitrary commands into machines; it must never listen on an external interface.
+The server binds to `127.0.0.1` only - written into the code, not configurable. This tool
+types arbitrary commands into machines; it must never listen on an external interface.
 
 ---
 
@@ -120,7 +375,9 @@ WAITFOR "@" timeout=15000                  # tail match: prompt at end of output
 `ontimeout` budgets, all of them. `timeout=300` is 0.3 seconds; a 15-second wait is
 `timeout=15000`.
 
-Verb summary:
+Verb summary. These are the same 48 commands as the MCP command tools in section 1.2, with the
+same parameters and defaults; `IND$PUT` and `IND$GET` are script-only aliases of `HOSTSEND` and
+`HOSTRECEIVE`.
 
 | Verb | Example |
 |------|---------|
@@ -139,7 +396,7 @@ Verb summary:
 | `CONNSAVE` / `CONNDEL` | `CONNSAVE "ND-lab" host=10.0.0.1 port=5001 emulator=TDV2200` — create/update; serial: `CONNSAVE "nexys" protocol=Serial port_name=COM11 baud=115200 data_bits=7 parity=even` (`host`/`port` with Serial is refused, not silently dropped); `CONNDEL "old"` |
 | `SENDFILE` | `SENDFILE "C:\\files\\data.bin"` — Kermit send (start the remote receive first); `;`-separated for several |
 | `RECEIVEFILE` | `RECEIVEFILE "C:\\incoming"` — Kermit receive into a directory |
-| `SENDKEY` | `SENDKEY HJELP` — named TDV function key, mode-aware sequence from the key registry |
+| `SENDKEY` | `SENDKEY HJELP`, `SENDKEY IBM.PF3` — a named terminal key; `FAMILY.KEY` (TDV, IBM, VT) or a bare name looked up in the tab's own terminal. The key names are listed in section 1.2, "Key names for SENDKEY" |
 | `STATUSLINE` | `STATUSLINE` — the status line: a 3270's line 25 plus whether the keyboard is locked and why; on a VT tab, the line the host writes |
 | `FIELDS` | `FIELDS` — every 3270 field, one line each: row and column of its first character, length, protected or input, numeric, hidden, bright, modified, colour and its text; a hidden field never shows its text |
 | `SETFIELD` | `SETFIELD 2 HERC01` — empty a 3270 input field (numbered as FIELDS numbers it) and type the text; nothing is sent until a key such as `SENDKEY IBM.ENTER` |
@@ -163,7 +420,7 @@ Verb summary:
 | `GATEWAY` | `GATEWAY` or `GATEWAY action=terminals` — ND-100 gateway state: listening, port, emulator/disk-worker connected, and each registered terminal with its ident code, name, logical device and free/in-use flag. `into=var` stores the terminal count. |
 | `terminal_build` (MCP only) | No arguments, no session needed — which BUILD is answering: version, git commit, branch, whether the tree was dirty, and when it was built. The same line is in the MCP handshake. **Check it before trusting a test result:** more than one copy of RetroTerm can run from the same folder and only the first gets the port, so a caller can reach an old binary without noticing. |
 | `SCREENSHOT` | `SCREENSHOT "C:\\shots\\after-regis.png"` — saves the screen as a PNG, with Sixel, ReGIS and vector graphics drawn in. `SNAPSHOT` and `READSCREEN` return TEXT, which on a session carrying graphics is a fraction of what is there. Waits `settle=` milliseconds (default 250) for the screen to go quiet and publishes the graphics first, so the picture is never one change out of date; `settle=0` takes the frame as it stands. `area=terminal` (the default) saves only the terminal area of the session's tab, at the terminal control's own pixel size; `area=window` saves the whole program window showing that tab (menu, tab strip, terminal, status bar), or the popout window if the tab was popped out. Both are drawn by the program into an offscreen picture - not a capture of the screen: the operating system's frame and title bar are not in it, nor anything lying on top of the window. `area=window` is refused when the session's tab is not the selected tab, rather than photographing another tab; any word other than `terminal` or `window` is refused by name. The folder must already exist. |
-| `RECORDSTART` / `RECORDSTOP` | `RECORDSTART "C:\\films\\login.png" area=terminal` ... `RECORDSTOP` — records the screen as a film, an animated PNG (APNG: plays in Chrome, Edge, Firefox and Safari; a viewer without APNG support shows the first frame). `area=` takes the same two words as `SCREENSHOT` and every frame is drawn the same way a `SCREENSHOT` is. The screen is looked at every `interval=` milliseconds (default 100, allowed 20 to 10000), and a frame is added only when the picture changed; each frame lasts as long as it was on the screen, right to within one interval, so a quiet minute is one frame. The first frame is taken by `RECORDSTART` itself, so a recording that cannot draw is refused there. One recording per session: a second `RECORDSTART` is refused naming the file already being written, and `RECORDSTOP` with nothing started is refused with `no recording is running for this session - RECORDSTART first`. `RECORDSTOP` finishes the file and reports its path, size, number of pictures and frames, and length (a still longer than 65.5 seconds is stored as more than one frame). Closing the tab finishes the file too. The recording ends by itself, keeping what it has, when the area can no longer be drawn - `area=window` while another tab is selected, or the picture changing size (an APNG has one size) - and the next `RECORDSTOP` says why. The folder must already exist; an existing file is replaced. MCP: `terminal_recordstart`, `terminal_recordstop`. |
+| `RECORDSTART` / `RECORDSTOP` | `RECORDSTART "C:\\films\\login.png" area=terminal` ... `RECORDSTOP` — records the screen as a film, an animated PNG (APNG: plays in Chrome, Edge, Firefox and Safari; a viewer without APNG support shows the first frame). `area=` takes the same two words as `SCREENSHOT` and every frame is drawn the same way a `SCREENSHOT` is. The screen is looked at every `interval=` milliseconds (default 100, allowed 20 to 10000), and a frame is added only when the picture changed; each frame lasts as long as it was on the screen, right to within one interval, so a quiet minute is one frame. The first frame is taken by `RECORDSTART` itself, so a recording that cannot draw is refused there. One recording per session: a second `RECORDSTART` is refused naming the file already being written, and `RECORDSTOP` with nothing started is refused with `no recording is running for this session - RECORDSTART first`. `RECORDSTOP` finishes the file and reports its path, size, number of pictures and frames, and length (a still longer than 65.5 seconds is stored as more than one frame). Closing the tab finishes the file too. The recording ends by itself, keeping what it has, when the area can no longer be drawn - `area=window` while another tab is selected, or the picture changing size (an APNG has one size) - and the next `RECORDSTOP` says why. The folder must already exist; an existing file is replaced. MCP: `terminal_recordstart`, `terminal_recordstop`. **Planned, not built** (docs/PLAN.md): an MP4 made beside the PNG when ffmpeg is installed; today RECORDSTOP writes the animated PNG only. |
 | `LOCALKEY` | `LOCALKEY key=Left shift=true` — presses a key AT THE TERMINAL instead of sending it to the host. A key name (Left, Right, Up, Down, Enter, Escape, F1, Add, Subtract) or a single character to type. This is the only way to reach the ReGIS graphics input cursor and the zoom shortcuts: everything else here ends on the connection, and the terminal decides those for itself. |
 | `ZOOM` | `ZOOM percent=300`, `ZOOM step=-1`, or `ZOOM` on its own to report it — the display magnification, 50 to 400 percent. Stepping walks the same ladder the dropdown offers. Giving both `percent` and `step` is refused rather than guessed at. |
 | `PASTE` | `PASTE text="LIST-FILES\r"` — pastes the way the Paste menu does, so national characters are converted and bracketed paste is applied; leave `text` out to use the system clipboard. Not the same as `SEND`, which does neither. |
@@ -219,7 +476,7 @@ touch the session):
 | `GOSUB name` | Jump; the next `RETURN` comes back to the step after the GOSUB. Nests. |
 | `RETURN` | Back to the step after the most recent GOSUB. `RETURN` without a GOSUB fails the script. |
 
-`WAITFOR` and `WAITIDLE` take `ontimeout=name`: on timeout the script **branches**
+The commands that can time out - `WAITFOR`, `WAITIDLE`, `WAITUNLOCK`, `HOSTSEND`, `HOSTRECEIVE` and `SUBMIT` - take `ontimeout=name` (on any other command the parser refuses it): on timeout the script **branches**
 to that label instead of failing — a timeout with a target is a planned path.
 The parser validates every label at edit time (unknown target, duplicate label).
 A tight jump loop with no waits is aborted after 100 000 executed steps.
@@ -273,7 +530,7 @@ configuration commands that followed each waited their full 120-second timeout: 
 nothing applied, and a transcript that read as though the ND was broken. Every rule below
 comes from that half hour.
 
-1. **One persistent connection per session** — reconnecting mid-program wedges the line.
+1. **One persistent connection per session** — reconnecting in the middle of a program hangs the line.
 2. **ESC is a first-class operation** — it wakes and recovers SINTRAN lines.
 3. **Never guess a duration** — `WAITFOR` is the normal way to sequence; `SLEEP` is the exception.
 4. **A timeout still returns what the machine said** — partial output is the most valuable thing on a failure.
