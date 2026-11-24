@@ -72,8 +72,8 @@ public partial class MainWindow
             // system PATH - asked at each stop, so a Preferences change counts at once.
             Core.Commands.Builtin.RecordCommands.RegisterAll(
                 _commandRegistry, StartRecording, StopRecording,
-                () => Core.Recording.FfmpegLocator.FindOnThisMachine(Themes.ThemeManager.Instance.FfmpegPath),
-                Services.Mp4Encoder.MakeAsync);
+                FindRecordingFfmpeg,
+                (ffmpeg, film, width, height, token) => RecordingMp4Maker(ffmpeg, film, width, height, token));
 
             // LOCALKEY, ZOOM and PASTE act on the WINDOW rather than the connection. Everything
             // else here ends at TerminalSession.SendInputAsync, which cannot reach what the

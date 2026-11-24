@@ -9,11 +9,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using RetroTerm.Core.Commands.Builtin;
 using RetroTerm.Core.Recording;
 using RetroTerm.Core.Session;
 using RetroTerm.Desktop.Models;
+using RetroTerm.Desktop.Services;
 using ScreenCaptureArea = RetroTerm.Core.Commands.Builtin.ScreenCaptureArea;
 
 namespace RetroTerm.Desktop;
@@ -40,7 +43,9 @@ namespace RetroTerm.Desktop;
 /// asked for, instead of the film quietly showing something else.
 /// <para><b>Closing the tab finishes the file</b></para>
 /// Every path that closes a tab calls <see cref="EndRecordingForTab"/>, next to where it stops the
-/// session log.
+/// session log. It closes the PNG at once and then runs the same finish RECORDSTOP runs, MP4
+/// included, in the background; closing the main window waits for those, with a time limit
+/// (<see cref="FilmFinishLimitOnExit"/>).
 /// </remarks>
 public partial class MainWindow
 {
@@ -397,8 +402,165 @@ public partial class MainWindow
     {
         if (!_recordings.TryGetValue(tab.Session, out var recording)) return;
         _recordings.Remove(tab.Session);
-        EndRecording(recording, null);
+        var outcome = EndRecording(recording, null);
+        StartClosedFilmFinish(outcome);
     }
+
+    // ── The finish of a film whose tab closed ───────────────────────
+
+    /// <summary>
+    /// The finishes of closed tabs' films that may still be running ffmpeg. Touched on the UI
+    /// thread only.
+    /// </summary>
+    private readonly List<Task> _filmFinishes = new();
+
+    /// <summary>
+    /// Stops every ffmpeg still running for a closed tab's film; cancelled only when the main
+    /// window is closing and the wait in <see cref="FinishClosedFilmsBeforeExitAsync"/> ran out.
+    /// </summary>
+    private readonly CancellationTokenSource _filmFinishCancel = new();
+
+    /// <summary>
+    /// What runs ffmpeg on a finished film: <see cref="Mp4Encoder.MakeAsync"/>. RECORDSTOP and the
+    /// close paths both take it from here. Tests put in one that answers at once or never.
+    /// </summary>
+    internal Mp4Maker RecordingMp4Maker { get; set; } = Mp4Encoder.MakeAsync;
+
+    /// <summary>
+    /// How long closing the main window waits for MP4s still being made before it stops ffmpeg.
+    /// </summary>
+    /// <remarks>
+    /// Why wait at all, rather than let the finish go on after the window is gone: the finish runs
+    /// inside this process, so when the process ends the report has nowhere to go, and on Windows
+    /// the ffmpeg child is left running with nobody to read its pipes or tidy a half-written MP4.
+    /// Why a limit: a stuck ffmpeg must not keep RetroTerm from closing. The wait does not hold the
+    /// UI thread (OnClosing has already cancelled the close and awaits), so the window keeps
+    /// drawing while it waits. Thirty seconds is a judgement, not a measurement: the films in the
+    /// Ffmpeg tests convert in well under a second, and a long session film is the case the margin
+    /// is for. When it runs out, ffmpeg is stopped with what it started, its unfinished MP4 is
+    /// deleted, and the PNG stays.
+    /// </remarks>
+    internal TimeSpan FilmFinishLimitOnExit { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// The last report of a closed tab's film, as written to the log.
+    /// </summary>
+    internal string? LastClosedFilmReport { get; private set; }
+
+    /// <summary>
+    /// Which ffmpeg a film's MP4 is made with: the one set in Preferences, Recording tab, else the
+    /// one on the PATH, asked each time so a Preferences change counts at once.
+    /// </summary>
+    /// <returns>
+    /// The choice, or why there is none.
+    /// </returns>
+    private static FfmpegChoice FindRecordingFfmpeg()
+        => FfmpegLocator.FindOnThisMachine(Themes.ThemeManager.Instance.FfmpegPath);
+
+    /// <summary>
+    /// Runs the same finish RECORDSTOP runs (<see cref="FilmFinish.FinishAsync"/>) for a film
+    /// whose tab, popped-out window or main window closed, off the UI thread.
+    /// </summary>
+    /// <param name="outcome">
+    /// What <see cref="EndRecording"/> wrote.
+    /// </param>
+    /// <remarks>
+    /// No command is waiting for this report, so it goes where the app already puts things nobody
+    /// asked for: the application log (the Log window, and its file when that is switched on) and
+    /// the status bar. The session log cannot take it: every close path stops the session log just
+    /// before it ends the recording.
+    /// </remarks>
+    private void StartClosedFilmFinish(ScreenRecordingOutcome outcome)
+    {
+        // Asked here, on the UI thread, so the background task reads no Preferences object.
+        var ffmpeg = FindRecordingFfmpeg();
+        var make = RecordingMp4Maker;
+        var token = _filmFinishCancel.Token;
+        var limit = FilmFinishLimitOnExit;
+
+        var task = Task.Run(async () =>
+        {
+            string report;
+            try
+            {
+                report = await FilmFinish.FinishAsync(outcome, () => ffmpeg, make, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                report = $"film saved to {outcome.Path}\nno MP4: RetroTerm was closing and ffmpeg was still making it after "
+                    + $"{limit.TotalSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} s, so ffmpeg "
+                    + "was stopped; the animated PNG is kept";
+            }
+            catch (Exception ex)
+            {
+                report = $"film saved to {outcome.Path}\nno MP4: making it failed: {ex.Message}";
+            }
+
+            ReportClosedFilm(report);
+        });
+
+        // Drop the ones already done, so a long session does not keep a growing list.
+        for (int i = _filmFinishes.Count - 1; i >= 0; i--)
+        {
+            if (_filmFinishes[i].IsCompleted) _filmFinishes.RemoveAt(i);
+        }
+        _filmFinishes.Add(task);
+    }
+
+    /// <summary>
+    /// Puts a closed tab's film report in the application log and the status bar.
+    /// </summary>
+    /// <param name="report">
+    /// The report, several lines.
+    /// </param>
+    private void ReportClosedFilm(string report)
+    {
+        var text = "recording of a closed tab finished: " + report;
+        LastClosedFilmReport = text;
+        Core.Logging.ApplicationLogger.Log(Core.Logging.LogCategory.General, Core.Logging.LogLevel.Info, "Recording", text);
+
+        // The status bar holds one line.
+        var line = text.Replace("\r", string.Empty).Replace('\n', ' ');
+        Dispatcher.UIThread.Post(() => UpdateStatus(line));
+    }
+
+    /// <summary>
+    /// Waits for closed tabs' MP4s before the main window goes, up to
+    /// <see cref="FilmFinishLimitOnExit"/>, then stops what is left and waits for its report.
+    /// </summary>
+    /// <returns>
+    /// A task that completes when every finish has reported.
+    /// </returns>
+    private async Task FinishClosedFilmsBeforeExitAsync()
+    {
+        if (_filmFinishes.Count == 0) return;
+
+        var all = Task.WhenAll(_filmFinishes.ToArray());
+        var first = await Task.WhenAny(all, Task.Delay(FilmFinishLimitOnExit)).ConfigureAwait(true);
+        if (first != all)
+        {
+            _filmFinishCancel.Cancel();
+        }
+        await all.ConfigureAwait(true);
+        _filmFinishes.Clear();
+    }
+
+    /// <summary>
+    /// Waits for every closed tab's film finish that is still running.
+    /// </summary>
+    /// <returns>
+    /// A task that completes when they have all reported.
+    /// </returns>
+    internal Task WaitForClosedFilmsForTesting() => Task.WhenAll(_filmFinishes.ToArray());
+
+    /// <summary>
+    /// The part of closing the main window that ends every tab and popped-out window, without
+    /// the question about connected sessions.
+    /// </summary>
+    /// <returns>
+    /// A task that completes when everything is closed and every film has reported.
+    /// </returns>
+    internal Task CleanUpForExitForTesting() => CleanUpAllTabsAndPopouts();
 
     /// <summary>
     /// Closes a tab the way its close button does.

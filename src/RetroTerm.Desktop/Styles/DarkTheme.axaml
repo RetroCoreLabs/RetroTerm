@@ -224,7 +224,17 @@
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
     </Style>
 
-    <!-- TextBox Styles -->
+    <!-- TextBox Styles
+
+      Do NOT give a one-line TextBox, NumericUpDown or ComboBox a fixed Height; let this style
+      and Fluent's MinHeight (32) size it. Until 24 November 2026 ten boxes in the Preferences
+      window had Height="30". The Padding of 8 below plus the border leaves 32 - 18 = 14 pixels
+      for the text (Fluent's MinHeight beat the 30), and one line of 12 pixel text asks for 16,
+      so the bottom of y, g, p and q was cut off. Measured, not guessed:
+      TextBoxTextIsNotCutOffTests compares the text area's height with the height the text asks
+      for, and failed on EthernetCaptureFileBox. The NumericUpDowns and ComboBoxes with the same
+      Height rendered identically with and without it (Fluent's MinHeight won); their Height was
+      removed too so nobody copies it. -->
     <Style Selector="TextBox">
         <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>

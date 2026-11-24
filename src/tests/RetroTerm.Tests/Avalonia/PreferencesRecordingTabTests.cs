@@ -123,10 +123,9 @@ public sealed class PreferencesRecordingTabTests : IDisposable
             var box = window.FindControl<TextBox>("FfmpegPathBox")!;
             Assert.True(box.IsEffectivelyVisible);
             Assert.True(box.Bounds.Width > 150, $"the ffmpeg box is only {box.Bounds.Width} wide");
-            // NOT PINNED: at a fixed Height of 30 the box cut the bottom off y and g, seen in the
-            // rendered picture and fixed with MinHeight. Neither the box's height nor its text
-            // presenter's bounds changed in a way an assertion could see (both tried, both stayed
-            // green with the cut-off text), so only the picture shows it. Look at it.
+            // The cut-off bottom of y and g that a fixed Height of 30 caused is pinned for every
+            // Preferences box by TextBoxTextIsNotCutOffTests: it compares the height the text area
+            // was given with the height one line of text asks for. Look at the picture as well.
             var hint = window.FindControl<TextBlock>("FfmpegInfoText")!;
             Assert.True(hint.IsEffectivelyVisible);
             Assert.Contains("PATH", hint.Text, StringComparison.Ordinal);

@@ -105,6 +105,14 @@ public static class Mp4Encoder
                 {
                     // It had already exited between the cancel and the kill; nothing is left.
                 }
+
+                // A stopped ffmpeg leaves the MP4 it was writing behind, unfinished. That is not a
+                // film, so it goes - the same rule as for a failed ffmpeg below. The wait lets the
+                // stopped process let go of the file first. If the delete fails, its exception
+                // (which names the file) goes to the caller instead of the cancellation, so the
+                // leftover is reported rather than left without a word.
+                process.WaitForExit();
+                if (File.Exists(mp4Path)) File.Delete(mp4Path);
                 throw;
             }
 

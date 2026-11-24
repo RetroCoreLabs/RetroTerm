@@ -184,7 +184,7 @@
                                            VerticalAlignment="Center"/>
                                 <NumericUpDown Grid.Row="0" Grid.Column="1" Name="KermitDelayUpDown"
                                                Minimum="0" Maximum="30" Value="0" Increment="1"
-                                               FontSize="12" Height="30"
+                                               FontSize="12"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -198,7 +198,7 @@
                                            VerticalAlignment="Center" Margin="0,6,0,0"/>
                                 <NumericUpDown Grid.Row="1" Grid.Column="1" Name="KermitTimeoutUpDown"
                                                Minimum="1" Maximum="60" Value="8" Increment="1"
-                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               FontSize="12" Margin="0,6,0,0"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -212,7 +212,7 @@
                                            VerticalAlignment="Center" Margin="0,6,0,0"/>
                                 <NumericUpDown Grid.Row="2" Grid.Column="1" Name="KermitRetriesUpDown"
                                                Minimum="0" Maximum="99" Value="10" Increment="1"
-                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               FontSize="12" Margin="0,6,0,0"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -257,7 +257,7 @@
                                            VerticalAlignment="Center" Margin="0,6,0,0"/>
                                 <NumericUpDown Grid.Row="1" Grid.Column="1" Name="KermitPacketSizeUpDown"
                                                Minimum="20" Maximum="94" Value="80" Increment="10"
-                                               FontSize="12" Height="30" Margin="0,6,0,0"
+                                               FontSize="12" Margin="0,6,0,0"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -302,7 +302,7 @@
                                 <NumericUpDown Grid.Row="0" Grid.Column="1" Name="McpPortUpDown"
                                                Minimum="1" Maximum="65535" Value="5715" Increment="1"
                                                FormatString="0"
-                                               FontSize="12" Height="30"
+                                               FontSize="12"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -338,10 +338,8 @@
                                 <TextBlock Grid.Column="0" Text="ffmpeg:"
                                            Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
                                            VerticalAlignment="Center"/>
-                                <!-- MinHeight, not Height: a fixed 30 cut the bottom off y and g
-                                     in the rendered test picture (24 November 2026). -->
                                 <TextBox Grid.Column="1" Name="FfmpegPathBox"
-                                         FontSize="12" MinHeight="30"
+                                         FontSize="12"
                                          PlaceholderText="empty: the ffmpeg on the PATH"
                                          Background="{DynamicResource SecondaryButtonBrush}"
                                          Foreground="{DynamicResource PrimaryTextBrush}"
@@ -386,7 +384,7 @@
                                 <NumericUpDown Grid.Row="0" Grid.Column="1" Name="GatewayPortUpDown"
                                                Minimum="1" Maximum="65535" Value="8765" Increment="1"
                                                FormatString="0"
-                                               FontSize="12" Height="30"
+                                               FontSize="12"
                                                Background="{DynamicResource SecondaryButtonBrush}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -421,7 +419,7 @@
                                            Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
                                            VerticalAlignment="Center"/>
                                 <ComboBox Grid.Row="0" Grid.Column="1" Name="EthernetModeCombo"
-                                          FontSize="12" Height="30" HorizontalAlignment="Stretch"
+                                          FontSize="12" HorizontalAlignment="Stretch"
                                           SelectionChanged="OnEthernetModeChanged"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Name="EthernetTargetLabel"
@@ -433,13 +431,13 @@
                                      Windows its system name is a GUID. The address box takes its
                                      place for the mappings whose parameter really is text. -->
                                 <ComboBox Grid.Row="1" Grid.Column="1" Name="EthernetAdapterCombo"
-                                          FontSize="12" Height="30" Margin="0,8,0,0"
+                                          FontSize="12" Margin="0,8,0,0"
                                           HorizontalAlignment="Stretch"
                                           IsVisible="False"
                                           SelectionChanged="OnEthernetSettingChanged"/>
 
                                 <TextBox Grid.Row="1" Grid.Column="1" Name="EthernetTargetBox"
-                                         FontSize="12" Height="30" Margin="0,8,0,0"
+                                         FontSize="12" Margin="0,8,0,0"
                                          Background="{DynamicResource SecondaryButtonBrush}"
                                          Foreground="{DynamicResource PrimaryTextBrush}"
                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"
@@ -458,7 +456,7 @@
                                            Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
                                            VerticalAlignment="Center"/>
                                 <TextBox Grid.Column="1" Name="EthernetCaptureFileBox"
-                                         FontSize="12" Height="30"
+                                         FontSize="12"
                                          Background="{DynamicResource SecondaryButtonBrush}"
                                          Foreground="{DynamicResource PrimaryTextBrush}"
                                          BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"

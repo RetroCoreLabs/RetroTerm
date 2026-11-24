@@ -349,6 +349,177 @@ public class RecordCommandOnARealWindowTests : IDisposable
     }
 
     /// <summary>
+    /// A file that stands for ffmpeg in Preferences, so the locator finds "an ffmpeg" while the
+    /// test's own maker does the running. Deleted by the caller.
+    /// </summary>
+    private static string FakeFfmpeg()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "retroterm-fake-ffmpeg-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, FfmpegLocator.ProgramName);
+        File.WriteAllBytes(path, Array.Empty<byte>());
+        return path;
+    }
+
+    /// <summary>
+    /// Closing a tab while it records runs the same finish RECORDSTOP runs: the MP4 maker is
+    /// handed the finished PNG, and the report - with no command waiting for it - reaches the log
+    /// and the status bar. Until 24 November 2026 a closed tab got its PNG and never an MP4.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ClosingTheTabMakesTheMp4TheWayRecordStopDoes()
+    {
+        var fake = FakeFfmpeg();
+        ThemeManager.Instance.FfmpegPath = fake;
+        var (main, tab, line) = await Window();
+        var film = TempPng("film-closed-mp4");
+        var mp4 = Mp4FromAnimatedPng.Mp4PathFor(film);
+
+        string? handedFfmpeg = null;
+        string? handedFilm = null;
+        bool pngFinishedWhenHanded = false;
+        main.RecordingMp4Maker = (ffmpeg, filmPath, width, height, token) =>
+        {
+            handedFfmpeg = ffmpeg;
+            handedFilm = filmPath;
+            pngFinishedWhenHanded = ApngTestReader.Read(filmPath).Frames.Count == 1;
+            return Task.FromResult(new Mp4Outcome { Path = mp4, Width = (width + 1) & ~1, Height = (height + 1) & ~1 });
+        };
+
+        try
+        {
+            await Show(tab, line, "CLOSE ME");
+            Assert.True((await Start(main, tab, film)).Success);
+            _now = TimeSpan.FromMilliseconds(500);
+
+            main.CloseTabForTesting(tab);
+            await main.WaitForClosedFilmsForTesting();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(fake, handedFfmpeg);
+            Assert.Equal(film, handedFilm);
+            Assert.True(pngFinishedWhenHanded, "the PNG must be finished before ffmpeg is given it");
+
+            var report = main.LastClosedFilmReport;
+            Assert.NotNull(report);
+            Assert.StartsWith("recording of a closed tab finished: film saved to " + film, report, StringComparison.Ordinal);
+            Assert.Contains("  " + film + " - animated PNG\n", report, StringComparison.Ordinal);
+            Assert.Contains("  " + mp4 + " - MP4 (H.264", report, StringComparison.Ordinal);
+            Assert.EndsWith("ffmpeg used: " + fake + " (set in Preferences)", report, StringComparison.Ordinal);
+
+            // The log holds it, and the status bar shows it on one line.
+            var entries = global::RetroTerm.Core.Logging.ApplicationLogger.GetLogEntries();
+            bool logged = false;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i].Message == report) logged = true;
+            }
+            Assert.True(logged, "the report is not in the application log");
+            Assert.Equal(report.Replace('\n', ' '), main.StatusTextForTesting);
+        }
+        finally
+        {
+            main.Close();
+            if (File.Exists(film)) File.Delete(film);
+            Directory.Delete(Path.GetDirectoryName(fake)!, true);
+        }
+    }
+
+    /// <summary>
+    /// Closing the main window waits for an MP4 still being made, but not for ever: past the limit
+    /// ffmpeg is stopped, the report says so, and the PNG stays.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ClosingTheMainWindowStopsAnMp4ThatTakesTooLongAndSaysSo()
+    {
+        var fake = FakeFfmpeg();
+        ThemeManager.Instance.FfmpegPath = fake;
+        var (main, tab, line) = await Window();
+        var film = TempPng("film-exit-limit");
+
+        bool stopped = false;
+        main.FilmFinishLimitOnExit = TimeSpan.FromMilliseconds(50);
+        main.RecordingMp4Maker = async (ffmpeg, filmPath, width, height, token) =>
+        {
+            // An ffmpeg that never finishes by itself: only the cancellation ends it.
+            try
+            {
+                await Task.Delay(Timeout.Infinite, token);
+            }
+            catch (OperationCanceledException)
+            {
+                stopped = true;
+                throw;
+            }
+            return new Mp4Outcome { Problem = "not reached" };
+        };
+
+        try
+        {
+            await Show(tab, line, "EXIT");
+            Assert.True((await Start(main, tab, film)).Success);
+            _now = TimeSpan.FromMilliseconds(300);
+
+            await main.CleanUpForExitForTesting();
+
+            Assert.True(stopped, "the running MP4 was not stopped");
+            Assert.Equal("recording of a closed tab finished: film saved to " + film + "\n"
+                + "no MP4: RetroTerm was closing and ffmpeg was still making it after 0.05 s, so ffmpeg was stopped; "
+                + "the animated PNG is kept", main.LastClosedFilmReport);
+            Assert.Single(ApngTestReader.Read(film).Frames);
+        }
+        finally
+        {
+            main.Close();
+            if (File.Exists(film)) File.Delete(film);
+            Directory.Delete(Path.GetDirectoryName(fake)!, true);
+        }
+    }
+
+    /// <summary>
+    /// A tab closed while recording, with the real ffmpeg: the MP4 is there afterwards. Needs
+    /// ffmpeg; fails naming it.
+    /// </summary>
+    [AvaloniaFact]
+    [Trait("Category", "Ffmpeg")]
+    public async Task ClosingTheTabWithFfmpegLeavesAnMp4()
+    {
+        var ffmpeg = FfmpegLocator.FindOnThisMachine(null);
+        if (ffmpeg.Path == null)
+        {
+            Assert.Fail("this test needs ffmpeg and none was found the way RetroTerm looks for it: " + ffmpeg.Problem);
+        }
+        ThemeManager.Instance.FfmpegPath = ffmpeg.Path;
+
+        var (main, tab, line) = await Window();
+        var film = TempPng("film-closed-real-mp4");
+        var mp4 = Mp4FromAnimatedPng.Mp4PathFor(film);
+
+        try
+        {
+            await Show(tab, line, "FIRST");
+            Assert.True((await Start(main, tab, film)).Success);
+            await Show(tab, line, "SECOND");
+            _now = TimeSpan.FromMilliseconds(400);
+            main.TickRecordingForTesting(tab.Session);
+            _now = TimeSpan.FromMilliseconds(1000);
+
+            main.CloseTabForTesting(tab);
+            await main.WaitForClosedFilmsForTesting();
+
+            Assert.EndsWith("ffmpeg used: " + ffmpeg.Path + " (set in Preferences)", main.LastClosedFilmReport!, StringComparison.Ordinal);
+            Assert.Contains("  " + mp4 + " - MP4 (H.264", main.LastClosedFilmReport!, StringComparison.Ordinal);
+            Assert.True(new FileInfo(mp4).Length > 0);
+        }
+        finally
+        {
+            main.Close();
+            if (File.Exists(film)) File.Delete(film);
+            if (File.Exists(mp4)) File.Delete(mp4);
+        }
+    }
+
+    /// <summary>
     /// The Preferences path decides: one that names no file gives the PNG only, and RECORDSTOP's
     /// reply says so, on the real window's registry.
     /// </summary>

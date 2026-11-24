@@ -345,8 +345,9 @@ public sealed class RecordStopCommand : ISessionCommand
     /// The files and what is in them, or why nothing was stopped.
     /// </returns>
     /// <remarks>
-    /// The MP4 is made HERE, in Core, after the desktop has closed the PNG, so the script DSL and
-    /// the MCP tool give the same reply from one place (CLAUDE.md, "One behaviour, one place").
+    /// The MP4 is made in Core, by <see cref="FilmFinish.FinishAsync"/>, after the desktop has
+    /// closed the PNG, so the script DSL, the MCP tool and a closed tab all get the same finish
+    /// from one place (CLAUDE.md, "One behaviour, one place").
     /// The PNG is kept whatever ffmpeg does; a failing ffmpeg is reported with its own error text
     /// and RECORDSTOP still succeeds, because the film the caller asked for was written.
     /// </remarks>
@@ -357,6 +358,55 @@ public sealed class RecordStopCommand : ISessionCommand
         {
             return CommandResult.Fail(outcome.Problem);
         }
+
+        var text = await FilmFinish.FinishAsync(outcome, _findFfmpeg, _makeMp4, cancellationToken).ConfigureAwait(false);
+
+        var result = CommandResult.Ok(text);
+        result.CaptureValue = outcome.Path;
+        return result;
+    }
+}
+
+/// <summary>
+/// The finish step every ended recording goes through, whatever ended it.
+/// </summary>
+public static class FilmFinish
+{
+    /// <summary>
+    /// Makes the MP4 from a film whose PNG is already closed, and words the report: the film's
+    /// size and length, why it ended early if it did, every file written and which ffmpeg was used
+    /// or why there is no MP4.
+    /// </summary>
+    /// <param name="outcome">
+    /// What the desktop wrote; must not be a refusal.
+    /// </param>
+    /// <param name="findFfmpeg">
+    /// Which ffmpeg to use, asked now.
+    /// </param>
+    /// <param name="makeMp4">
+    /// What runs it.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// Stops ffmpeg if the MP4 is still being made.
+    /// </param>
+    /// <returns>
+    /// The report, the same text RECORDSTOP replies with.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when an argument is null.
+    /// </exception>
+    /// <remarks>
+    /// RECORDSTOP calls this, and so does the desktop when a tab, a popped-out window or the main
+    /// window closes while recording (MainWindow.Recording.cs). Before 24 November 2026 the MP4
+    /// step lived inside RECORDSTOP only, so a closed tab got its PNG and never an MP4: the same
+    /// two-surface fault CLAUDE.md describes, between a command and a close button.
+    /// </remarks>
+    public static async Task<string> FinishAsync(ScreenRecordingOutcome outcome, Func<FfmpegChoice> findFfmpeg,
+        Mp4Maker makeMp4, CancellationToken cancellationToken)
+    {
+        if (outcome == null) throw new ArgumentNullException(nameof(outcome));
+        if (findFfmpeg == null) throw new ArgumentNullException(nameof(findFfmpeg));
+        if (makeMp4 == null) throw new ArgumentNullException(nameof(makeMp4));
 
         var text = $"film saved to {outcome.Path} ({outcome.Width}x{outcome.Height}, {outcome.Pictures} picture(s) in "
             + $"{outcome.Frames} frame(s), {outcome.Duration.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} s)";
@@ -374,17 +424,14 @@ public sealed class RecordStopCommand : ISessionCommand
         }
         else
         {
-            ffmpeg = _findFfmpeg();
+            ffmpeg = findFfmpeg();
             if (ffmpeg.Path != null)
             {
-                mp4 = await _makeMp4(ffmpeg.Path, outcome.Path, outcome.Width, outcome.Height,
+                mp4 = await makeMp4(ffmpeg.Path, outcome.Path, outcome.Width, outcome.Height,
                     cancellationToken).ConfigureAwait(false);
             }
         }
         text += "\n" + Mp4FromAnimatedPng.Describe(outcome.Path, ffmpeg, mp4);
-
-        var result = CommandResult.Ok(text);
-        result.CaptureValue = outcome.Path;
-        return result;
+        return text;
     }
 }

@@ -4095,6 +4095,11 @@ public partial class MainWindow : Window
         }
         _tabs.Clear();
 
+        // Every film the closes above ended is finishing its MP4 in the background; wait for them,
+        // with a time limit, so the report is written and no ffmpeg outlives the window
+        // (MainWindow.Recording.cs, FilmFinishLimitOnExit, says why).
+        await FinishClosedFilmsBeforeExitAsync();
+
         _tabHeaders.Clear();
         _tabStatusDots.Clear();
         _tabTitleTexts.Clear();
