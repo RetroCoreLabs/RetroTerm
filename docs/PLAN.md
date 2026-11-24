@@ -779,4 +779,4 @@ fact, he gets two rendered PNGs to pick between, not a paragraph.
   exercises the shipping path, and it repoints `publish\current` while the old build is still
   running so nothing has to be closed.
 
-- [ ] Line 25: the reason symbol for a mandatory-fill or mandatory-entry lock. Only "X" is shown, because neither x3270 (no such fields) nor GA23-0059-4, GA23-0061-2 or GA27-2890-4 names one
+- [ ] Line 25: the reason symbol for a mandatory-fill or mandatory-entry lock. Only "X" is shown, because neither x3270 (no such fields) nor GA23-0059-4, GA23-0061-2 or GA27-2890-4 names one. Checked again 24 November 2026: GA27-2890-4 p. 2-19 to 2-23 and GA23-0061-2 Appendix B list Time, What?, System Lock, Go Elsewhere, Too Much Data (More Than), Numeric, What Number?, Minus Function and others, and neither has a fill or entry symbol; x3270 source has no mandatory handling. Needs a 3174 or 3179/3192 operator manual. Line 25 for every lock reason is drawn by `Ibm3270StatusLineLockTests`, whose two mandatory tests are named IsNotImplementedYet

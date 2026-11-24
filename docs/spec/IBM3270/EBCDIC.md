@@ -549,7 +549,8 @@ On the development machine (Windows 11):
   Symbol's own size and weight, smaller or larger than the Consolas letters beside them
   (visible in the picture). Segoe UI Symbol is a Windows font; on Linux and macOS which font,
   if any, fills them in is NOT MEASURED.
-- **Drawn as a blank:** X'81' and X'82' (the double bars, no Unicode equal, see above).
+- **Drawn by RetroTerm itself:** X'81' and X'82' (the double bars, no Unicode equal, see above):
+  lines on the cell edges, `SystemFontRenderer.DrawEdgeBars`, since 24 November 2026.
   docs\BUGS.md B24.
 - **The underscored letters** X'41'-X'69' were drawn as plain A-Z, no line, until
   24 November 2026; `Ibm3270Emulator.CellFor` now draws the line under them
@@ -872,8 +873,8 @@ Follow GA23-0059-4 and GA27-2837-9: SUB solid circle, EO blank, DUP/FM with a ba
 |---|---|---|---|---|---|
 | X'70', X'73'-X'77', X'CC', X'CE', X'E0', X'EC' | in the registry | **not in the 1987 picture** | defined | defined | Use them (the registry has them; both oracles agree). The 1987 manual is older than these additions. |
 | X'E4'-X'E7' | **not in the registry** | not in the picture | ⍤ ⍥ ⍪ € | ⍤ ⍥ ⍪ € | Undefined, as IBM says. x3270's own comment marks them "(1) Not on Code Page 310" (`apl.c`). Open question. |
-| X'81' | Double Vertical, Bar Graphic | lines at left and right cell edges | nothing | ║ U+2551 | Draw it ourselves. |
-| X'82' | Double Horizontal, Bar Graphic | lines at top and bottom cell edges | nothing | ═ U+2550 | Draw it ourselves. |
+| X'81' | Double Vertical, Bar Graphic | lines at left and right cell edges | nothing | ║ U+2551 | Drawn by the renderer (edge lines); copies as ║. |
+| X'82' | Double Horizontal, Bar Graphic | lines at top and bottom cell edges | nothing | ═ U+2550 | Drawn by the renderer (edge lines); copies as ═. |
 | X'95' | Solid Fill Character | whole cell black | ■ U+25A0 | █ U+2588 | █ U+2588 (whole cell, matches the picture and the name). |
 | X'9C' | Lozenge | square with hollow sides | ¤ U+00A4 | ⌑ U+2311 | ⌑ U+2311 SQUARE LOZENGE (matches the picture). Not in Lucida Console; ¤ is. |
 | X'A3' | Bullet | small dot | • U+2022 | ∙ U+2219 | • U+2022 (IBM name is "Bullet"). |

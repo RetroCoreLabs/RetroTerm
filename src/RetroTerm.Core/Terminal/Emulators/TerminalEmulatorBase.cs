@@ -2207,6 +2207,22 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
     public const byte SoftFontCharacterSet = 3;
 
     /// <summary>
+    /// The character-set number that means "draw this cell's lines along the cell EDGES, not the
+    /// font glyph": U+2551 (║) becomes a line at the left and at the right edge, U+2550 (═) a
+    /// line at the top and at the bottom edge.
+    /// </summary>
+    /// <remarks>
+    /// For the 3270's code page 310 X'81' "Double Vertical, Bar Graphic" and X'82' "Double
+    /// Horizontal, Bar Graphic" (IBM registry CP00310.txt). GA27-2837-9 fig. 10-41 (p. 10-42)
+    /// draws them as lines on the cell edges, so that a run of them makes bars and plots; no
+    /// Unicode character has that shape (║ and ═ are centred, U+2016 too, and U+258F/U+2595/
+    /// U+2594/U+2581 are one edge each). The codepoint keeps the nearest character so a copy to
+    /// the clipboard still gives something readable. 4 continues the run after
+    /// <see cref="SoftFontCharacterSet"/>. docs\spec\IBM3270\EBCDIC.md, code page 310.
+    /// </remarks>
+    public const byte EdgeBarCharacterSet = 4;
+
+    /// <summary>
     /// Which G set a single shift has armed for the next character: 2 for SS2, 3 for SS3, 0 for
     /// none.
     /// </summary>

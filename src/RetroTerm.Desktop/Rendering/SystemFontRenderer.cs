@@ -110,9 +110,21 @@ public class SystemFontRenderer : IFontRenderer
         // A cell from the downloaded set is drawn from the shape the HOST sent, not from the system
         // font. That is the whole point of DECDLD: the host is showing a character this machine has
         // no glyph for.
-        var geometry = cell.CharacterSet == SoftFontCharacterSet
-            ? GetSoftGlyph(cell.Codepoint)
-            : GetGlyph(cell.Codepoint, bold, italic);
+        //
+        // A 3270 edge-bar cell (code page 310 X'81' and X'82') has no font glyph at all: its shape
+        // is lines on the cell edges, which no character in any font draws, so it is drawn here.
+        Geometry? geometry;
+        if (cell.CharacterSet == EdgeBarCharacterSet)
+        {
+            geometry = null;
+            DrawEdgeBars(drawingContext, cell.Codepoint, x, y, brush);
+        }
+        else
+        {
+            geometry = cell.CharacterSet == SoftFontCharacterSet
+                ? GetSoftGlyph(cell.Codepoint)
+                : GetGlyph(cell.Codepoint, bold, italic);
+        }
 
         if (geometry != null)
         {
@@ -148,6 +160,59 @@ public class SystemFontRenderer : IFontRenderer
     /// </summary>
     private const byte SoftFontCharacterSet =
         RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.SoftFontCharacterSet;
+
+    /// <summary>
+    /// The character-set number that marks a cell as drawn with lines on its edges.
+    /// </summary>
+    private const byte EdgeBarCharacterSet =
+        RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.EdgeBarCharacterSet;
+
+    /// <summary>
+    /// Draws the lines of an edge-bar cell: U+2551 a line down the left and the right edge,
+    /// U+2550 a line along the top and the bottom edge.
+    /// </summary>
+    /// <remarks>
+    /// The shapes of the 3270's code page 310 X'81' and X'82' as GA27-2837-9 fig. 10-41
+    /// (p. 10-42) draws them. Each line is one pixel, the width of the underline, and lies inside
+    /// the cell, so two cells side by side make a two-pixel bar where they meet, as on the
+    /// terminal, where the cell edges of neighbouring characters touch. Any other codepoint draws
+    /// nothing, so a wrong marker shows as a blank rather than as a guessed shape.
+    /// </remarks>
+    /// <param name="drawingContext">
+    /// Where to draw.
+    /// </param>
+    /// <param name="codepoint">
+    /// U+2551 or U+2550.
+    /// </param>
+    /// <param name="x">
+    /// Left edge of the cell, in pixels.
+    /// </param>
+    /// <param name="y">
+    /// Top edge of the cell, in pixels.
+    /// </param>
+    /// <param name="brush">
+    /// The cell's foreground.
+    /// </param>
+    private void DrawEdgeBars(DrawingContext drawingContext, uint codepoint, double x, double y, IBrush brush)
+    {
+        // Snapped to whole pixels: the cell is a fractional number of pixels wide (Consolas), and
+        // a line on a fractional position is smeared over two dim pixel columns (seen in the
+        // rendered PNG, 24 November 2026).
+        double left = Math.Round(x);
+        double right = Math.Round(x + _charWidth);
+        double top = Math.Round(y);
+        double bottom = Math.Round(y + _charHeight);
+        if (codepoint == 0x2551)
+        {
+            drawingContext.FillRectangle(brush, new Rect(left, top, 1, bottom - top));
+            drawingContext.FillRectangle(brush, new Rect(right - 1, top, 1, bottom - top));
+        }
+        else if (codepoint == 0x2550)
+        {
+            drawingContext.FillRectangle(brush, new Rect(left, top, right - left, 1));
+            drawingContext.FillRectangle(brush, new Rect(left, bottom - 1, right - left, 1));
+        }
+    }
 
     /// <summary>
     /// The shape for a downloaded character, built from the bits the host sent.

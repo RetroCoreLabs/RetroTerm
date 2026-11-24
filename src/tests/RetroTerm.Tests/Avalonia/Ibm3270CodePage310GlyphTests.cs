@@ -144,6 +144,77 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
+        public void DoubleVerticalBarGraphicIsALineOnTheLeftAndRightCellEdges()
+        {
+            // X'81' "Double Vertical, Bar Graphic" (CP00310.txt): GA27-2837-9 fig. 10-41 draws a
+            // line down each side edge of the cell and nothing between. docs\BUGS.md B24.
+            using RenderedScreenshot shot = RenderedScreenshot.Capture(Screen(0x81), "ibm3270-cp310-double-vertical-bar");
+            int x0 = (int)Math.Round(shot.CellWidth);
+            int x1 = (int)Math.Round(2 * shot.CellWidth) - 1;
+            int height = (int)shot.CellHeight;
+            SKColor background = shot.PixelAt(0, (int)(5.5 * shot.CellHeight));
+            var faults = new StringBuilder();
+            for (int y = 1; y < height - 1; y++)
+            {
+                if (RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x0, y), background, 24))
+                {
+                    faults.Append("left edge dark at y ").Append(y).Append('\n');
+                }
+
+                if (RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x1, y), background, 24))
+                {
+                    faults.Append("right edge dark at y ").Append(y).Append('\n');
+                }
+
+                for (int x = x0 + 2; x <= x1 - 2; x++)
+                {
+                    if (!RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y), background, 24))
+                    {
+                        faults.Append("lit inside the cell at ").Append(x).Append(',').Append(y).Append('\n');
+                    }
+                }
+            }
+
+            Assert.True(faults.Length == 0, shot.SavedPath + "\n" + faults);
+        }
+
+        [AvaloniaFact]
+        public void DoubleHorizontalBarGraphicIsALineOnTheTopAndBottomCellEdges()
+        {
+            // X'82' "Double Horizontal, Bar Graphic" (CP00310.txt): GA27-2837-9 fig. 10-41 draws a
+            // line along the top and the bottom edge of the cell and nothing between.
+            using RenderedScreenshot shot = RenderedScreenshot.Capture(Screen(0x82), "ibm3270-cp310-double-horizontal-bar");
+            int x0 = (int)Math.Round(shot.CellWidth);
+            int x1 = (int)Math.Round(2 * shot.CellWidth) - 1;
+            int y0 = 0;
+            int y1 = (int)Math.Round(shot.CellHeight) - 1;
+            SKColor background = shot.PixelAt(0, (int)(5.5 * shot.CellHeight));
+            var faults = new StringBuilder();
+            for (int x = x0 + 1; x < x1; x++)
+            {
+                if (RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y0), background, 24))
+                {
+                    faults.Append("top edge dark at x ").Append(x).Append('\n');
+                }
+
+                if (RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y1), background, 24))
+                {
+                    faults.Append("bottom edge dark at x ").Append(x).Append('\n');
+                }
+
+                for (int y = y0 + 2; y <= y1 - 2; y++)
+                {
+                    if (!RenderedScreenshot.ApproximatelyEqual(shot.PixelAt(x, y), background, 24))
+                    {
+                        faults.Append("lit inside the cell at ").Append(x).Append(',').Append(y).Append('\n');
+                    }
+                }
+            }
+
+            Assert.True(faults.Length == 0, shot.SavedPath + "\n" + faults);
+        }
+
+        [AvaloniaFact]
         public void ABoxOfCodePage310PiecesJoinsWithoutGaps()
         {
             // The box TK5's RPF main menu draws (Graphic Escape X'C5' X'A2' X'D5' X'85' X'C4'

@@ -1492,6 +1492,20 @@ namespace RetroTerm.Ibm3270
             byte code = _display.GetByte(address);
             bool alternate = _display.IsGraphicEscape(address) || charset == GraphicEscapeSetId;
             char c = alternate ? CodePage.Cp310.ToUnicode(code) : _display.CodePage.ToUnicode(code);
+
+            // Code page 310 X'81' "Double Vertical, Bar Graphic" and X'82' "Double Horizontal, Bar
+            // Graphic" (IBM registry CP00310.txt) are lines on the cell EDGES - left and right, top
+            // and bottom (GA27-2837-9 fig. 10-41, p. 10-42). No Unicode character has that shape, so
+            // the table gives nothing and the renderer draws the lines itself
+            // (TerminalEmulatorBase.EdgeBarCharacterSet). The cell keeps ║ / ═ (what tnz shows) so
+            // a copy to the clipboard is readable. Until 24 November 2026 both drew as a blank
+            // (docs\BUGS.md B24).
+            if (alternate && (code == 0x81 || code == 0x82))
+            {
+                return new TerminalCell(code == 0x81 ? '║' : '═', flags, foreground, NeutralBlack,
+                    TerminalEmulatorBase.EdgeBarCharacterSet);
+            }
+
             if (c == '\0')
             {
                 c = ' ';

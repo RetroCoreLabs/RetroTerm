@@ -223,23 +223,21 @@ Seen once on 24 November 2026 in a Scenario10 run with s3270: PF3 from the ISPF 
 "CLST020 LIST data set not allocated" instead of READY. It did not happen again and the cause is not
 known. If it comes back, keep the s3270 trace of that run.
 
-## B24 - 3270: code page 310 X'81' and X'82' (the double bars) are drawn as blanks
+## B24 - 3270 printer: code page 310 X'81' and X'82' (the double bars) print as nothing
 
-`src\RetroTerm.Ibm3270\Ibm3270Emulator.cs`, `CellFor`: a Graphic Escape byte (or one in character
-set X'F1') goes through `CodePage.Cp310.ToUnicode`, which gives nothing for X'81' and X'82', and the
-cell is then drawn as a blank. The 3287 printer gets no character for them either
-(`Printer3287.cs` line 607; what it then prints was not checked).
+`src\RetroTerm.Ibm3270\Printer3287.cs` line 607: a Graphic Escape byte goes through
+`CodePage.Cp310.ToUnicode`, which gives nothing for X'81' and X'82'. What the printer output then
+holds for them was not checked.
 
-- **What the real terminal shows:** X'81' "Double Vertical, Bar Graphic" and X'82' "Double
-  Horizontal, Bar Graphic" (IBM registry CP00310.txt); the picture in GA27-2837-9 fig. 10-41 has lines
-  at the left and right cell edges, and at the top and bottom edges. No Unicode character draws that
-  (║ and ═ are centred lines), which is why the table leaves them empty
-  (`docs\spec\IBM3270\EBCDIC.md`, "Every disagreement", rows X'81' and X'82': "Draw it ourselves").
-- **Measured, 24 November 2026:** `Ibm3270CodePage310GlyphTests` draws every code page 310 byte;
-  these two are the only ones with no character, so they are skipped there and nothing checks them.
-  Not seen from TK5: no TK5 panel looked at sends either byte (EBCDIC.md, "TK5").
-- **The fix:** draw the two edge lines in the renderer for these two bytes, the way a cell's
-  underline is drawn, and add a pixel test for each. Not started.
+- **The screen is fixed (24 November 2026).** `Ibm3270Emulator.CellFor` marks the cell with
+  `TerminalEmulatorBase.EdgeBarCharacterSet` and `SystemFontRenderer.DrawEdgeBars` draws the lines
+  on the cell edges, as GA27-2837-9 fig. 10-41 (p. 10-42) shows them: X'81' left and right, X'82'
+  top and bottom. Pixel tests `DoubleVerticalBarGraphicIsALineOnTheLeftAndRightCellEdges` and
+  `DoubleHorizontalBarGraphicIsALineOnTheTopAndBottomCellEdges` (`Ibm3270CodePage310GlyphTests`),
+  red with the fix broken, green with it.
+- **Why the printer is still open:** the printer's output is text, and no Unicode character has
+  either shape (║ ═ U+2016 are centred lines; U+258F, U+2595, U+2594, U+2581 are one edge each).
+  What a 3287 prints for them is not in the manuals held. Not seen from TK5 (EBCDIC.md, "TK5").
 
 ## B23 - Binary IND$FILE: s3270 types one blank more than RetroTerm, so the file-transfer-binary oracle case is red
 
