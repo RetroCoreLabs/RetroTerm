@@ -34,6 +34,17 @@ namespace RetroTerm.Tests.Oracle
     /// Both clients get the very same bytes, so nothing is masked, and every difference is a
     /// difference in how the two terminals handle the data stream.
     /// </para>
+    /// <para>
+    /// An IND$FILE transfer (the file-transfer recording) is started in each client by its own
+    /// means: RetroTerm's HOSTSEND or HOSTRECEIVE, s3270's Transfer() action. Compared: the
+    /// IND$FILE command each one types, every file transfer record each sends back (Open, Data,
+    /// Get, Close and message acknowledgements, byte for byte), the bytes of the PC file each
+    /// writes for a download, and the screen once the transfer has ended. Not compared: the
+    /// screen during a transfer (s3270 takes no other command until Transfer() ends), and the
+    /// query reply the host asks for mid-transfer, as everywhere (each terminal lists its own
+    /// features, so its DDM buffer size too). The recorded file is 49 bytes, one Data record, so
+    /// how a client splits a file larger than the buffer is not covered.
+    /// </para>
     /// </remarks>
     [Trait("Category", "Oracle")]
     public class HostStreamOracleTests
@@ -52,6 +63,8 @@ namespace RetroTerm.Tests.Oracle
         [InlineData("ispf-editor")]
         [InlineData("model5")]
         [InlineData("oversize")]
+        [InlineData("termtest")]
+        [InlineData("file-transfer")]
         public async Task RetroTermShowsWhatS3270ShowsForTheRecordedSession(string name)
         {
             // s3270 first: a missing s3270 fails here, before anything else, by name.
@@ -101,7 +114,7 @@ namespace RetroTerm.Tests.Oracle
 
             Assert.NotEmpty(secrets);
             string[] files = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Oracle", "Recordings"), "*.txt");
-            Assert.Equal(6, files.Length);
+            Assert.Equal(8, files.Length);
             for (int i = 0; i < files.Length; i++)
             {
                 HostRecording.AssertHolds(files[i], secrets.ToArray());
@@ -153,13 +166,26 @@ namespace RetroTerm.Tests.Oracle
                 // same point is still checked by the counts and the AID. What RetroTerm's reply
                 // should hold is checked against GA23-0059-4 by Ibm3270QueryReplyTests (BUGS.md
                 // B15, fixed in RetroIO on 24 November 2026).
-                bool bothQueryReplies = ours.Records[i].Length > 0 && reference.Records[i].Length > 0
-                    && ours.Records[i][0] == 0x88 && reference.Records[i][0] == 0x88;
+                //
+                // Only a query reply: AID X'88' starts EVERY inbound structured field record, the
+                // IND$FILE replies (X'D0') among them, so the first structured field's ID is read
+                // too: X'81', Query Reply (AID, two length bytes, then the ID; GA23-0059-4
+                // chapter 6). Until 24 November 2026 the AID alone was checked, and every file
+                // transfer record went uncompared; found when a one-byte upload stayed green.
+                bool bothQueryReplies = IsQueryReply(ours.Records[i]) && IsQueryReply(reference.Records[i]);
                 if (mine != theirs && !bothQueryReplies)
                 {
                     report.Append("record ").Append(i + 1).Append(" sent to the host:\n    RetroTerm: ").Append(mine)
                         .Append("\n    s3270:     ").Append(theirs).Append('\n');
                 }
+            }
+
+            // What each IND$FILE transfer gave: the same file must reach the PC in both.
+            string mineFt = string.Join(" | ", ours.Transfers);
+            string theirFt = string.Join(" | ", reference.Transfers);
+            if (mineFt != theirFt)
+            {
+                report.Append("IND$FILE transfers:\n    RetroTerm: ").Append(mineFt).Append("\n    s3270:     ").Append(theirFt).Append('\n');
             }
 
             // The timing-mark answers are the replay's own and not compared.
@@ -176,6 +202,9 @@ namespace RetroTerm.Tests.Oracle
             // compared above unmasked; only the printed report is masked.
             return PasswordMask.Text(report.ToString());
         }
+
+        // AID X'88' (structured field) and a first structured field of ID X'81', Query Reply.
+        private static bool IsQueryReply(byte[] record) => record.Length >= 4 && record[0] == 0x88 && record[3] == 0x81;
 
         private static List<string> WithoutTimingMarks(List<string> units)
         {

@@ -53,6 +53,23 @@ namespace RetroTerm.Tests.Oracle
         /// only after a host write that restores the keyboard.
         /// </summary>
         Task AidFinishedAsync();
+
+        /// <summary>
+        /// Starts an IND$FILE transfer the way the client's own user would: the client types the
+        /// IND$FILE command and answers the host's transfer records. Returns once it has started;
+        /// the transfer itself goes on while the replay sends the host's records.
+        /// </summary>
+        Task StartTransferAsync(TransferLine transfer);
+
+        /// <summary>
+        /// Waits for the transfer started last to end, and fails, naming the client, when it did
+        /// not end well.
+        /// </summary>
+        /// <returns>
+        /// What the transfer gave, in the same form for every client: "sent" for an upload, and
+        /// "received " and the PC file's bytes as hex for a download.
+        /// </returns>
+        Task<string> FinishTransferAsync();
     }
 
     /// <summary>
@@ -64,6 +81,12 @@ namespace RetroTerm.Tests.Oracle
         private readonly TerminalSession _session;
         private readonly int _model;
         private int _recordsReceived;
+
+        // The transfer running (HOSTSEND or HOSTRECEIVE, the commands a script and MCP run), and
+        // its PC file.
+        private Task<RetroTerm.Core.Commands.CommandResult>? _transfer;
+        private TransferLine? _transferLine;
+        private string _transferPath = string.Empty;
 
         public RetroTermOracleClient(HostRecording recording)
         {
@@ -132,6 +155,43 @@ namespace RetroTerm.Tests.Oracle
 
         public Task AidFinishedAsync() => Task.CompletedTask;
 
+        public Task StartTransferAsync(TransferLine transfer)
+        {
+            _transferLine = transfer;
+            _transferPath = TransferFile.NewPath();
+            if (transfer.Upload)
+            {
+                File.WriteAllBytes(_transferPath, transfer.File);
+            }
+
+            var args = new RetroTerm.Core.Commands.CommandArgs().Set("path", _transferPath).Set("dataset", transfer.DataSet)
+                .Set("mode", transfer.Mode).Set("options", string.Empty).Set("timeout", HostStreamReplay.TimeoutMs.ToString(CultureInfo.InvariantCulture));
+            RetroTerm.Core.Commands.ISessionCommand command = transfer.Upload
+                ? new RetroTerm.Core.Commands.Builtin.HostSendCommand()
+                : new RetroTerm.Core.Commands.Builtin.HostReceiveCommand();
+            _transfer = command.ExecuteAsync(_session, args, Xunit.TestContext.Current.CancellationToken);
+            return Task.CompletedTask;
+        }
+
+        public async Task<string> FinishTransferAsync()
+        {
+            try
+            {
+                RetroTerm.Core.Commands.CommandResult result = await _transfer!;
+                if (!result.Success)
+                {
+                    throw new Xunit.Sdk.XunitException("RetroTerm's " + (_transferLine!.Upload ? "HOSTSEND" : "HOSTRECEIVE") + " failed: " + result.Error);
+                }
+
+                return TransferFile.Outcome(_transferLine!, _transferPath);
+            }
+            finally
+            {
+                _transfer = null;
+                TransferFile.Delete(_transferPath);
+            }
+        }
+
         public async Task<OracleScreen> ReadAsync()
         {
             ScreenSnapshot snapshot = await _session.ReadScreenAsync(stripTrailingBlanks: false);
@@ -143,16 +203,30 @@ namespace RetroTerm.Tests.Oracle
                 var fields = new bool[size];
                 var ge = new bool[size];
                 var highlights = new byte[size];
+                var sets = new byte[size];
                 for (int a = 0; a < size; a++)
                 {
                     codes[a] = display.GetByte(a);
                     fields[a] = display.IsFieldAttribute(a);
                     ge[a] = !fields[a] && display.IsGraphicEscape(a);
                     highlights[a] = (byte)((fields[a] ? display.GetFieldHighlight(a) : display.GetCharacterHighlight(a)) & 0x0F);
+
+                    // The character's own set, or else its field's (GA23-0059-4 p. 4-19), as the
+                    // emulator picks it when it draws (Ibm3270Emulator, the cell builder). A field
+                    // attribute position is shown blank and has no set of its own.
+                    if (!fields[a])
+                    {
+                        int fa = display.GetFieldAttributeFor(a);
+                        sets[a] = display.GetCharacterCharacterSet(a);
+                        if (sets[a] == 0 && fa >= 0)
+                        {
+                            sets[a] = display.GetFieldCharacterSet(fa);
+                        }
+                    }
                 }
 
                 return new OracleScreen(display.Rows, display.Columns, snapshot.Text.Split('\n'), display.CursorAddress,
-                    display.Lock != KeyboardLock.None, codes, fields, ge, highlights);
+                    display.Lock != KeyboardLock.None, codes, fields, ge, highlights, sets);
             });
         }
 
@@ -192,6 +266,12 @@ namespace RetroTerm.Tests.Oracle
         // AidFinishedAsync, after the host write that restores the keyboard.
         private Task? _aid;
 
+        // The Transfer() running, which s3270 answers only when the transfer has ended, and its
+        // PC file.
+        private Task? _transfer;
+        private TransferLine? _transferLine;
+        private string _transferPath = string.Empty;
+
         private S3270OracleClient(Process process)
         {
             _process = process;
@@ -212,9 +292,21 @@ namespace RetroTerm.Tests.Oracle
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
+                StandardInputEncoding = new System.Text.UTF8Encoding(false),
+                StandardOutputEncoding = new System.Text.UTF8Encoding(false),
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            // -utf8 and -codepage cp037, as Hercules\S3270Terminal starts it and for the same
+            // reasons. Without -utf8, Ascii() writes every character past ASCII in the Windows
+            // ANSI code page or as '?', so the code page 310 characters TERMTEST draws under
+            // SA(character set X'F1') came back as '?' and '+' while the buffer codes, Graphic
+            // Escape and character set agreed (found 24 November 2026 on the termtest recording).
+            // Without -codepage cp037, s3270 uses its "bracket" table, not code page 37.
+            start.ArgumentList.Add("-utf8");
+            start.ArgumentList.Add("-codepage");
+            start.ArgumentList.Add("cp037");
             start.ArgumentList.Add("-model");
             start.ArgumentList.Add("3278-" + model.ToString(CultureInfo.InvariantCulture));
             if (recording.OversizeColumns > 0)
@@ -320,6 +412,41 @@ namespace RetroTerm.Tests.Oracle
             }
         }
 
+        public async Task StartTransferAsync(TransferLine transfer)
+        {
+            _transferLine = transfer;
+            _transferPath = TransferFile.NewPath();
+            if (transfer.Upload)
+            {
+                File.WriteAllBytes(_transferPath, transfer.File);
+            }
+
+            // x3270's own file transfer, as its user starts it (the Transfer action of the x3270
+            // scripting manual): it types IND$FILE PUT or GET itself. Host=tso and the mode as
+            // recorded; everything else is s3270's default. Not awaited, as an AID is not: the
+            // answer comes only when the transfer has ended, which needs the replay's host records.
+            string command = "Transfer(Direction=" + (transfer.Upload ? "send" : "receive") +
+                ",HostFile=" + transfer.DataSet + ",\"LocalFile=" + _transferPath.Replace('\\', '/') + "\"" +
+                ",Host=tso,Mode=" + transfer.Mode + ",Exist=replace)";
+            await AidFinishedAsync();
+            _transfer = RunAsync(command);
+            await Task.Yield();
+        }
+
+        public async Task<string> FinishTransferAsync()
+        {
+            try
+            {
+                await _transfer!;
+                return TransferFile.Outcome(_transferLine!, _transferPath);
+            }
+            finally
+            {
+                _transfer = null;
+                TransferFile.Delete(_transferPath);
+            }
+        }
+
         // Sends an AID command without waiting for its answer (see _aid). The command has been
         // written to s3270's input when this returns, so the order of commands is kept.
         private async Task StartAid(string command)
@@ -346,6 +473,12 @@ namespace RetroTerm.Tests.Oracle
             // never reset at a field (x3270 Common\task.c, the ReadBuffer loop, read 22 November
             // 2026 for Hercules\S3270Terminal).
             byte highlight = 0;
+
+            // The same for the character set (43=), and the set each field gives its own
+            // characters (43= in SF(...)); a position takes its own set, or else its field's.
+            byte characterSet = 0;
+            var ownSets = new byte[size];
+            var fieldSets = new byte[size];
             int address = 0;
             for (int i = 0; i < buffer.Data.Count; i++)
             {
@@ -356,6 +489,7 @@ namespace RetroTerm.Tests.Oracle
                     if (token.StartsWith("SA(", StringComparison.Ordinal))
                     {
                         highlight = HighlightIn(token, highlight);
+                        characterSet = ValueIn(token, "43=", characterSet);
                         continue;
                     }
 
@@ -369,17 +503,20 @@ namespace RetroTerm.Tests.Oracle
                         fields[address] = true;
                         codes[address] = ValueIn(token, "c0=", 0);
                         highlights[address] = HighlightIn(token, 0);
+                        fieldSets[address] = ValueIn(token, "43=", 0);
                     }
                     else if (token.StartsWith("GE(", StringComparison.Ordinal))
                     {
                         ge[address] = true;
                         codes[address] = byte.Parse(token.AsSpan(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                         highlights[address] = highlight;
+                        ownSets[address] = characterSet;
                     }
                     else if (token.Length == 2)
                     {
                         codes[address] = byte.Parse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                         highlights[address] = highlight;
+                        ownSets[address] = characterSet;
                     }
                     else
                     {
@@ -396,8 +533,32 @@ namespace RetroTerm.Tests.Oracle
                 throw new Xunit.Sdk.XunitException("s3270 ReadBuffer gave " + address + " positions for a " + columns + "x" + rows + " screen.");
             }
 
+            // Each position's field is the last field attribute before it, going round the end
+            // of the buffer to the last one on the screen (GA23-0059-4 p. 3-3, the buffer wraps).
+            var sets = new byte[size];
+            int lastField = -1;
+            for (int a = size - 1; a >= 0 && lastField < 0; a--)
+            {
+                if (fields[a])
+                {
+                    lastField = a;
+                }
+            }
+
+            byte fieldSet = lastField >= 0 ? fieldSets[lastField] : (byte)0;
+            for (int a = 0; a < size; a++)
+            {
+                if (fields[a])
+                {
+                    fieldSet = fieldSets[a];
+                    continue;
+                }
+
+                sets[a] = ownSets[a] != 0 ? ownSets[a] : fieldSet;
+            }
+
             int cursor = (int.Parse(status[8], CultureInfo.InvariantCulture) * columns) + int.Parse(status[9], CultureInfo.InvariantCulture);
-            return new OracleScreen(rows, columns, text.ToArray(), cursor, status[0] != "U", codes, fields, ge, highlights);
+            return new OracleScreen(rows, columns, text.ToArray(), cursor, status[0] != "U", codes, fields, ge, highlights, sets);
         }
 
         public async ValueTask DisposeAsync()
@@ -510,6 +671,39 @@ namespace RetroTerm.Tests.Oracle
             public List<string> Data { get; } = new List<string>();
 
             public string Status { get; set; } = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// The PC file of a replayed transfer: a new file under the temporary folder for each, and
+    /// what the transfer gave, in one form for both clients.
+    /// </summary>
+    internal static class TransferFile
+    {
+        public static string NewPath() => Path.Combine(Path.GetTempPath(), "rtt-oracle-ft-" + Guid.NewGuid().ToString("N") + ".txt");
+
+        public static string Outcome(TransferLine transfer, string path)
+        {
+            if (transfer.Upload)
+            {
+                return "sent";
+            }
+
+            if (!File.Exists(path))
+            {
+                return "received nothing: no PC file was written";
+            }
+
+            return "received " + Convert.ToHexString(File.ReadAllBytes(path));
+        }
+
+        public static void Delete(string path)
+        {
+            if (path.Length > 0)
+            {
+                File.Delete(path);
+                File.Delete(path + ".part");
+            }
         }
     }
 }

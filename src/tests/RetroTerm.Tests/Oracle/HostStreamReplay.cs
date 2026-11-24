@@ -27,6 +27,12 @@ namespace RetroTerm.Tests.Oracle
         public List<string> Telnet { get; set; } = new List<string>();
 
         /// <summary>
+        /// What each IND$FILE transfer gave, in order (<see cref="IOracleClient.FinishTransferAsync"/>):
+        /// for a download, the bytes of the PC file the client wrote.
+        /// </summary>
+        public List<string> Transfers { get; } = new List<string>();
+
+        /// <summary>
         /// Places where the client sent a record whose AID is not the one the recording client
         /// sent at that point: the two have gone out of step with the recording.
         /// </summary>
@@ -57,9 +63,22 @@ namespace RetroTerm.Tests.Oracle
             // is read then, from either client: the rule depends only on the recorded bytes, so
             // both are read at the same points.
             bool aidOutstanding = false;
+
+            // True from a transfer line until the next key, text or transfer. s3270 takes no
+            // other command while its Transfer() runs, so no screen is read in that time, from
+            // either client. The screen is read once when the transfer has finished, at a point
+            // that again depends only on the recorded bytes: every host unit before the next key
+            // has been sent and read.
+            bool transferOutstanding = false;
             for (int i = 0; i < lines.Count; i++)
             {
                 RecordingLine line = lines[i];
+                if (transferOutstanding && line.Kind != RecordingLineKind.Host && line.Kind != RecordingLineKind.Client)
+                {
+                    await FinishTransferAsync(client, result);
+                    transferOutstanding = false;
+                }
+
                 switch (line.Kind)
                 {
                     case RecordingLineKind.Host:
@@ -75,7 +94,7 @@ namespace RetroTerm.Tests.Oracle
                                 aidOutstanding = false;
                             }
 
-                            if (!aidOutstanding)
+                            if (!aidOutstanding && !transferOutstanding)
                             {
                                 result.Labels.Add("after host record " + hostRecords + " (" + Describe(line.Unit) + ")");
                                 result.Screens.Add(await client.ReadAsync());
@@ -96,11 +115,20 @@ namespace RetroTerm.Tests.Oracle
                     case RecordingLineKind.Type:
                         await client.TypeAsync(line.Text);
                         break;
+                    case RecordingLineKind.Transfer:
+                        await client.StartTransferAsync(TransferLine.Parse(line.Text));
+                        transferOutstanding = true;
+                        break;
                     default:
                         await client.PressAsync(line.Text);
                         aidOutstanding |= SendsAid(line.Text);
                         break;
                 }
+            }
+
+            if (transferOutstanding)
+            {
+                await FinishTransferAsync(client, result);
             }
 
             await client.AidFinishedAsync();
@@ -135,7 +163,9 @@ namespace RetroTerm.Tests.Oracle
             for (int i = 0; i < lines.Count; i++)
             {
                 RecordingLine line = lines[i];
-                if (line.Kind == RecordingLineKind.Type || line.Kind == RecordingLineKind.Key)
+                // A transfer is marked the moment it starts, as a key is, and acts on the screen the
+                // way a key does: the client types the IND$FILE command.
+                if (line.Kind == RecordingLineKind.Type || line.Kind == RecordingLineKind.Key || line.Kind == RecordingLineKind.Transfer)
                 {
                     held.Add(line);
                     continue;
@@ -152,6 +182,13 @@ namespace RetroTerm.Tests.Oracle
 
             ordered.AddRange(held);
             return ordered;
+        }
+
+        private static async Task FinishTransferAsync(IOracleClient client, ReplayResult result)
+        {
+            result.Transfers.Add(await client.FinishTransferAsync());
+            result.Labels.Add("after IND$FILE transfer " + result.Transfers.Count);
+            result.Screens.Add(await client.ReadAsync());
         }
 
         // The keys that send an AID to the host (GA23-0059-4 p. 3-2 and chapter 6).

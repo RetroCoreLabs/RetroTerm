@@ -23,7 +23,7 @@ namespace RetroTerm.Tests.Oracle
     /// </remarks>
     internal sealed class OracleScreen
     {
-        public OracleScreen(int rows, int columns, string[] lines, int cursorAddress, bool locked, byte[] codes, bool[] fieldAttribute, bool[] graphicEscape, byte[] highlights)
+        public OracleScreen(int rows, int columns, string[] lines, int cursorAddress, bool locked, byte[] codes, bool[] fieldAttribute, bool[] graphicEscape, byte[] highlights, byte[] characterSets)
         {
             Rows = rows;
             Columns = columns;
@@ -40,6 +40,7 @@ namespace RetroTerm.Tests.Oracle
             FieldAttribute = fieldAttribute;
             GraphicEscape = graphicEscape;
             Highlights = highlights;
+            CharacterSets = characterSets;
         }
 
         public int Rows { get; }
@@ -72,6 +73,13 @@ namespace RetroTerm.Tests.Oracle
         /// Hercules\Tk5Screen.Highlights).
         /// </summary>
         public byte[] Highlights { get; }
+
+        /// <summary>
+        /// The character set each position is shown in (type X'43', GA23-0059-4 p. 4-19): the
+        /// character's own from SA, or else its field's from SFE, X'00' for the default set.
+        /// X'F1' is code page 310, the same set Graphic Escape reaches.
+        /// </summary>
+        public byte[] CharacterSets { get; }
 
         public string Text()
         {
@@ -108,7 +116,7 @@ namespace RetroTerm.Tests.Oracle
 
             for (int r = 0; r < Rows; r++)
             {
-                if (Lines[r] != other.Lines[r])
+                if (Lines[r] != other.Lines[r] && !OnlyX3270Cp310Choices(other, r))
                 {
                     found.Add("text of row " + (r + 1) + ":\n    RetroTerm: [" + Lines[r].TrimEnd() + "]\n    " + theirName + ": [" + other.Lines[r].TrimEnd() + "]");
                 }
@@ -126,8 +134,15 @@ namespace RetroTerm.Tests.Oracle
 
             int buffer = 0;
             int highlight = 0;
+            int characterSet = 0;
             for (int a = 0; a < Codes.Length; a++)
             {
+                if (CharacterSets[a] != other.CharacterSets[a] && characterSet++ < 6)
+                {
+                    found.Add("character set at " + Position(a) + ": RetroTerm X'" + CharacterSets[a].ToString("X2", CultureInfo.InvariantCulture) + "', " + theirName + " X'" +
+                        other.CharacterSets[a].ToString("X2", CultureInfo.InvariantCulture) + "'");
+                }
+
                 string? mine = Cell(this, a);
                 string? theirs = Cell(other, a);
                 if (mine != theirs && buffer++ < 6)
@@ -152,7 +167,60 @@ namespace RetroTerm.Tests.Oracle
                 found.Add("highlight: " + highlight + " positions differ in all");
             }
 
+            if (characterSet > 6)
+            {
+                found.Add("character set: " + characterSet + " positions differ in all");
+            }
+
             return found;
+        }
+
+        // The code page 310 bytes for which x3270 shows another Unicode character than RetroTerm,
+        // each with x3270's character. Taken from docs\spec\IBM3270\EBCDIC.md, "Every
+        // disagreement between the sources", code page 310, where each one is settled against
+        // the IBM registry name and the GA27-2837-9 picture, and RetroTerm follows that answer:
+        // X'C1' Left Parenthesis Superscript (x3270 superscript equals, wrong), X'C2' Plus Sign
+        // Superscript and X'D2' Minus Sign Superscript (x3270 the plain signs), X'C3' Solid
+        // Square (x3270 U+220E), X'95' Solid Fill Character (x3270 a small square), X'9C'
+        // Lozenge (x3270 the currency sign), X'E2' and X'E3' Two and Three Subscript (x3270
+        // U+0282 and U+0283, a typing error).
+        private static readonly byte[] X3270Cp310Bytes = { 0xC1, 0xC2, 0xD2, 0xC3, 0x95, 0x9C, 0xE2, 0xE3 };
+
+        private static readonly char[] X3270Cp310Chars = { '⁼', '+', '-', '∎', '■', '¤', 'ʂ', 'ʃ' };
+
+        // True when every text difference on the row is at a position that both terminals hold
+        // as the SAME code page 310 byte (Graphic Escape or character set X'F1', compared on
+        // their own below) and the other terminal shows x3270's character for that byte while
+        // RetroTerm shows its own from code page 310. Any other difference on the row is still
+        // reported: the byte and the set are what the data stream says, and they must agree.
+        private bool OnlyX3270Cp310Choices(OracleScreen other, int row)
+        {
+            for (int c = 0; c < Columns; c++)
+            {
+                char mine = Lines[row][c];
+                char theirs = other.Lines[row][c];
+                if (mine == theirs)
+                {
+                    continue;
+                }
+
+                int a = (row * Columns) + c;
+                bool cp310 = !FieldAttribute[a] && !other.FieldAttribute[a] && Codes[a] == other.Codes[a]
+                    && (GraphicEscape[a] || CharacterSets[a] == 0xF1) && GraphicEscape[a] == other.GraphicEscape[a]
+                    && CharacterSets[a] == other.CharacterSets[a];
+                if (!cp310 || mine != RetroIO.Protocols.Tn3270.CodePage.Cp310.ToUnicode(Codes[a]))
+                {
+                    return false;
+                }
+
+                int known = System.Array.IndexOf(X3270Cp310Bytes, Codes[a]);
+                if (known < 0 || X3270Cp310Chars[known] != theirs)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private string Position(int address) => "row " + ((address / Columns) + 1) + " column " + ((address % Columns) + 1);

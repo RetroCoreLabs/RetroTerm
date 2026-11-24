@@ -51,17 +51,18 @@ namespace RetroTerm.Tests.Hercules
         [InlineData("ispf-boxes")]
         [InlineData("ispf-editor")]
         [InlineData("model5")]
+        [InlineData("termtest")]
+        [InlineData("file-transfer")]
         public async Task RecordTheSession(string name)
         {
             Tk5Settings settings = Tk5Settings.Load();
             int model = name == "model5" ? 5 : 2;
-            List<Tk5Step> steps = Steps(name, settings);
-
             List<Tk5WireChunk> chunks;
             await using (Tk5WireTap tap = Tk5WireTap.Start(settings.Host, settings.Port))
             {
                 await using (RetroTermTk5Terminal terminal = await RetroTermTk5Terminal.OpenAsync(settings.Through("127.0.0.1", tap.Port), model))
                 {
+                    List<Tk5Step> steps = Steps(name, settings, terminal, tap);
                     await Tk5Scenario.RunAsync(new MarkingTerminal(terminal, tap), steps, _output);
                 }
 
@@ -83,7 +84,7 @@ namespace RetroTerm.Tests.Hercules
             _output.WriteLine("written: " + path + " (" + recording.Lines.Count + " lines)");
         }
 
-        private static List<Tk5Step> Steps(string name, Tk5Settings settings)
+        private List<Tk5Step> Steps(string name, Tk5Settings settings, RetroTermTk5Terminal terminal, Tk5WireTap tap)
         {
             var steps = new List<Tk5Step>();
             if (name == "logon-panel")
@@ -115,6 +116,12 @@ namespace RetroTerm.Tests.Hercules
                     AddOption(steps, "3", "Utility selection menu");
                     steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
                     steps.Add(Tk5CommonSteps.Tso("LISTCAT", "LISTCAT", "READY", false));
+                    break;
+                case "termtest":
+                    AddTermtest(steps);
+                    break;
+                case "file-transfer":
+                    AddFileTransfer(steps, settings.User, terminal, tap);
                     break;
                 default:
                     throw new ArgumentException("no such recording: " + name);
@@ -196,6 +203,87 @@ namespace RetroTerm.Tests.Hercules
             steps.Add(new Tk5Step("PF3 to the menu", t => t.PressAsync("PF3"), s => s.Contains("ISPF primary option menu"), "the ISPF menu", false));
             steps.Add(new Tk5Step("PF3 back to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
             steps.Add(Tk5CommonSteps.Tso("DELETE", "DELETE RTO.CNTL", "DELETED", false));
+        }
+
+        // M.7 TERMTEST and one of its field-test PF keys. Its title line names them: "FIELD TEST
+        // PFKS: 10-12, 1-7, 8(GE)". A modified field and PF2 is the first field test of
+        // Scenario10TermtestTests. Left with CAN, which saves nothing to its profile; never Z.
+        private static void AddTermtest(List<Tk5Step> steps)
+        {
+            steps.Add(new Tk5Step("option M.7", async t =>
+            {
+                await t.TypeAsync("M.7");
+                await t.PressAsync("ENTER");
+            }, s => s.Contains("TSO 3270 VDU TEST") && s.Contains("QUERY-REPLY-FIELD-DETAILS"), "the TERMTEST screen", false));
+            steps.Add(new Tk5Step("X and PF2", async t =>
+            {
+                await t.TypeAsync("X");
+                await t.PressAsync("PF2");
+            }, s => s.Contains("AID=F2(2)"), "the PF2 field test", false));
+            steps.Add(new Tk5Step("CAN", async t =>
+            {
+                await t.TypeAsync("CAN");
+                await t.PressAsync("ENTER");
+            }, s => s.Contains("Additional applications"), "the M menu, which CAN returns to", false));
+            steps.Add(new Tk5Step("PF3 from M", t => t.PressAsync("PF3"), s => s.Contains("ISPF primary option menu"), "the primary menu again", false));
+            steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
+        }
+
+        // Guide 08 section 1 in short, as Scenario08FileTransferTests: a text file up with
+        // IND$FILE PUT, the same data set back with IND$FILE GET, and the data set deleted.
+        private const string TransferDataSet = "RTTFT.TEXT";
+
+        private const string TransferText = "HELLO FROM RETROTERM\r\nLINE TWO OF THE TEST\r\n";
+
+        private void AddFileTransfer(List<Tk5Step> steps, string user, RetroTermTk5Terminal terminal, Tk5WireTap tap)
+        {
+            steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
+            steps.Add(Tk5CommonSteps.Tso("clean up " + TransferDataSet, "DELETE " + TransferDataSet, string.Empty, false));
+            steps.Add(Transfer(true, terminal, tap));
+            steps.Add(Tk5CommonSteps.Tso("LISTDS", "LISTDS " + TransferDataSet, user + "." + TransferDataSet, false));
+            steps.Add(Transfer(false, terminal, tap));
+            steps.Add(Tk5CommonSteps.Tso("delete the data set", "DELETE " + TransferDataSet, "READY", false));
+        }
+
+        // Clear, then HOSTSEND or HOSTRECEIVE on the real session: the command types IND$FILE at
+        // READY and answers the host's transfer records. The transfer is marked in the stream
+        // first, with the file that went up, so the replay can start the same transfer.
+        private Tk5Step Transfer(bool upload, RetroTermTk5Terminal terminal, Tk5WireTap tap)
+        {
+            string name = upload ? "HOSTSEND" : "HOSTRECEIVE";
+            return new Tk5Step(name, async t =>
+            {
+                await t.PressAsync("CLEAR");
+                await t.WaitUntilAsync(s => true, "the cleared screen", Tk5Scenario.HostTimeoutMs);
+                byte[] bytes = upload ? System.Text.Encoding.ASCII.GetBytes(TransferText) : Array.Empty<byte>();
+                string path = Path.Combine(Path.GetTempPath(), "rtt-rec-" + Guid.NewGuid().ToString("N") + ".txt");
+                try
+                {
+                    if (upload)
+                    {
+                        File.WriteAllBytes(path, bytes);
+                    }
+
+                    tap.Mark("transfer " + new TransferLine(upload, "ascii", TransferDataSet, bytes).Format());
+                    var args = new RetroTerm.Core.Commands.CommandArgs().Set("path", path).Set("dataset", TransferDataSet)
+                        .Set("mode", "ascii").Set("options", string.Empty).Set("timeout", "60000");
+                    RetroTerm.Core.Commands.ISessionCommand command = upload
+                        ? new RetroTerm.Core.Commands.Builtin.HostSendCommand()
+                        : new RetroTerm.Core.Commands.Builtin.HostReceiveCommand();
+                    RetroTerm.Core.Commands.CommandResult result = await command.ExecuteAsync(terminal.Session, args, TestContext.Current.CancellationToken);
+                    _output.WriteLine(name + " answered: " + (result.Success ? "ok, " + result.Output : "FAILED, " + result.Error));
+                    Assert.True(result.Success, name + ": " + result.Error);
+                    if (!upload)
+                    {
+                        Assert.Equal(TransferText, File.ReadAllText(path, System.Text.Encoding.ASCII));
+                    }
+                }
+                finally
+                {
+                    File.Delete(path);
+                    File.Delete(path + ".part");
+                }
+            }, s => Tk5CommonSteps.LastLineIsReady(s), "READY after the transfer", false);
         }
 
         // Passes every key and text on to the real terminal, and marks each in the tapped stream

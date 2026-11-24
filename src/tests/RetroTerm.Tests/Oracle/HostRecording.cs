@@ -40,6 +40,85 @@ namespace RetroTerm.Tests.Oracle
         /// A key the person pressed, by its RetroTerm name (ENTER, PF3, TAB, ...).
         /// </summary>
         Key,
+
+        /// <summary>
+        /// An IND$FILE transfer the person started (see <see cref="TransferLine"/>): the client
+        /// types the IND$FILE command itself and answers the host's file transfer records.
+        /// </summary>
+        Transfer,
+    }
+
+    /// <summary>
+    /// What a <c>transfer</c> line of a recording says: the direction, the mode, the host data
+    /// set and, for an upload, the bytes of the PC file that went up.
+    /// </summary>
+    /// <remarks>
+    /// The line is <c>transfer send ascii RTTFT.TEXT 48454C4C4F...</c> (the file as hex) or
+    /// <c>transfer receive ascii RTTFT.TEXT</c>. The file's bytes are kept in the recording so the
+    /// replay can give every client the very file the recording client sent.
+    /// </remarks>
+    internal sealed class TransferLine
+    {
+        public TransferLine(bool upload, string mode, string dataSet, byte[] file)
+        {
+            Upload = upload;
+            Mode = mode;
+            DataSet = dataSet;
+            File = file;
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether this is a PC to host transfer (IND$FILE PUT).
+        /// </summary>
+        public bool Upload { get; }
+
+        /// <summary>
+        /// Gets the mode, ascii or binary.
+        /// </summary>
+        public string Mode { get; }
+
+        /// <summary>
+        /// Gets the host data set name as typed after IND$FILE PUT or GET.
+        /// </summary>
+        public string DataSet { get; }
+
+        /// <summary>
+        /// Gets the bytes of the PC file sent; empty for a download.
+        /// </summary>
+        public byte[] File { get; }
+
+        /// <summary>
+        /// Reads the text of a transfer line (what follows the word <c>transfer</c>).
+        /// </summary>
+        /// <param name="text">
+        /// The text, for example <c>send ascii RTTFT.TEXT 4845</c>.
+        /// </param>
+        /// <returns>
+        /// The transfer.
+        /// </returns>
+        public static TransferLine Parse(string text)
+        {
+            string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            bool upload = parts.Length == 4 && parts[0] == "send";
+            bool download = parts.Length == 3 && parts[0] == "receive";
+            if ((!upload && !download) || (parts[1] != "ascii" && parts[1] != "binary"))
+            {
+                // Refused by name, never half read (CLAUDE.md: a parser that accepts garbage costs more).
+                throw new InvalidDataException("a transfer line is 'send MODE DATASET HEX' or 'receive MODE DATASET', not '" + text + "'");
+            }
+
+            return new TransferLine(upload, parts[1], parts[2], upload ? Convert.FromHexString(parts[3]) : Array.Empty<byte>());
+        }
+
+        /// <summary>
+        /// The text of the line, as <see cref="Parse"/> reads it.
+        /// </summary>
+        /// <returns>
+        /// The text.
+        /// </returns>
+        public string Format() => Upload
+            ? "send " + Mode + " " + DataSet + " " + Convert.ToHexString(File)
+            : "receive " + Mode + " " + DataSet;
     }
 
     /// <summary>
@@ -57,7 +136,8 @@ namespace RetroTerm.Tests.Oracle
         public RecordingLineKind Kind { get; }
 
         /// <summary>
-        /// The typed text or the key name; empty for a telnet unit.
+        /// The typed text, the key name or the transfer (<see cref="TransferLine"/>); empty for a
+        /// telnet unit.
         /// </summary>
         public string Text { get; }
 
@@ -78,7 +158,8 @@ namespace RetroTerm.Tests.Oracle
     /// <c>model 2</c> (the 3278 model the client was),
     /// <c>host FF FD 18</c> (a host unit, wire hex, IAC doubling and IAC EOR included),
     /// <c>client FF FB 18</c> (a client unit, the same),
-    /// <c>type HERC03</c> and <c>key ENTER</c>. Lines starting with # are comments.
+    /// <c>type HERC03</c>, <c>key ENTER</c> and <c>transfer send ascii RTTFT.TEXT 4845...</c>
+    /// (<see cref="TransferLine"/>). Lines starting with # are comments.
     /// </para>
     /// <para>
     /// No password is ever stored. A password is typed into a non-display field, so the host
@@ -155,6 +236,10 @@ namespace RetroTerm.Tests.Oracle
                         }
 
                         lines.Add(new RecordingLine(RecordingLineKind.Type, text, null));
+                    }
+                    else if (verb == "transfer")
+                    {
+                        lines.Add(new RecordingLine(RecordingLineKind.Transfer, text, null));
                     }
                     else
                     {
@@ -253,6 +338,11 @@ namespace RetroTerm.Tests.Oracle
                     case "key":
                         lines.Add(new RecordingLine(RecordingLineKind.Key, rest, null));
                         break;
+                    case "transfer":
+                        // Read once here, so a bad line fails at load and not half-way through a replay.
+                        TransferLine.Parse(rest);
+                        lines.Add(new RecordingLine(RecordingLineKind.Transfer, rest, null));
+                        break;
                     default:
                         // A file this reader does not understand is refused by name, never half
                         // read (CLAUDE.md: a parser that accepts garbage costs more).
@@ -299,6 +389,7 @@ namespace RetroTerm.Tests.Oracle
                     case RecordingLineKind.Host: text.Append("host ").Append(line.Unit!.ToHex()); break;
                     case RecordingLineKind.Client: text.Append("client ").Append(line.Unit!.ToHex()); break;
                     case RecordingLineKind.Type: text.Append("type ").Append(line.Text); break;
+                    case RecordingLineKind.Transfer: text.Append("transfer ").Append(line.Text); break;
                     default: text.Append("key ").Append(line.Text); break;
                 }
 

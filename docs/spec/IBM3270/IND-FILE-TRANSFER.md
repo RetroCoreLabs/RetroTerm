@@ -693,6 +693,10 @@ and server-requester programming guides.
    download the short form (0x23); the message Open is always short.
 2. **Which buffer size did the TK5 test run with**, and does TK5's IND$F205 accept 32639 or
    32767? Needs a trace with the Query Reply and the Open (short or long form).
+   **Half answered 24 November 2026**, from the stored recording
+   `src\tests\RetroTerm.Tests\Oracle\Recordings\file-transfer.txt`: RetroTerm's DDM Query Reply
+   was `00 0C 81 95 00 00 40 00 40 00 01 01` (LIMIN = LIMOUT = 16384) and TK5 took it in both
+   directions. 32639 and 32767 were not tried, and the 49-byte file never reached the limit.
 3. **ANSWERED 23 November 2026, measured on TK5:** yes. Every IND$FILE command was followed by a Read
    Partition Query (`F3 00 05 01 FF 02`), twice in one session. RetroTerm must answer Query at any time.
 4. **TK5 defaults conflict with the 1986 manual:** TK5 made `RECFM VB LRECL 255`; FTTERM says
