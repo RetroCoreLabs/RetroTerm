@@ -1643,8 +1643,8 @@ each case citing its page:
   go back to implicit partition 0.
 - **Query replies**: Usable Area ADDR X'3' and BUFFSZ 0 (p. 6-88, 6-90: "If the device supports
   partitions ... the BUFFSZ parameter will be set to zero"); Alphanumeric Partitions X'84' with
-  NA 16, M 32767 (this display's choice, X'7FFF'; X'FFFF' is reserved), flags X'80' = SCROLL
-  (section 9.11).
+  NA 16, M 32767 (this display's choice, X'7FFF'; X'FFFF' is reserved), flags X'82' = SCROLL and
+  MODIFY (section 9.11; MODIFY since 24 November 2026).
 - **Vertical scrolling** (p. 2-3, 2-4, 7-16, 7-17): H may be larger than HV when W equals WV. The
   window starts at RW (RW + HV at most H, CW must be 0), and the cursor of a new partition starts at
   the window origin (p. 5-10 item 8). RS is taken as given: 0 means the scroll keys move nothing,
@@ -1661,12 +1661,35 @@ each case citing its page:
   has the same getters as the display. `GetByte` and the other display getters read the active
   partition.
 
+- **Modify Partition X'0F0A'** (p. 5-34, 5-35, built 24 November 2026, tests
+  `ModifyPartitionTests.cs`). Format: bytes 0-1 L, 2-3 X'0F0A', 4 reserved, 5 PID, 6 reserved,
+  7 flags (bit 1 PROT, the rest reserved), 8-11 reserved, 12-13 RV, 14-15 CV, 16-17 HV, 18-19 WV,
+  20-21 RW, 22-23 CW, 24-25 RS, 26-27 reserved, 28-29 PW, 30-31 PH. Parameters left off from byte 31
+  back to byte 6 keep their value. Rejected as p. 5-34 lists: no such partition, a reserved flag
+  bit, overlap, a viewport outside the usable area, a window outside the presentation space, bytes
+  8-11 not zero; also PID above the maximum and the reserved bytes 4, 6 and 26-27 not zero (Table B-1
+  p. B-2, Modify Partition and "Reserved field is not zero"). Then: a new viewport size with the
+  cursor outside the window moves the window by the fewest rows; a new RW with the cursor outside
+  moves the cursor to the nearest row; RS is replaced. The Alphanumeric Partitions reply now has
+  flags X'82' (SCROLL and MODIFY, bit 6, p. 6-19).
+- **Windows of zero extent**, which supporting Modify Partition brings with it: Create Partition
+  takes HV = 0 or WV = 0 (p. 5-10 rejects them only "if modify partition is not supported");
+  Activate Partition rejects a zero window (p. 5-8 step 1, Table B-1); Destroy Partition of the
+  active one picks the next partition with a nonzero window, else the next one (p. 5-14); Modify
+  to zero of the active one activates the next with a nonzero window; the only partition with a
+  nonzero window is activated (p. 5-34). With every window zero the active one stays active,
+  `Display3270.CursorOnIndicatorRow` is true (the cursor belongs at the right end of the indicator
+  row), and the typing, erasing and cursor keys are refused (p. 5-34: "the operator cannot type
+  data into it"). If every window is zero at the end of a WSF, it is reported as an error
+  (p. 5-13 note 3, Table B-1 sense X'0883').
+
 Refused out loud (`ProtocolError`), because the replies say they are not supported: horizontal
 scrolling (W other than WV, CW other than 0, CS X'0002' to X'FFFE'; Table B-1), a presentation space
 with fewer rows than its viewport, UOM other than B'0000' (CELLUNITS 0), A-MODE text (no Text
 Partitions reply), reserved A-MODE values, PROT and COPY (flags 0), BASE other than 0 (one base set),
-a cell size other than AW x AH (VCP 0), and **Modify Partition X'0F0A'** by name (MODIFY 0, p. 5-34,
-6-19).
+and a cell size other than AW x AH (VCP 0). Modify Partition refuses the same by name: PROT, PW/PH
+other than the cell size, CW other than 0, WV other than W or 0, and Modify in implicit partition
+state.
 
 Choices made here that the manual does not settle, said plainly:
 
@@ -1679,6 +1702,16 @@ Choices made here that the manual does not settle, said plainly:
   does not list it.
 - Bytes 24-25 of Create Partition: reserved in the format table, CS in the defaults table and in
   Table B-1. RetroIO rejects X'0002' to X'FFFE' there, which both readings reject.
+- Modify Partition (24 November 2026): refused in implicit partition state (p. 5-34 does not say
+  what modifying implicit partition 0 means); when one Modify changes both the viewport size and
+  RW, the host's RW is kept and the cursor moves into it (p. 5-34 gives both rules and no order);
+  the window-in-presentation-space check uses the current RW when RW is left off, before anything
+  moves; a viewport of zero rows or columns overlaps nothing; a Create Partition that replaces the
+  active partition with a zero window uses Modify's rule and activates the next nonzero one; the
+  all-zero error at the end of a WSF is reported but the fields already run are not undone; the
+  jump key still goes to the next partition by PID even when its window is zero (p. 2-5 does not
+  mention zero windows); the attention keys still work with a zero active window (p. 5-34 names only
+  typing data).
 
 RetroTerm draws only the active partition today (it reads the display getters) and has no
 partition-aware layout; that is a RetroTerm plan item. A screen above 16 383 cells is still refused:
@@ -1991,10 +2024,24 @@ Print oddities, written down rather than guessed at:
 - The Usable Area reply now sends millimetres and real Xr/Yr (p. 6-89, 6-93 forbid X'FFFFFFFF' with
   Load PS): `DotDistanceX`/`DotDistanceY`, defaulting to x3270's canned 3279-2 values 10/741 mm and
   2/111 mm (an ASSUMPTION about the renderer, not a measurement).
-- Still not done: SA, SFE and MF character set values are stored as sent and not checked against the
-  LCIDs (p. 5-22 says a reference to a released LCID "will be an error"); skip suppression is stored
-  (`SkipSuppress`) but nothing draws rows closer; the PS selection keys (operator picking a set) are
-  not built.
+- **SA, SFE and MF character set values are checked** (24 November 2026, tests
+  `ProgrammedSymbolReferenceTests.cs`). p. 4-19 lists X'00' default, X'40'-X'EF' loadable LCIDs,
+  X'F0'-X'F7' non-loadable, X'F8'-X'FE' two-byte, others reserved, X'FF' "invalid if sent as a
+  value byte (sense code X'1003')"; p. 4-6 and 4-16: "Attribute values that are unknown or cannot be
+  maintained and returned inbound by an implementation must be rejected"; p. 5-22: "Any subsequent
+  reference to this released LCID will be an error condition". So RetroIO takes X'00', X'F0', X'F1'
+  and an LCID that is on a store now; it rejects (`ProtocolError`, the write stops) a released or
+  never-loaded LCID, X'F2'-X'F7', X'F8'-X'FE', X'FF' and the reserved values. Rejecting a
+  never-loaded LCID as "unknown" is RetroIO's reading of p. 4-6, which does not name LCIDs.
+  Positions that already hold an LCID that is released later keep it (p. 5-22 speaks of later
+  references).
+- **Skip suppression is acted on**: `Display3270.RowSuppressesSkip(row)` says whether the skip after
+  a screen row is suppressed: true when a viewport shows, in that row, a code X'40'-X'FE' whose set
+  (`Display3270.GetCharacterSetAt(partition, address)`: GE first, then the character's LCID, then
+  the field's, then the base set, p. 4-9 note 1, 4-19) is a loaded set with SKIP (p. 5-21). Nulls,
+  controls and field attribute positions do not count (RetroIO's reading). Drawing the rows closer,
+  with the space gained left at the bottom (p. 5-21 note 2), is the renderer's.
+- Still not done: the PS selection keys (operator picking a set).
 
 **API for a renderer:** `Display3270.ProgrammedSymbols.Find(lcid)` returns the
 `ProgrammedSymbolSet` (or null), then `set.GetDot(code, x, y)` gives the plane mask of one dot (0 =
