@@ -48,6 +48,18 @@ namespace RetroTerm.Tests.Hercules
 
         public string[] Lines { get; }
 
+        /// <summary>
+        /// A row with the text that changes between runs (times, dates, terminal address) masked,
+        /// as <see cref="DifferencesFrom(Tk5Screen, string, int[])"/> compares it.
+        /// </summary>
+        /// <param name="row">
+        /// The row, counted from 0.
+        /// </param>
+        /// <returns>
+        /// The masked text.
+        /// </returns>
+        public string MaskedLine(int row) => s_changing.Replace(Lines[row], "#");
+
         public int CursorRow { get; }
 
         public int CursorColumn { get; }

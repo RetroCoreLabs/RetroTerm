@@ -56,7 +56,13 @@ namespace RetroTerm.Tests.Hercules
         /// Starts s3270 as the given model and connects it. "3279-2" keeps colours, "3278-2" drops
         /// them (x3270 ctlr.c, every colour store is inside "if (mode3279)").
         /// </summary>
-        public static async Task<S3270Terminal> OpenAsync(Tk5Settings settings, string model)
+        public static Task<S3270Terminal> OpenAsync(Tk5Settings settings, string model) => OpenAsync(settings, model, string.Empty);
+
+        /// <summary>
+        /// As <see cref="OpenAsync(Tk5Settings, string)"/>, with more s3270 options after the
+        /// model, such as "-oversize 100x50".
+        /// </summary>
+        public static async Task<S3270Terminal> OpenAsync(Tk5Settings settings, string model, string moreOptions)
         {
             if (!File.Exists(settings.S3270))
             {
@@ -71,7 +77,7 @@ namespace RetroTerm.Tests.Hercules
             // brackets moved to X'AD' and X'BD' (and Y-acute and diaeresis to X'BA' and X'BB'),
             // which is not what RetroTerm's default (true code page 37, EBCDIC.md) shows; measured
             // 24 November 2026 on the TERMTEST symbol set 0 table, rows A and B.
-            var start = new ProcessStartInfo(settings.S3270, "-utf8 -codepage cp037 -model " + model)
+            var start = new ProcessStartInfo(settings.S3270, "-utf8 -codepage cp037 -model " + model + (moreOptions.Length > 0 ? " " + moreOptions : string.Empty))
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,

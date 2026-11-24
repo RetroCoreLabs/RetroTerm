@@ -23,6 +23,7 @@ using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Scripting;
 using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Ibm3270;
 using RetroTerm.Mcp;
 using RetroTerm.Tests.TDV;
@@ -393,6 +394,98 @@ public sealed class Ibm3270ConnectionChoiceTests : IDisposable
         var connected = await registry.ExecuteAsync("CONNECT", large, new CommandArgs().Set("name", "big"), TestContext.Current.CancellationToken);
         Assert.True(connected.Success, connected.Error);
         Assert.Equal("100x50", Assert.Single(opened).Ibm3270ScreenSize);
+    }
+
+    // CONNECT keeps the tab's terminal, so the host must be told the tab's terminal, never the
+    // stored one. Until 25 November 2026 a CONNECT by stored name on a tab that was not a 3278
+    // passed the stored model straight to the connection.
+    [Fact]
+    public async Task ConnectByNameOnAPrinterTabTellsTheHostThePrinterNotTheStoredModel()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        await manager.AddAsync(new HostConfiguration
+        {
+            Name = "model4",
+            Protocol = "TN3270",
+            Host = "test-host",
+            Port = 3270,
+            EmulatorType = "IBM-3278-4"
+        });
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        using var printer = new TerminalSession(new Ibm3287PrinterEmulator(), "test");
+
+        var connected = await registry.ExecuteAsync("CONNECT", printer, new CommandArgs().Set("name", "model4"), TestContext.Current.CancellationToken);
+        Assert.True(connected.Success, connected.Error);
+        var parameters = Assert.Single(opened);
+        Assert.Equal(ConnectionFactory.Ibm3287, parameters.EmulatorType);
+        Assert.Null(parameters.Ibm3270ScreenSize);
+    }
+
+    [Fact]
+    public async Task ConnectByNameOfAPrinterConnectionOnA3278TabTellsTheHostThe3278()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        await manager.AddAsync(new HostConfiguration
+        {
+            Name = "printer",
+            Protocol = "TN3270",
+            Host = "test-host",
+            Port = 3270,
+            EmulatorType = ConnectionFactory.Ibm3287
+        });
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        using var session = new TerminalSession(new Ibm3270Emulator(2, 100, 50), "test");
+
+        var connected = await registry.ExecuteAsync("CONNECT", session, new CommandArgs().Set("name", "printer"), TestContext.Current.CancellationToken);
+        Assert.True(connected.Success, connected.Error);
+        var parameters = Assert.Single(opened);
+        Assert.Equal("IBM-3278-2", parameters.EmulatorType);
+        Assert.Equal("100x50", parameters.Ibm3270ScreenSize);
+    }
+
+    [Theory]
+    [InlineData("model4")]
+    [InlineData(null)]
+    public async Task ATn3270ConnectOnATabThatIsNot3270IsRefusedByNameAndNothingOpens(string? stored)
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        await manager.AddAsync(new HostConfiguration
+        {
+            Name = "model4",
+            Protocol = "TN3270",
+            Host = "test-host",
+            Port = 3270,
+            EmulatorType = "IBM-3278-4"
+        });
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        using var vt100 = new TerminalSession(new VT100Emulator(80, 24), "test");
+
+        var args = stored != null
+            ? new CommandArgs().Set("name", stored)
+            : new CommandArgs().Set("protocol", "tn3270").Set("host", "test-host");
+        var refused = await registry.ExecuteAsync("CONNECT", vt100, args, TestContext.Current.CancellationToken);
+        Assert.False(refused.Success);
+        Assert.Equal("this tab's terminal is VT100, which cannot run a TN3270 connection; CONNECT keeps the tab's terminal - open a 3270 one with terminal_open "
+            + (stored != null ? "name=model4" : "protocol=tn3270"), refused.Error);
+        Assert.Empty(opened);
     }
 
     [Fact]

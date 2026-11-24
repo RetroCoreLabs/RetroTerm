@@ -297,17 +297,15 @@ public sealed class ConnectCommand : ISessionCommand
                     CodePage = codePage
                 };
                 choices.ApplyTo(parameters);
-
-                // On a 3278 tab the host is told what the tab really is: its model and, when it
-                // is larger, its screen (IBM-DYNAMIC). Until 24 November 2026 the type name above
-                // ("Ibm3270Emulator") reached ConnectionFactory.EmulatorTypeFor, which made it a
-                // model 2, so a model 5 tab announced IBM-3278-2-E.
-                if (protocol == ConnectionFactory.ProtocolType.TN3270 && tabModel != null)
-                {
-                    parameters.EmulatorType = tabModel;
-                    parameters.Ibm3270ScreenSize = tabScreen;
-                }
             }
+        }
+
+        // The terminal type the host is told comes from the tab's terminal, which CONNECT keeps,
+        // on both paths (TellHostTheTabsTerminal says why).
+        var terminalProblem = TellHostTheTabsTerminal(session, parameters, name);
+        if (terminalProblem != null)
+        {
+            return CommandResult.Fail(terminalProblem);
         }
 
         // A stored serial connection saved without a port name would otherwise die inside the
@@ -346,6 +344,46 @@ public sealed class ConnectCommand : ISessionCommand
         }
 
         return CommandResult.Ok($"connected to {parameters.DisplayName}");
+    }
+
+    // A TN3270 connection tells the host what the terminal is (TERMINAL-TYPE), and CONNECT keeps
+    // the tab's terminal, so the name must be the tab's: a 3278's model and, when it is larger,
+    // its screen (IBM-DYNAMIC), or the 3287 printer's name. Any other terminal cannot run the 3270
+    // data stream and is refused by name. The ONE place either path sets the name:
+    //  - until 24 November 2026 a CONNECT with host=... sent the emulator's class name
+    //    ("Ibm3270Emulator"), which ConnectionFactory.EmulatorTypeFor made a model 2, so a model 5
+    //    tab announced IBM-3278-2-E;
+    //  - until 25 November 2026 a CONNECT by stored name sent the STORED model whenever the tab
+    //    was not a 3278 (a printer tab, a VT100 tab), and a stored printer connection on a 3278
+    //    tab told the host IBM-3287-1 while the tab kept its 3278 (PLAN.md, found 24 November).
+    // Returns null when the name is set, else why the connection is refused.
+    private static string? TellHostTheTabsTerminal(TerminalSession session, ConnectionFactory.ConnectionParameters parameters, string? storedName)
+    {
+        if (parameters.Protocol != ConnectionFactory.ProtocolType.TN3270)
+        {
+            return null;
+        }
+
+        if (session.Emulator is IModelScreenTerminal tab3278)
+        {
+            Ibm3270ConnectionSettings.Describe(tab3278, out var tabModel, out var tabScreen);
+            parameters.EmulatorType = tabModel;
+            parameters.Ibm3270ScreenSize = tabScreen;
+            return null;
+        }
+
+        // The 3287 printer's profile carries the name it announces (Ibm3287PrinterEmulator,
+        // TerminalType); this layer does not reference that class.
+        if (string.Equals(session.Emulator.GetTerminalType(), ConnectionFactory.Ibm3287, StringComparison.Ordinal))
+        {
+            parameters.EmulatorType = ConnectionFactory.Ibm3287;
+            parameters.Ibm3270ScreenSize = null;
+            return null;
+        }
+
+        return "this tab's terminal is " + session.Emulator.Profile.Name
+            + ", which cannot run a TN3270 connection; CONNECT keeps the tab's terminal - open a 3270 one with terminal_open "
+            + (storedName != null ? "name=" + storedName : "protocol=tn3270");
     }
 
     // Whether the tab's terminal is this 3278 model. The emulator's profile carries the name it

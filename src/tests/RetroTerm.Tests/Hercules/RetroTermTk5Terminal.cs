@@ -56,16 +56,35 @@ namespace RetroTerm.Tests.Hercules
 
         public static Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings) => OpenAsync(settings, 2);
 
-        public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings, int model)
+        public static Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings, int model)
+            => OpenAsync(settings, new Ibm3270Emulator(model));
+
+        /// <summary>
+        /// Opens a terminal of any screen size, the host told the emulator's own TERMINAL-TYPE
+        /// (IBM-DYNAMIC for a screen larger than the model's), as the app does.
+        /// </summary>
+        /// <param name="settings">
+        /// The host to connect to.
+        /// </param>
+        /// <param name="emulator">
+        /// The terminal.
+        /// </param>
+        /// <returns>
+        /// The connected terminal.
+        /// </returns>
+        public static async Task<RetroTermTk5Terminal> OpenAsync(Tk5Settings settings, Ibm3270Emulator emulator)
         {
-            var emulator = new Ibm3270Emulator(model);
             var session = new TerminalSession(emulator, "TK5");
             IConnection connection = ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
             {
                 Protocol = ConnectionFactory.ProtocolType.TN3270,
                 Host = settings.Host,
                 Port = settings.Port,
-                EmulatorType = "IBM-3278-" + model.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                EmulatorType = "IBM-3278-" + emulator.Model.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Ibm3270ScreenSize = emulator.IsOversize
+                    ? emulator.AlternateScreenColumns.ToString(System.Globalization.CultureInfo.InvariantCulture) + "x"
+                        + emulator.AlternateScreenRows.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    : null,
             });
             var terminal = new RetroTermTk5Terminal(session, emulator, settings.Host);
             connection.DataReceived += data => terminal._wire.Host(data.Span);

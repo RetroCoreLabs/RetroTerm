@@ -95,7 +95,6 @@ clean-room rewrite in C#.
 - [ ] Large 3270 screens, what is left (the setting itself is built, 24 November 2026: `screen_size` on terminal_open, CONNECT, CONNSAVE, shown by CONNSHOW, stored as `Ibm3270ScreenSize`, typed into the Terminal Size box in Manage Connections, held to `Ibm3270Emulator.CheckScreenSize`; the host is told IBM-DYNAMIC):
   - [ ] Ronny's decision: should the window size pick the 3270 screen size? (queued, not started)
   - [ ] Try a large screen against TK5 by hand (only the fake host in `Ibm3270ConnectionChoiceTests` has seen IBM-DYNAMIC from RetroTerm; whether TK5's VTAM takes it is not measured)
-  - [ ] CONNECT by stored name on a tab that is NOT a 3278 still tells the host the stored model while the tab keeps its own terminal (older than this work; a 3278 tab is checked now)
 - [ ] Screens above 16 383 cells: need 16-bit buffer addresses, which GA23-0059-4 selects ONLY through Create Partition (A-MODE, p. 5-10; implicit partition 0 is always 12/14-bit, p. 4-4, D-1). Means building explicit partitions in RetroIO first; s3270 4.5 refuses such a screen too ("Exceeds protocol limit")
 - [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
