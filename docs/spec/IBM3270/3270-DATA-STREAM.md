@@ -561,6 +561,11 @@ address byte are flags (p. 4-4, from the image; also p. D-1):
 - 14-bit example: 800 = X'320' -> `xx000011 00100000` (p. D-1).
 - 16-bit mode (only when set by Create Partition): all 16 bits are the address. Example 3100 =
   X'0C1C' (p. D-1). "If no partitions are defined, 12- and 14-bit addressing is assumed" (p. D-1).
+  The ONLY way to select it is the A-MODE field of Create Partition (byte 5 bits 4-7, B'0001'
+  "16 bit binary", p. 5-10); the implicit partition 0 "is always set to 12/14" (p. 4-4), and the
+  Usable Area ADDR X'3' only says the terminal could take it (p. 6-88). RetroIO does not build
+  Create Partition, so it has no 16-bit mode and reports ADDR X'1'; a screen is limited to 16 383
+  cells for that reason.
 - For 12-bit coded addresses outbound, the Usable Area page adds: "The second byte will have the
   first 2 bits as B'01' or B'11'. Otherwise, the data stream will be rejected" (p. 6-88).
 - Displays that only do 12-bit ignore bits 0-1 of both bytes outbound (p. D-1).
@@ -909,6 +914,18 @@ so it cannot hold more than 65 535 (my reading of the field width; the manual sa
 larger buffer). RetroIO cannot reach that: it refuses a screen above 16383 cells, the 12/14-bit
 limit of the ADDR value it reports (p. 6-88), so its BUFFSZ always fits.
 Addresses above 16 383 need 16-bit mode (ADDR = X'3' plus Create Partition).
+
+**How a terminal larger than its model is announced (RetroTerm, 24 November 2026).** RFC 2355
+section 7.1 has the device type IBM-DYNAMIC: "no pre-defined alternate display size; this value
+will be passed from the client to host applications as part of the Query Reply structured field".
+s3270 4.5 started with `-oversize 100x50` answers TERMINAL-TYPE with `IBM-DYNAMIC`, and without it
+`IBM-3278-2-E` (measured with a listener that sent IAC DO TERMINAL-TYPE and SEND). Its limits,
+measured the same day: each dimension at least the model's (`-oversize 70x20` on a model 2:
+"Less than model 2 columns (80)"; 132x20 refused for its rows), and at most 16 383 cells (129x127
+taken, 128x128 and 200x90 refused as "Exceeds protocol limit") - the 14-bit limit. RetroTerm's
+`Ibm3270Emulator(model, columns, rows)` follows both, keeps ADDR = X'1' (16-bit is not built, see
+6.1), and reports the larger screen as W x H, BUFFSZ and the Implicit Partition alternate size. The
+offline oracle replays a hand-written 100 x 50 session to both (`Oracle\Recordings\oversize.txt`).
 
 Oracles:
 

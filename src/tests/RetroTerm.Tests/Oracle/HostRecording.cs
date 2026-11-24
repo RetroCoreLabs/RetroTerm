@@ -103,6 +103,17 @@ namespace RetroTerm.Tests.Oracle
 
         public int Model { get; }
 
+        /// <summary>
+        /// Gets the columns of a screen larger than the model's (an <c>oversize 100x50</c> line,
+        /// x3270's -oversize), or 0 for the model's own screen.
+        /// </summary>
+        public int OversizeColumns { get; private set; }
+
+        /// <summary>
+        /// Gets the rows of a screen larger than the model's, or 0.
+        /// </summary>
+        public int OversizeRows { get; private set; }
+
         public List<RecordingLine> Lines { get; }
 
         /// <summary>
@@ -199,6 +210,8 @@ namespace RetroTerm.Tests.Oracle
         {
             string[] text = File.ReadAllLines(path);
             int model = 0;
+            int oversizeColumns = 0;
+            int oversizeRows = 0;
             var lines = new List<RecordingLine>();
             for (int i = 0; i < text.Length; i++)
             {
@@ -216,6 +229,20 @@ namespace RetroTerm.Tests.Oracle
                     case "model":
                         model = int.Parse(rest, CultureInfo.InvariantCulture);
                         break;
+                    case "oversize":
+                    {
+                        // COLUMNSxROWS, as x3270's -oversize takes it.
+                        int x = rest.IndexOf('x', StringComparison.Ordinal);
+                        if (x <= 0)
+                        {
+                            throw new InvalidDataException(path + " line " + (i + 1) + ": oversize is COLUMNSxROWS, not '" + rest + "'");
+                        }
+
+                        oversizeColumns = int.Parse(rest.AsSpan(0, x), NumberStyles.None, CultureInfo.InvariantCulture);
+                        oversizeRows = int.Parse(rest.AsSpan(x + 1), NumberStyles.None, CultureInfo.InvariantCulture);
+                        break;
+                    }
+
                     case "host":
                     case "client":
                         lines.Add(new RecordingLine(verb == "host" ? RecordingLineKind.Host : RecordingLineKind.Client, string.Empty, UnitFromHex(rest, path, i + 1)));
@@ -238,7 +265,7 @@ namespace RetroTerm.Tests.Oracle
                 throw new InvalidDataException(path + ": no 'model' line");
             }
 
-            return new HostRecording(model, lines);
+            return new HostRecording(model, lines) { OversizeColumns = oversizeColumns, OversizeRows = oversizeRows };
         }
 
         /// <summary>
@@ -259,6 +286,11 @@ namespace RetroTerm.Tests.Oracle
             }
 
             text.Append("model ").Append(Model.ToString(CultureInfo.InvariantCulture)).Append('\n');
+            if (OversizeColumns > 0)
+            {
+                text.Append("oversize ").Append(OversizeColumns.ToString(CultureInfo.InvariantCulture)).Append('x')
+                    .Append(OversizeRows.ToString(CultureInfo.InvariantCulture)).Append('\n');
+            }
             for (int i = 0; i < Lines.Count; i++)
             {
                 RecordingLine line = Lines[i];

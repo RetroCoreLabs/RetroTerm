@@ -1,0 +1,42 @@
+# NOT recorded from a host: written by hand on 24 November 2026, because TK5 was not asked for a
+# screen larger than a model 5. Every byte is from GA23-0059-4 (orders chapter 4, Appendix D
+# addresses); see Oracle\HostRecording.cs for the format.
+# A model 2 with a 100 x 50 alternate screen (5000 cells, x3270's -oversize 100x50), so the
+# terminal announces IBM-DYNAMIC (RFC 2355 section 7.1) and every inbound address is 14-bit
+# (more than 4096 cells, p. 4-4 and p. 6-88).
+# Record 1, Erase/Write Alternate, WCC X'C3' (keyboard restore, reset MDT):
+#   SBA C1 D1 = 12-bit coded address 81 (p. D-1), "TOP";
+#   RA 00 C8 = repeat '*' up to 14-bit address 200;
+#   SBA 13 24 = 14-bit 4900, protected field, "BOTTOM";
+#   SBA 13 56 = 14-bit 4950, unprotected field, IC (cursor at 4951);
+#   SBA 13 60 = 14-bit 4960, protected field that ends the input field;
+#   SBA 13 87 = 14-bit 4999, the last cell, "Z".
+# Record 2, Read Partition Query (WSF X'F3', p. 5-47): both answer with a query reply, which
+# locks the keyboard (p. 3-20); record 3, Write with keyboard restore, frees it.
+# Then HELLO is typed and Enter pressed; the reply carries 14-bit addresses (cursor 4956 =
+# X'135C', field 4951 = X'1357'). Record 5, Write with keyboard restore; record 6, Read Buffer,
+# whose reply starts with the cursor address in 14-bit form.
+model 2
+oversize 100x50
+host FF FD 18
+client FF FB 18
+host FF FA 18 01 FF F0
+client FF FA 18 00 49 42 4D 2D 44 59 4E 41 4D 49 43 FF F0
+host FF FB 00
+host FF FD 00
+host FF FB 19
+host FF FD 19
+client FF FD 00
+client FF FB 00
+client FF FD 19
+client FF FB 19
+host 7E C3 11 C1 D1 E3 D6 D7 3C 00 C8 5C 11 13 24 1D 60 C2 D6 E3 E3 D6 D4 11 13 56 1D 40 13 11 13 60 1D 60 11 13 87 E9 FF EF
+host F3 00 05 01 FF FF 02 FF EF
+client 88 FF EF
+host F1 C2 FF EF
+type HELLO
+key ENTER
+client 7D 13 5C 11 13 57 C8 C5 D3 D3 D6 FF EF
+host F1 C2 FF EF
+host F2 FF EF
+client 60 FF EF

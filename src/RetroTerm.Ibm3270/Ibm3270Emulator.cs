@@ -62,6 +62,10 @@ namespace RetroTerm.Ibm3270
         // model 2, line 44 on a model 4).
         private readonly int _statusRow;
 
+        // The alternate screen: the model's, or a larger one (the oversize constructor).
+        private readonly int _alternateColumns;
+        private readonly int _alternateRows;
+
         private readonly TerminalProfile _profile;
 
         // The largest file transfer structured field, both ways (Display3270.FileTransferLimit).
@@ -112,29 +116,132 @@ namespace RetroTerm.Ibm3270
         /// The model: 2 (24 x 80), 3 (32 x 80), 4 (43 x 80) or 5 (27 x 132).
         /// </param>
         public Ibm3270Emulator(int model)
-            : base(AlternateColumns(model), AlternateRows(model) + 1, maxScrollback: 0)
+            : this(model, AlternateColumns(model), AlternateRows(model))
+        {
+        }
+
+        /// <summary>
+        /// Creates a 3278 of the given model whose alternate screen may be larger than the
+        /// model's: the "oversize" screen of x3270 (its -oversize option), a size the host learns
+        /// from the Query Reply instead of from the model number.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// RFC 2355 section 7.1 names the device type for it, IBM-DYNAMIC: "no pre-defined
+        /// alternate display size; this value will be passed from the client to host
+        /// applications as part of the Query Reply structured field, and it can represent any
+        /// display size the client and the host application can support". So a screen larger than
+        /// the model's announces <see cref="DynamicTerminalType"/> instead of IBM-3278-n-E
+        /// (<see cref="TerminalType"/>), and the Usable Area and Implicit Partition replies carry
+        /// the size (RetroIO Display3270). s3270 4.5 does the same: with -oversize 100x50 it
+        /// answered TERMINAL-TYPE with IBM-DYNAMIC, and without it IBM-3278-2-E (measured 24
+        /// November 2026 with a listener that sent IAC DO TERMINAL-TYPE and SEND).
+        /// </para>
+        /// <para>
+        /// The limits are x3270's, measured on s3270 4.5 the same day: each dimension at least the
+        /// model's ("Invalid oversize columns (70): Less than model 2 columns (80)"; 132x20 on a
+        /// model 2 refused for its rows), and at most 16383 cells (129x127 taken, 128x128 refused
+        /// as "Exceeds protocol limit"). 16383 is the largest 14-bit buffer address plus one: the
+        /// implicit partition is "always set to 12/14-bit addressing" (GA23-0059-4 p. 4-4,
+        /// 6-88), and 16-bit addresses exist only in a partition made by Create Partition
+        /// (p. D-1), which is not built. A size equal to the model's is the model itself and
+        /// announces the model's name; what s3270 sends for that case was not measured.
+        /// </para>
+        /// </remarks>
+        /// <param name="model">
+        /// The model: 2, 3, 4 or 5. Its default size is still 24 by 80 (GA23-0059-4 p. 3-5).
+        /// </param>
+        /// <param name="alternateColumns">
+        /// Columns of the alternate screen, at least the model's.
+        /// </param>
+        /// <param name="alternateRows">
+        /// Rows of the alternate screen, at least the model's.
+        /// </param>
+        public Ibm3270Emulator(int model, int alternateColumns, int alternateRows)
+            : base(CheckedColumns(model, alternateColumns, alternateRows), alternateRows + 1, maxScrollback: 0)
         {
             Model = model;
-            _statusRow = AlternateRows(model);
+            _alternateColumns = alternateColumns;
+            _alternateRows = alternateRows;
+            _statusRow = alternateRows;
+            TerminalType = IsOversize ? DynamicTerminalType : TerminalTypeFor(model);
             _profile = new TerminalProfile(
-                name: TerminalTypeFor(model),
+                name: TerminalType,
                 primaryDeviceAttributes: Array.Empty<byte>(),
                 secondaryDeviceAttributes: Array.Empty<byte>(),
                 features: TerminalFeatures.None,
                 recognisedPrivateModes: Array.Empty<int>(),
                 keyboardLayout: "IBM3270",
                 transportEncoding: TransportEncoding.EightBit,
-                columns: AlternateColumns(model),
+                columns: alternateColumns,
                 rows: _statusRow + 1);
-            (_display, _transfer) = CreateDisplay(model);
+            (_display, _transfer) = CreateDisplay();
             Paint();
+        }
+
+        /// <summary>
+        /// The TERMINAL-TYPE of a screen larger than its model's: "IBM-DYNAMIC" (RFC 2355
+        /// section 7.1, and what s3270 4.5 sends with -oversize, measured 24 November 2026).
+        /// </summary>
+        public const string DynamicTerminalType = "IBM-DYNAMIC";
+
+        /// <summary>
+        /// The largest screen, in cells, that 14-bit buffer addresses reach: 16383 (GA23-0059-4
+        /// Appendix D). s3270 4.5 refuses 16384 too ("Exceeds protocol limit").
+        /// </summary>
+        public const int MaximumCells = 0x3FFF;
+
+        /// <summary>
+        /// Gets the TERMINAL-TYPE this terminal announces: the model's name, such as
+        /// "IBM-3278-4-E", or <see cref="DynamicTerminalType"/> for a larger screen.
+        /// </summary>
+        public string TerminalType { get; }
+
+        /// <summary>
+        /// Gets the columns of the alternate screen, the one Erase/Write Alternate switches to.
+        /// </summary>
+        public int AlternateScreenColumns => _alternateColumns;
+
+        /// <summary>
+        /// Gets the rows of the alternate screen, the one Erase/Write Alternate switches to.
+        /// </summary>
+        public int AlternateScreenRows => _alternateRows;
+
+        /// <summary>
+        /// Gets whether the alternate screen is larger than the model's own.
+        /// </summary>
+        public bool IsOversize => _alternateColumns != AlternateColumns(Model) || _alternateRows != AlternateRows(Model);
+
+        // Refuses a size outside x3270's limits (see the constructor), naming the limit, and
+        // gives back the columns for the base constructor.
+        private static int CheckedColumns(int model, int columns, int rows)
+        {
+            int modelColumns = AlternateColumns(model);
+            int modelRows = AlternateRows(model);
+            if (columns < modelColumns)
+            {
+                throw new ArgumentOutOfRangeException(nameof(columns), columns, "a model " + model + " screen has at least " + modelColumns + " columns");
+            }
+
+            if (rows < modelRows)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rows), rows, "a model " + model + " screen has at least " + modelRows + " rows");
+            }
+
+            if ((long)columns * rows > MaximumCells)
+            {
+                throw new ArgumentOutOfRangeException(nameof(columns), columns + "x" + rows,
+                    "at most " + MaximumCells + " cells: 14-bit buffer addresses reach no further, and 16-bit ones need Create Partition, which is not built (GA23-0059-4 p. D-1)");
+            }
+
+            return columns;
         }
 
         // A 3278 as it is when switched on, wired to this emulator: no fields, no data, the
         // keyboard free, the default size.
-        private (Display3270 Display, IndFileTransfer Transfer) CreateDisplay(int model)
+        private (Display3270 Display, IndFileTransfer Transfer) CreateDisplay()
         {
-            var display = new Display3270(24, 80, AlternateRows(model), AlternateColumns(model));
+            var display = new Display3270(24, 80, _alternateRows, _alternateColumns);
             display.InboundRecord += OnInboundRecord;
             display.ProtocolError += OnProtocolError;
             display.Alarm += OnAlarm;
@@ -172,7 +279,7 @@ namespace RetroTerm.Ibm3270
             old.Alarm -= OnAlarm;
             _transfer.Finished -= OnTransferFinished;
 
-            (_display, _transfer) = CreateDisplay(Model);
+            (_display, _transfer) = CreateDisplay();
             _display.CodePage = old.CodePage;
             _display.Color = old.Color;
             _display.CellWidth = old.CellWidth;
@@ -247,7 +354,7 @@ namespace RetroTerm.Ibm3270
         {
             get
             {
-                Span<char> line = stackalloc char[AlternateColumns(Model)];
+                Span<char> line = stackalloc char[_alternateColumns];
                 StatusLine3270.Build(_display, _connection, _luName, _inTn3270E, line);
                 return new string(line);
             }
@@ -1212,7 +1319,7 @@ namespace RetroTerm.Ibm3270
         {
             int columns = _display.Columns;
             int rows = _display.Rows;
-            int width = AlternateColumns(Model);
+            int width = _alternateColumns;
             var blank = new TerminalCell(' ', CharacterAttributes.None, NeutralWhite, NeutralBlack);
             for (int row = 0; row < _statusRow; row++)
             {

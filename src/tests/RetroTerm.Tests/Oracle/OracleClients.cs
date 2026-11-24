@@ -65,10 +65,12 @@ namespace RetroTerm.Tests.Oracle
         private readonly int _model;
         private int _recordsReceived;
 
-        public RetroTermOracleClient(int model)
+        public RetroTermOracleClient(HostRecording recording)
         {
-            _model = model;
-            _emulator = new Ibm3270Emulator(model);
+            _model = recording.Model;
+            _emulator = recording.OversizeColumns > 0
+                ? new Ibm3270Emulator(recording.Model, recording.OversizeColumns, recording.OversizeRows)
+                : new Ibm3270Emulator(recording.Model);
             _session = new TerminalSession(_emulator, "replay");
         }
 
@@ -76,13 +78,18 @@ namespace RetroTerm.Tests.Oracle
 
         public Task ConnectAsync(int port)
         {
-            IConnection connection = ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
-            {
-                Protocol = ConnectionFactory.ProtocolType.TN3270,
-                Host = "127.0.0.1",
-                Port = port,
-                EmulatorType = "IBM-3278-" + _model.ToString(CultureInfo.InvariantCulture),
-            });
+            // A model's own screen goes through the same ConnectionFactory the app uses. A larger
+            // screen has no connection setting yet (docs\PLAN.md), so its connection is made
+            // directly with the name the emulator announces, IBM-DYNAMIC.
+            IConnection connection = _emulator.IsOversize
+                ? new Tn3270Connection("127.0.0.1", port, _emulator.TerminalType)
+                : ConnectionFactory.CreateConnection(new ConnectionFactory.ConnectionParameters
+                {
+                    Protocol = ConnectionFactory.ProtocolType.TN3270,
+                    Host = "127.0.0.1",
+                    Port = port,
+                    EmulatorType = "IBM-3278-" + _model.ToString(CultureInfo.InvariantCulture),
+                });
             connection.DataReceived += _ => Interlocked.Increment(ref _recordsReceived);
             return _session.ConnectAsync(connection, Xunit.TestContext.Current.CancellationToken);
         }
@@ -197,8 +204,9 @@ namespace RetroTerm.Tests.Oracle
         /// </summary>
         public int ProcessId => _process.Id;
 
-        public static S3270OracleClient Start(int model)
+        public static S3270OracleClient Start(HostRecording recording)
         {
+            int model = recording.Model;
             string exe = S3270Path();
             var start = new ProcessStartInfo(exe)
             {
@@ -209,6 +217,13 @@ namespace RetroTerm.Tests.Oracle
             };
             start.ArgumentList.Add("-model");
             start.ArgumentList.Add("3278-" + model.ToString(CultureInfo.InvariantCulture));
+            if (recording.OversizeColumns > 0)
+            {
+                start.ArgumentList.Add("-oversize");
+                start.ArgumentList.Add(recording.OversizeColumns.ToString(CultureInfo.InvariantCulture) + "x"
+                    + recording.OversizeRows.ToString(CultureInfo.InvariantCulture));
+            }
+
             start.ArgumentList.Add("-xrm");
             start.ArgumentList.Add("s3270.unlockDelay: false");
             Process process = Process.Start(start) ?? throw new Xunit.Sdk.XunitException("s3270 did not start: " + exe);

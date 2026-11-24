@@ -51,6 +51,7 @@ namespace RetroTerm.Tests.Oracle
         [InlineData("ispf-boxes")]
         [InlineData("ispf-editor")]
         [InlineData("model5")]
+        [InlineData("oversize")]
         public async Task RetroTermShowsWhatS3270ShowsForTheRecordedSession(string name)
         {
             // s3270 first: a missing s3270 fails here, before anything else, by name.
@@ -58,14 +59,14 @@ namespace RetroTerm.Tests.Oracle
             HostRecording recording = HostRecording.Load(Path.Combine(AppContext.BaseDirectory, "Oracle", "Recordings", name + ".txt"));
 
             ReplayResult reference;
-            S3270OracleClient s3270 = S3270OracleClient.Start(recording.Model);
+            S3270OracleClient s3270 = S3270OracleClient.Start(recording);
             await using (s3270)
             {
                 reference = await HostStreamReplay.RunAsync(recording, s3270);
             }
 
             ReplayResult ours;
-            await using (var retroTerm = new RetroTermOracleClient(recording.Model))
+            await using (var retroTerm = new RetroTermOracleClient(recording))
             {
                 ours = await HostStreamReplay.RunAsync(recording, retroTerm);
             }
@@ -100,7 +101,7 @@ namespace RetroTerm.Tests.Oracle
 
             Assert.NotEmpty(secrets);
             string[] files = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Oracle", "Recordings"), "*.txt");
-            Assert.Equal(5, files.Length);
+            Assert.Equal(6, files.Length);
             for (int i = 0; i < files.Length; i++)
             {
                 HostRecording.AssertHolds(files[i], secrets.ToArray());
