@@ -96,11 +96,13 @@ clean-room rewrite in C#.
   - [ ] Ronny's decision: should the window size pick the 3270 screen size? (queued, not started)
   - [ ] Try a large screen against TK5 by hand (only the fake host in `Ibm3270ConnectionChoiceTests` has seen IBM-DYNAMIC from RetroTerm; whether TK5's VTAM takes it is not measured)
 - [ ] Screens above 16 383 cells: need 16-bit buffer addresses, which GA23-0059-4 selects ONLY through Create Partition (A-MODE, p. 5-10; implicit partition 0 is always 12/14-bit, p. 4-4, D-1). Means building explicit partitions in RetroIO first; s3270 4.5 refuses such a screen too ("Exceeds protocol limit")
-- [ ] APL / graphic-escape characters (code page 310, reached with the GE order) that ISPF uses for box lines and symbols. Tip from Ronny, 22 November 2026: on Windows, Lucida Console draws them well. Check which characters it actually covers and what to fall back to on Linux and macOS
+- [ ] APL / graphic-escape characters (code page 310). Measured on Windows 24 November 2026 (EBCDIC.md "What RetroTerm draws for code page 310"): the 3270 draws with Consolas, not Lucida Console; Consolas has 86 of the 136 characters (every box piece and block), the other 50 APL symbols are filled in from Segoe UI Symbol at that font's own size. What is left:
+  - [ ] Which font fills the 50 in on Linux and macOS (not measured; no Segoe UI Symbol there)
+  - [ ] The 50 Segoe UI Symbol glyphs sit at a different size and weight than the Consolas letters beside them - look at `ibm3270-cp310-table.png` with Ronny and decide whether that is good enough or needs our own font (see the "own font" item below)
+  - [ ] X'81' and X'82', the double bars, are drawn as blanks (BUGS.md B24)
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
-- [ ] TK5: look for Graphic Escape (X'08') in the panels not yet traced - RFE, RPF, REVIEW and option T - with ISPF option 0.1 set to 3278T (set it back to 3277 afterwards). Menus, options 3, M and 0 send none; M.7 TERMTEST does use code page 310 (SA character set X'F1' and an RA of GE X'D3', EBCDIC.md "TK5", 24 November 2026; Hercules `Scenario10TermtestTests`)
 - [ ] Ronny's list, 22 November 2026:
   - [ ] Real 3270 grid: a fixed character grid where each field attribute takes up a blank cell, exactly as the terminal showed it (my reading of "real 3270 grid" — confirm when the screen model is built)
   - [ ] PF keys reachable from the PC keyboard, the on-screen keyboard and a clickable row of PF1-PF24 buttons

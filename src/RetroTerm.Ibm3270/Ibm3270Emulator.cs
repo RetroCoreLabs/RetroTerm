@@ -1497,6 +1497,17 @@ namespace RetroTerm.Ibm3270
                 c = ' ';
             }
 
+            // Code page 310's only capital letters are its underscored ones, X'41'-X'69' ("A Line
+            // Below Capital/A Underscore (APL)" in IBM's registry CP00310.txt; GA27-2837-9 fig.
+            // 10-41 draws each with the line under it). The table gives the plain letter, as x3270
+            // does, so the line under it is drawn here; without it an underscored A looked exactly
+            // like a plain A (seen in the rendered code page 310 table, 24 November 2026; TK5's
+            // M.7 TERMTEST writes A P L this way). docs\spec\IBM3270\EBCDIC.md, code page 310.
+            if (alternate && c >= 'A' && c <= 'Z')
+            {
+                flags |= CharacterAttributes.Underline;
+            }
+
             return new TerminalCell(c, flags, foreground, NeutralBlack);
         }
 

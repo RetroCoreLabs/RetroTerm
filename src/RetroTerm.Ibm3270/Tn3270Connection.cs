@@ -49,6 +49,9 @@ namespace RetroTerm.Ibm3270
         private Socket? _client;
         private NetworkStream? _stream;
         private CancellationTokenSource? _receiveCts;
+
+        // 1 once Dispose has run (Interlocked, Dispose can be called from two threads at once).
+        private int _disposed;
         private Task? _receiveTask;
 
         /// <summary>
@@ -308,6 +311,18 @@ namespace RetroTerm.Ibm3270
         /// </summary>
         public void Dispose()
         {
+            // Called twice, and from two threads at once, when the host closes the connection
+            // while the session is being disconnected: TerminalSession.CleanupConnection runs on
+            // the remote-close status event while TerminalSession.DisconnectAsync disposes the
+            // same connection in its finally. The second call cancelled a disposed token source
+            // and threw ObjectDisposedException (the oracle's ispf-boxes case, two full-suite runs
+            // of 24 November 2026). IDisposable says a second Dispose must do nothing, so only the
+            // first call gets past here.
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            {
+                return;
+            }
+
             _receiveCts?.Cancel();
             _stream?.Dispose();
             _client?.Dispose();

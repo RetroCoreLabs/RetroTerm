@@ -504,7 +504,61 @@ committed to `IBM-manuals\`.
     12, and on SYMSET0 the base set's ID, X'F0' against X'00') and the code page 310 bytes where this file chooses a different Unicode
     character than x3270 (X'95', X'9C', X'A4', X'C1', X'C2', X'C3', X'E2', X'E3', X'E4'-X'E7';
     see the full table). Fields, colours, highlighting and cursor match.
-- Not looked at: the panels of RFE, RPF and REVIEW, and option T.
+- **RFE, RPF, REVIEW and option T** (measured 24 November 2026, user HERC03, ISPF option
+  0.1 set to 3278T and back to 3277 in the same session; recording
+  `src\tests\RetroTerm.Tests\Oracle\Recordings\ispf-3278t.txt`, made by
+  `HostStreamRecorderTests` case `ispf-3278t`). Every host record walked order by order
+  (SBA, SF, SFE, SA, MF, RA, EUA, IC, PT, GE) and every byte reached by GE or by a
+  character set attribute X'F1' listed:
+  - **RFE** (M.1, "REVIEW FRONT END", Greg Price's, release 52.1): its menu, its option 3.4
+    and the RFE DSLIST of the user's data sets. No GE, no character set attribute.
+  - **REVIEW** (ISPF option 1, BROWSE): the REVIEW - ENTRY PANEL and the member list of
+    `HERC03.TEST.CNTL`. None.
+  - **Option T** (the ISPF v2.2 tutorial): the first three pages. None.
+  - **RPF** (M.2, Rob Prins', V2.0.1): its browse entry panel sends none, but its **main menu
+    draws a box with GE**, with 3278T and with 3277 alike (records 30 and 52 of the
+    recording): `11 D2 F1` (SBA row 16 column 2), `28 42 F7` (SA colour white), then
+    `08 C5` ┌, fifty `08 A2` ─, `08 D5` ┐; rows 17-20 `08 85` │ at columns 2 and 53;
+    row 21 `08 C4` └, fifty `08 A2`, `08 D4` ┘. So RPF does not read ISPF's terminal type.
+    Six different code page 310 bytes in all: X'85', X'A2', X'C4', X'C5', X'D4', X'D5'.
+  - Replayed to RetroTerm and to s3270 (`-utf8 -codepage cp037`) by
+    `HostStreamOracleTests` case `ispf-3278t`: every screen the same, position by position,
+    Graphic Escape flags included. Proved able to fail: with X'C5' drawn from code page 37 the
+    case went red on row 16 of records 30 and 52.
+
+### What RetroTerm draws for code page 310 (measured 24 November 2026)
+
+The 3270 screen draws through `SystemFontRenderer`, whose font list starts with **Consolas,
+not Lucida Console**. A character Consolas lacks is drawn by the font Avalonia's font manager
+matches for it. `src\tests\RetroTerm.Tests\Avalonia\Ibm3270CodePage310GlyphTests.cs` draws
+every code page 310 byte alone into the same cell with the real renderer, asks Consolas's
+character map, and asks the font manager which font it falls back to. Picture:
+`src\tests\RetroTerm.Tests\Avalonia\images\rendered\ibm3270-cp310-table.png` (looked at).
+On the development machine (Windows 11):
+
+- **Every byte with a Unicode character draws a real glyph.** No cell is empty and no two
+  characters give the same pixels, so no missing-glyph box is drawn anywhere.
+- **In Consolas (86):** the underscored letters X'41'-X'69' (as A-Z), ¨ X'72', all eleven
+  box pieces (X'85', X'A2', X'C4'-X'C7', X'D3'-X'D7'), the blocks X'91'-X'95', ↑ ↓ → ←,
+  ≤ ≥ ≠ ≡ ∩ ∆ ○ ± × ÷ ¯ ° • ■ § ¶ [ ] { } \ !, the superscripts X'C1', X'C2', X'D1', X'D2',
+  X'F0'-X'F9' and the subscripts X'E1'-X'E3'.
+- **Not in Consolas, drawn from Segoe UI Symbol (50):** X'70' ⋄, X'71' ∧, X'73'-X'78',
+  X'80' ∼, X'83' ⎸, X'84' ⎹, X'8D' ⌈, X'8E' ⌊, X'90' ⎕, X'9A' ⊃, X'9B' ⊂, X'9C' ⌑,
+  X'A4' ₙ, X'AB' ∪, X'AC' ⊥, X'AF' ∘, X'B0'-X'B4' ⍺ ∊ ⍳ ⍴ ⍵, X'BA' ∇, X'BC' ⊤, X'BF' ∣,
+  X'CA'-X'CF', X'DA', X'DC'-X'DF', X'EA'-X'EF', X'FB'-X'FE'. These come out in Segoe UI
+  Symbol's own size and weight, smaller or larger than the Consolas letters beside them
+  (visible in the picture). Segoe UI Symbol is a Windows font; on Linux and macOS which font,
+  if any, fills them in is NOT MEASURED.
+- **Drawn as a blank:** X'81' and X'82' (the double bars, no Unicode equal, see above).
+  docs\BUGS.md B24.
+- **The underscored letters** X'41'-X'69' were drawn as plain A-Z, no line, until
+  24 November 2026; `Ibm3270Emulator.CellFor` now draws the line under them
+  (`Ibm3270CodePage310GlyphTests.AnUnderscoredCodePage310LetterIsDrawnWithTheLineUnderIt`,
+  red with the line switched off). The text of the cell stays the plain letter, as in x3270.
+- **The box pieces join:** a box of ┌ ─ ┐ │ └ ┘ drawn as RPF draws it has no gap between
+  cells along its top line or its left side
+  (`Ibm3270CodePage310GlyphTests.ABoxOfCodePage310PiecesJoinsWithoutGaps`, red with ─ drawn
+  as a hyphen).
 
 Note that X'85' is in the group
 fig. 10-41 note 4 calls "graphic plot characters" that "cannot be entered from
@@ -723,8 +777,10 @@ Results:
 So what Lucida Console does well is the **box drawing and the block shapes**,
 which is most of what ISPF panels show. The APL symbols themselves are not in the
 font. If they appear on screen in a Windows program using Lucida Console, the
-system must be filling them in from another font; which one, and whether
-RetroTerm's Avalonia text drawing does the same, is NOT VERIFIED.
+system must be filling them in from another font; which one is NOT VERIFIED.
+RetroTerm does not draw with Lucida Console at all: it draws with Consolas and
+Avalonia fills the gaps from Segoe UI Symbol, measured 24 November 2026 (see
+"What RetroTerm draws for code page 310" above).
 
 ---
 
@@ -847,7 +903,9 @@ key input is affected.
    whether it needs the "3278T" setting inside ISPF: needs a trace from a real
    z/OS ISPF session with GE reported in the query reply. Not available here.
    TK5's ISPF (Wally McLaughlin's, V2.2.000) sent no GE at all, with 3277 or 3278T
-   (see "TK5" above, 24 November 2026), so TK5 cannot answer this.
+   (see "TK5" above, 24 November 2026), so TK5 cannot answer this. On TK5 only
+   RPF's main menu box (┌ ─ ┐ │ └ ┘) and M.7 TERMTEST use code page 310, and RPF draws
+   its box whatever ISPF's terminal type is.
 3. **"3278T" meaning.** Settled: an ISPF option 0 terminal type setting, never sent on
    the wire (see "What 3278T means" above; TK5's ISPF has it too, as option 0.1).
 4. **Fonts for the APL symbols.** Lucida Console lacks 64 of the 110 GE

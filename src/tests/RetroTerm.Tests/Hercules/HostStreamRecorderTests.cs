@@ -52,6 +52,7 @@ namespace RetroTerm.Tests.Hercules
         [InlineData("ispf-editor")]
         [InlineData("model5")]
         [InlineData("termtest")]
+        [InlineData("ispf-3278t")]
         [InlineData("file-transfer")]
         [InlineData("file-transfer-large")]
         [InlineData("file-transfer-binary")]
@@ -138,6 +139,62 @@ namespace RetroTerm.Tests.Hercules
                 case "termtest":
                     AddTermtest(steps);
                     break;
+                case "ispf-3278t":
+                    // RFE, RPF, REVIEW and the tutorial with ISPF's terminal type set to 3278T
+                    // (option 0.1), the setting that could make ISPF use code page 310; then put
+                    // back to 3277, the user's own value, in the same session. Of these only
+                    // RPF's main menu draws with Graphic Escape, a box, and with 3277 too
+                    // (measured 24 November 2026, docs\spec\IBM3270\EBCDIC.md "TK5"). A run that
+                    // fails between the two settings leaves the user's profile at 3278T: run
+                    // this case again, which ends at 3277.
+                    AddTerminalType(steps, "3278T");
+
+                    // RFE (M.1): its menu, then its data set list of the user's data sets.
+                    AddVisit(steps, "=M.1", "REVIEW FRONT END", new Tk5Step("RFE 3.4", async t =>
+                    {
+                        await t.TypeAsync("3.4");
+                        await t.PressAsync("ENTER");
+                    }, s => s.Contains("Data set name prefix"), "the RFE data set list panel", false), new Tk5Step("RFE list", async t =>
+                    {
+                        await t.PressAsync("ERASEEOF");
+                        await t.TypeAsync(settings.User);
+                        await t.PressAsync("TAB");
+                        await t.PressAsync("ERASEEOF");
+                        await t.PressAsync("ENTER");
+                    }, s => s.Contains("DATA-SET-NAME") && s.Contains("**END**"), "the list of the user's data sets", false));
+
+                    // RPF (M.2): its menu, then its browse entry panel.
+                    AddVisit(steps, "=M.2", "RPF Main menu", new Tk5Step("RPF 1", async t =>
+                    {
+                        await t.TypeAsync("1");
+                        await t.PressAsync("ENTER");
+                    }, s => !s.Contains("RPF Main menu"), "the RPF browse panel", false));
+
+                    // REVIEW (option 1): the entry panel, then the user's TEST.CNTL, whose member
+                    // list REVIEW shows when no member is given. Four Tabs from PROJECT reach
+                    // DATA SET NAME.
+                    AddVisit(steps, "=1", "REVIEW - ENTRY PANEL", new Tk5Step("REVIEW TEST.CNTL", async t =>
+                    {
+                        for (int i = 0; i < 4; i++)
+                        {
+                            await t.PressAsync("TAB");
+                        }
+
+                        await t.PressAsync("ERASEEOF");
+                        await t.TypeAsync("TEST.CNTL");
+                        await t.PressAsync("ENTER");
+                    }, s => !s.Contains("REVIEW - ENTRY PANEL"), "the member list of TEST.CNTL", false));
+
+                    // The tutorial (option T): its first three pages, Enter for each next one.
+                    AddVisit(steps, "=T", "Tutorial", new Tk5Step("tutorial page 2", t => t.PressAsync("ENTER"),
+                        s => true, "the next tutorial page", false), new Tk5Step("tutorial page 3", t => t.PressAsync("ENTER"),
+                        s => true, "the next tutorial page", false));
+                    AddTerminalType(steps, "3277");
+
+                    // RPF once more as 3277, to see whether its box depends on the ISPF type.
+                    AddVisit(steps, "=M.2", "RPF Main menu");
+                    steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
+                    break;
                 case "file-transfer":
                     AddFileTransfer(steps, settings.User, terminal, tap, TransferDataSet, "ascii", System.Text.Encoding.ASCII.GetBytes(TransferText), string.Empty);
                     break;
@@ -166,6 +223,65 @@ namespace RetroTerm.Tests.Hercules
             }, s => s.Contains(expect) && !s.Contains("ISPF primary option menu"), "'" + expect + "'", false));
             steps.Add(new Tk5Step("PF3 from " + option, t => t.PressAsync("PF3"),
                 s => s.Contains("ISPF primary option menu"), "the primary menu again", false));
+        }
+
+        // Option 0.1, the TERMINAL CHARACTERISTICS panel, with its TERMINAL TYPE field set to
+        // the type given, and back to the primary menu.
+        private static void AddTerminalType(List<Tk5Step> steps, string type)
+        {
+            steps.Add(new Tk5Step("option 0.1", async t =>
+            {
+                await t.TypeAsync("0.1");
+                await t.PressAsync("ENTER");
+            }, s => s.Contains("TERMINAL TYPE"), "the terminal characteristics panel", false));
+
+            // The cursor starts on the COMMAND line; one Tab reaches the TERMINAL TYPE field.
+            // Enter saves it and goes back to the parameter options (measured 24 November 2026).
+            steps.Add(new Tk5Step("terminal type " + type, async t =>
+            {
+                await t.PressAsync("TAB");
+                await t.PressAsync("ERASEEOF");
+                await t.TypeAsync(type);
+                await t.PressAsync("ENTER");
+            }, s => s.Contains("ISPF PARAMETER OPTIONS") && s.Contains("OPTION UPDATE SUCCESSFUL"), "OPTION UPDATE SUCCESSFUL", false));
+            steps.Add(new Tk5Step("PF3 to the menu", t => t.PressAsync("PF3"),
+                s => s.Contains("ISPF primary option menu"), "the primary menu", false));
+
+            // The type is read when ISPF starts, so ISPF is left and started again.
+            steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
+            steps.Add(new Tk5Step("ISPF as " + type, async t =>
+            {
+                await t.PressAsync("CLEAR");
+                await t.WaitUntilAsync(s => true, "the cleared screen", Tk5Scenario.HostTimeoutMs);
+                await t.TypeAsync("ISPF");
+                await t.PressAsync("ENTER");
+            }, s => s.Contains("ISPF primary option menu") && s.Contains("TERMINAL : " + type + " "), "the menu with TERMINAL : " + type, false));
+        }
+
+        // Jumps to a panel from the primary menu, runs the steps given there, and comes back with
+        // PF3 until the menu shows.
+        private static void AddVisit(List<Tk5Step> steps, string jump, string expect, params Tk5Step[] inside)
+        {
+            steps.Add(new Tk5Step("jump " + jump, async t =>
+            {
+                await t.TypeAsync(jump);
+                await t.PressAsync("ENTER");
+            }, s => s.Contains(expect) && !s.Contains("ISPF primary option menu"), "'" + expect + "'", false));
+            steps.AddRange(inside);
+            steps.Add(new Tk5Step("PF3 from " + jump, async t =>
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    Tk5Screen now = await t.ReadAsync();
+                    if (now.Contains("ISPF primary option menu"))
+                    {
+                        return;
+                    }
+
+                    await t.PressAsync("PF3");
+                    await t.WaitUntilAsync(s => true, "the next panel", Tk5Scenario.HostTimeoutMs);
+                }
+            }, s => s.Contains("ISPF primary option menu"), "the primary menu again", false));
         }
 
         // Guide 03 in short: a PDS, a new member typed into in REVEDIT, SAVE, and the PDS deleted.

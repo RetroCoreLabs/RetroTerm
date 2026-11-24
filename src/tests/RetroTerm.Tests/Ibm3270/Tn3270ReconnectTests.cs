@@ -94,6 +94,26 @@ namespace RetroTerm.Tests.Ibm3270
         }
 
         [Fact]
+        public async Task ASecondDisposeOfAConnectedConnectionDoesNothing()
+        {
+            // TerminalSession disposes the connection twice when the host closes it while the
+            // session is being disconnected (CleanupConnection on the status event, and the finally
+            // of DisconnectAsync). The second call threw ObjectDisposedException out of
+            // CancellationTokenSource.Cancel (oracle ispf-boxes, 24 November 2026).
+            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var connection = new Tn3270Connection("127.0.0.1", port);
+            CancellationToken token = TestContext.Current.CancellationToken;
+            Task<Socket> accept = listener.AcceptSocketAsync(token).AsTask();
+            await connection.ConnectAsync(token);
+            using Socket host = await accept.WaitAsync(Deadline, token);
+
+            connection.Dispose();
+            connection.Dispose();
+        }
+
+        [Fact]
         public void AResetBeforeAReconnectUnlocksTheKeyboard()
         {
             // MainWindow.ConnectToHostCore calls Emulator.Reset() when a tab is reconnected with

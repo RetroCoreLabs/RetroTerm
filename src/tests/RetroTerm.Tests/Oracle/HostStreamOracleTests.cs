@@ -64,6 +64,7 @@ namespace RetroTerm.Tests.Oracle
         [InlineData("model5")]
         [InlineData("oversize")]
         [InlineData("termtest")]
+        [InlineData("ispf-3278t")]
         [InlineData("file-transfer")]
         [InlineData("file-transfer-large")]
         [InlineData("file-transfer-binary")]
@@ -116,7 +117,7 @@ namespace RetroTerm.Tests.Oracle
 
             Assert.NotEmpty(secrets);
             string[] files = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Oracle", "Recordings"), "*.txt");
-            Assert.Equal(10, files.Length);
+            Assert.Equal(11, files.Length);
             for (int i = 0; i < files.Length; i++)
             {
                 HostRecording.AssertHolds(files[i], secrets.ToArray());
