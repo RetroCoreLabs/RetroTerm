@@ -255,8 +255,9 @@ manual.
 - Unspecified types take their default. n = 0 sets all defaults.
 - Unknown types or values that the device cannot keep and send back are rejected.
 - If a type appears twice, the last one wins (all are still checked).
-- Manual silent on what is stored when no X'C0' pair is present. x3270 `ctlr.c`: **NOT VERIFIED**
-  what it does - not read.
+- No X'C0' pair: the field attribute takes its default like any other unspecified type (p. 4-3:
+  "all unspecified attribute types are assigned their default value"; the default field attribute
+  is in Table 4-2, p. 4-28). Settled 24 November 2026 (Open question 8).
 
 ### 3.4 SBA - Set Buffer Address, X'11' (p. 4-3, 4-4)
 
@@ -1253,6 +1254,12 @@ Sent for Query, or a Query List naming X'8A', Equivalent or All, when the device
 | | 6 | 1 = mandatory entry supported (X'02') |
 | | 7 | 1 = trigger supported (X'01') |
 
+**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026, not run): RetroIO
+sends this reply with X'06' (mandatory fill and mandatory entry, no trigger) and does both checks
+on the keyboard, locking with the Mandatory Fill or Mandatory Entry reason. A field validation pair
+with the trigger bit, or with any of bits 0-4 set, is refused out loud (ProtocolError): trigger
+fields are not built. RetroTerm draws the lock on line 25 as "X" only (see PLAN, the line 25 item).
+
 ### 9.14 Field Outlining, X'8C' (p. 6-49, 6-50, from the images)
 
 Sent for Query, or a Query List naming X'8C', Equivalent or All, when supported.
@@ -1275,6 +1282,61 @@ SEP is about printers: without it an underline and the next row's overline print
 binary, measured from the top left corner of the cell (0,0), in the cell units of the Usable Area
 reply, "measured when the Skip Suppression is specified" (p. 6-50).
 
+**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026): RetroIO does NOT
+send this reply. It still takes a type X'C2' pair in SFE or MF, keeps it per field
+(`GetFieldOutlining`) and returns it inbound in extended field mode. RetroTerm draws no outline
+lines. Since the reply is not sent, a host has been told nothing about outlining; p. 4-3 says a
+type "that cannot be maintained and returned inbound" is rejected, and RetroIO can maintain and
+return it, so taking it is allowed.
+
+### 9.14a Sense codes for structured field errors (Table B-1, p. B-2 to B-5, from the images)
+
+Table B-1 starts on p. B-2 (not B-1). Rows for the structured fields this document covers:
+
+| Structured field | Error | Sense |
+|---|---|---|
+| All | Invalid structured field type | 1003/1001 |
+| All | Missing structured field parameter | 1005/1001 |
+| All | Reserved field is not zero | 1003/1001 |
+| All | RCV state and all windows have zero extent | 0883 |
+| All | PID is unknown partition | 1005/1001 |
+| All | Incorrect length | 1005/1001 |
+| Create Partition | PID > maximum allowed | 1005/1001 |
+| Create Partition | Invalid UOM value | 1003/1001 |
+| Create Partition | Invalid A-MODE | 1003/1001 |
+| Create Partition | Specification error in Viewport/Window | 1005/1001 |
+| Create Partition | Base > supported number | 1005/1001 |
+| Create Partition | Insufficient resource | 1005/1001 |
+| Create Partition | CS = X'0002'-X'FFFE' and horizontal windowing not supported | 1001 |
+| Create Partition | RS = X'0002'-X'FFFE' and vertical windowing not supported | 1001 |
+| Destroy Partition | PID > maximum allowed | 1005/1001 |
+| Erase/Reset | (no error listed) | |
+| Outbound 3270DS | Incorrect A-MODE | 1005/1001 |
+| Outbound 3270DS | Invalid CMD byte | 1003/1001 |
+| Outbound 3270DS | Violation of presentation space integrity | 082B |
+| Outbound 3270DS | Data following EAU partition command | 1003/1001 |
+| Outbound 3270DS | WCC print bit = 1, but this is not the last structured field | 1001 |
+| Read Partition | Invalid Read Type code | 1003/1001 |
+| Read Partition | Invalid Q-code | 1003/1001 |
+| Read Partition | PID not equal to X'FF' for Query | 1005/1001 |
+| Read Partition | Read Partition not last structured field in chain | 1005/1001 |
+| Read Partition | Device in re-try state | 0871 |
+| Read Partition | RU chain containing Read Partition does not specify CD | 0829 |
+| Read Partition | RU chain containing Read Partition does specify EB | 0829 |
+| Set Reply Mode | Invalid reply mode | 1003/1001 |
+| Set Reply Mode | Invalid attribute type in A-list | 1003/1001 |
+| Set Reply Mode | Incorrect reply mode for partition type | 1005/1001 |
+
+The table also covers Activate Partition, Load Color Table, Load Line Type, Load Programmed Symbol
+Set, Modify Partition, Object Data/Control/Picture, Outbound Text Header, Outbound Type1 Text,
+Present Absolute/Relative Format, Save/Restore Formats, Select IPDS Mode, Select Load Color Table,
+Set MSR Control and Set Window Origin, none of which RetroIO builds. Reset Partition, Restart,
+Request Recovery Data, SCS Data, Select Color Table, Select Format Group, Set Checkpoint Interval
+and Destination/Origin have no errors listed.
+
+**What RetroIO does today:** every refusal goes out through `ProtocolError` as text naming the page;
+whether a TN3270E session sends a negative response with these sense codes was not checked here.
+
 ### 9.15 Transparency, X'A8' (p. 6-84, from the image)
 
 Sent for a Query List naming X'A8', or All - the page does not list plain Query or Equivalent.
@@ -1291,6 +1353,12 @@ Sent for a Query List naming X'A8', or All - the page does not list plain Query 
 
 Action values: X'00' default (same as for the default attribute value), X'F0' normal (background
 transparent - OR), X'F1' background transparent - XOR, X'FF' not transparent (opaque).
+
+**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026): RetroIO does NOT
+send this reply. It takes type X'46' in SFE, MF and SA, keeps it per field and per character
+(`GetFieldTransparency`, `GetCharacterTransparency`) and returns it inbound. RetroTerm draws
+nothing different for it: every cell is drawn opaque. My reading, not from the manual: with one plane of
+text and no graphics under it, "transparent" has nothing to show through.
 
 ---
 
@@ -1446,6 +1514,24 @@ Appendix D (p. D-1) adds: in 16-bit mode bits 0 and 1 of the first byte are part
 outbound addresses are read as 16-bit binary and inbound addresses are made as 16-bit binary; with
 no partitions defined, 12- and 14-bit addressing is assumed.
 
+The sense codes for a rejected Create Partition are in section 9.14a (Table B-1, p. B-2). The
+"H.HV" / "W.WV" rows were looked at again in a 130 dpi image of p. 5-12 on 24 November 2026: the
+scan shows only a dot between the letters, so the symbol is still not known.
+
+**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026): Create Partition is
+NOT built. RetroIO handles only Read Partition, Erase/Reset, Set Reply Mode, Outbound 3270DS and the
+X'D0' file transfer field; any other structured field, X'0C' included, is refused out loud through
+`ProtocolError` ("Structured field X'0C' is not built"). Only implicit partition 0 exists; a Read
+Partition, Set Reply Mode or Outbound 3270DS naming another partition is refused. So there is no
+16-bit addressing and a screen stays at most 16 383 cells. The Usable Area reply's flags byte is X'01'
+(12/14-bit addressing only). RetroTerm has nothing of its own for partitions.
+
+Erase/Reset (p. 5-15) was re-read against Appendix C on 24 November 2026: the page only says it
+destroys every partition and makes implicit partition 0 at the default size (IPZ B'0') or the
+alternate size (IPZ B'1'). It says nothing about the reply mode, and Table C-1 has no Erase/Reset
+row. RetroIO also puts the reply mode back to field mode on Erase/Reset; that is not from p. 5-15
+(the code cites p. 5-15 for the size only).
+
 ---
 
 ## 14. Reset actions (GA23-0059-4 Appendix C, Table C-1, p. C-1 and C-2, from the images)
@@ -1530,8 +1616,27 @@ Notes (p. C-2):
 for PS LCID and PS CONTENT" (p. C-2).
 
 The table does not say whether "WCC in EW/EWA" means any EW/EWA or only one whose WCC has the reset
-bit; the next row, "WCC Reset in 3270DS EW/EWA Only", names the reset bit. Not settled
-(**NOT VERIFIED**).
+bit. **Settled 24 November 2026 by Table 3-3 (p. 3-4, "WCC Reset Actions (for Displays)"):** for an
+EW or EWA with "WCC = Reset", a device without partitions or in implicit partition state must
+"Execute the command; reset the inbound reply mode to field"; with "WCC = No reset", only "Execute
+the command". A Write resets nothing, reset bit or not. So the row means the reset bit is set.
+
+**What RetroIO does today, row by row, for the rows a TN3270 terminal meets** (read in the code,
+24 November 2026; only the Inbound Reply Mode column is checked, because RetroIO has no partitions,
+no operator attribute selection and no programmed symbols):
+
+| Row | Table C-1 says | RetroIO |
+|---|---|---|
+| CLEAR Key LULU | R | resets to field mode (cites p. C-1) |
+| WCC in EW/EWA (reset bit) | R | resets to field mode, only when the reset bit is set, as Table 3-3 says |
+| Erase/Reset (no row) | - | resets to field mode |
+| Bind Unowned | R | does NOT reset (`ApplyBind` leaves the reply mode) |
+| Unbind LULU | 13 (allow all selections) | does NOT change it (`Unbind` leaves the reply mode) |
+| Power On | 13 | starts in field mode |
+| System Request Key LULU | R | not checked |
+
+What "allow all selections" (note 13) means for a terminal with no operator attribute selection is
+not said; my reading is that it is the same as field mode there (**NOT VERIFIED**).
 
 ---
 
@@ -1558,8 +1663,12 @@ bit; the next row, "WCC Reset in 3270DS EW/EWA Only", names the reset bit. Not s
    manual does not; RetroIO follows the manual there. Still not settled: whether a TN3270 session is
    meant to follow the SNA or the non-SNA chapter where they differ, and what a real SNA 3274/3279
    showed; the SNA chapter alone does not say the keyboard locks.
-8. **SFE without an X'C0' pair.** The manual does not say what field attribute is stored when SFE
-   gives no X'C0' pair. Oracle code for this was not read.
+8. **SFE without an X'C0' pair.** Settled 24 November 2026 by p. 4-3: "Each attribute type has a
+   specified default value. When the SFE order is used, all unspecified attribute types are
+   assigned their default value", and "If SFE is sent with no type-value pairs ... defaults are
+   set". The default field attribute is in Table 4-2 (p. 4-28): unprotected, alphanumeric,
+   display/not detectable, not intensified, MDT off. RetroIO already stores that (its comment cites
+   p. 4-2; the sentence is on p. 4-3).
 9. **Very large screens.** Usable Area BUFFSZ is 2 bytes; the manual does not say what to report
    when rows x cols exceeds 65 535, nor whether a host can use more than 16 383 positions without
    Create Partition (16-bit mode is set only by Create Partition, p. 4-4, D-1).
@@ -1569,8 +1678,8 @@ bit; the next row, "WCC Reset in 3270DS EW/EWA Only", names the reset bit. Not s
 11. **Sys Req: the ETX.** p. 9-3 ends the test request read with ETX; x3270 sends none over
     TN3270, and RetroIO follows x3270. Settled only when a host is seen answering one.
 12. **Not read yet:** Load PS (p. 5-18 on), which the Character Sets CB flag and FORM bits refer
-    to; Table B-1 (p. B-2), the reject codes Create Partition points at; and the Erase/Reset page
-    (p. 5-15) was not re-read against Appendix C. Everything else once listed here (Character Sets
+    to. Table B-1 (p. B-2 to B-5) and the Erase/Reset page (p. 5-15) were read on 24 November 2026
+    (sections 9.14a and 13). Everything else once listed here (Character Sets
     descriptors, Create Partition, Field Validation, Field Outlining, Transparency, the Usable Area
     self-defining parameters, Appendix C and tnz's Color reply) was read on 23 November 2026 and is
     in sections 9.4a, 9.5, 9.9, 9.13 to 9.15, 13 and 14. Print oddities found there are written in

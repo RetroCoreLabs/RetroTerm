@@ -61,14 +61,16 @@ manuals are the authority; x3270 is an oracle to run and read, never code to cop
 clean-room rewrite in C#.
 
 **A. Read and document — no machine, no Ronny**
-- [ ] Read the parts of GA23-0059-4 the data stream spec lists as not read yet: Character Sets reply layout, Create Partition, Field Validation / Outlining / Transparency replies, Usable Area extra parameters (p. 6-90 to 6-94), Appendix C reset table
-- [ ] Settle the open questions at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE) — most need one of the traces below
+- [ ] Read Load PS in GA23-0059-4 (p. 5-18 on), the last part of that manual the data stream spec still lists as not read
+- [ ] The open questions still left at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE, 3270 PC keys) — the ones a held manual could answer were settled on 24 November 2026; the rest need a TK5 or z/OS trace, or a manual not held (named in each question)
 - [ ] 3270 PC keys, what is still open (the keys themselves are written up in `docs\spec\IBM3270\3270-PC-WORKSTATION-KEYS.md` from SC23-0103-2 and 84X0982): what ExSel / Entry Assist does and whether it sends anything (needs the Entry Assist RPQ BK1147 User's Guide, not found yet); whether Print in a host window reaches the host; plain/Shift/Alt legends for the keys other than Jump and WS Ctrl (the summary card SX23-0231-02 is image only)
 - [ ] ISPF box lines (EBCDIC.md, "The box-drawing characters ISPF uses"): find which code page 310 byte ISPF sends for a GE(ON) dash or bar, and how ISPF sets ZGE (GE supported yes/no) - needs a trace from a real z/OS ISPF, the manuals do not say
 
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
+- [ ] Inbound reply mode on BIND and UNBIND: GA23-0059-4 Table C-1 (p. C-1) resets it on "Bind Unowned" and sets note 13 on "Unbind LULU"; `ApplyBind` and `Unbind` leave it as it was (3270-DATA-STREAM.md section 14)
+- [ ] Trigger fields (field validation bit 7, p. 4-23 to 4-26) are refused today; build them or keep refusing (the Field Validation reply already says not supported)
 - [ ] Left open by GA23-0059-4 in the query replies (3270-DATA-STREAM.md 9.4a, 9.9), after B15 was fixed in RetroIO on 24 November 2026: the CB flag on a terminal with no local copy, and whether nested sizes (every RetroTerm model) also need an Alternate Usable Area
 - [ ] The 3287 printer over TN3270E has only been tested against an in-process host written from RFC 2355 (built 24 November 2026); no real TN3270E host has sent it a job. Run it against one when a host that offers TN3270E is available
 - [ ] SCS for the 3287: only the codes of GA23-0061-2 p. 2-25 are handled; any other code (and BEL, named there but not defined) is refused out loud. IBM's SCS reference (the SNA character string manual) is not held under docs\spec; it is needed for the rest (for example the SA attribute types on paper, and which sense a 3287 gives for an unknown code)
@@ -105,6 +107,7 @@ clean-room rewrite in C#.
   - [ ] Which font fills the 50 in on Linux and macOS (not measured; no Segoe UI Symbol there)
   - [ ] The 50 Segoe UI Symbol glyphs sit at a different size and weight than the Consolas letters beside them - look at `ibm3270-cp310-table.png` with Ronny and decide whether that is good enough or needs our own font (see the "own font" item below)
   - [ ] X'81' and X'82', the double bars, are drawn as blanks (BUGS.md B24)
+- [ ] Field outlining (X'C2', p. 4-19, 4-20) is kept by RetroIO but not drawn; drawing it also needs the Field Outlining query reply (p. 6-49) sent, which RetroIO does not send today
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written

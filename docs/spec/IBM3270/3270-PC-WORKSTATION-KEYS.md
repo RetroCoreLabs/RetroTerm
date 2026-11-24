@@ -41,9 +41,9 @@ plain, Shift and Alt is NOT VERIFIED.
 |---|---|---|
 | **WS Ctrl** (Workstation Control) | Puts you in work station control mode; press again to go back to application mode. Works in both modes. On the Enhanced PC keyboard: Shift + Esc. | CP-UG 5-7, 6-7; WSP-UG 5-22 |
 | **Help** | Brings up a Help panel listing the functions that apply to what you are doing now; press again to remove it. Several different Help panels exist. | CP-UG 1-9, 6-7 |
-| **Jump** | Moves to the next window, in alphabetic order of the window short names (A-Z). Works in both modes. Enhanced PC keyboard: left Alt + Page Up; XT/AT keyboard: Alt + Esc. | CP-UG 5-7, 6-8; WSP-UG 5-10 (Alt + Esc: page NOT VERIFIED) |
+| **Jump** | Moves to the next window, in alphabetic order of the window short names (A-Z). Works in both modes. Enhanced PC keyboard: left Alt + Page Up; XT/AT keyboard: Alt + Esc. | CP-UG 5-7, 6-8; WSP-UG 5-10, 6-18, 9-12 (Alt + Esc) |
 | **ChgSc** (Change Screen) | Moves to the next defined screen profile (a saved window layout), in number order. Works in both modes. Enhanced PC keyboard: left Alt + Home. With only one profile it says `INDWS040 Cannot use ChgSc: All other screens are empty`. | CP-UG 2-12, 5-7, 6-7; WSP-UG 5-22 |
-| **Enlarge** (what other products call Zoom) | Makes the selected window, and windows selected after it, fill the whole screen until pressed again. Borders vanish and no other window shows. Works in both modes. Enhanced PC keyboard: left Alt + Insert. | CP-UG 2-14, 5-9, 6-9; WSP-UG (Alt + Insert text, page NOT VERIFIED) |
+| **Enlarge** (what other products call Zoom) | Makes the selected window, and windows selected after it, fill the whole screen until pressed again. Borders vanish and no other window shows. Works in both modes. Enhanced PC keyboard: left Alt + Insert; XT/AT keyboard: Alt + NumLk. | CP-UG 2-14, 5-9, 6-9; WSP-UG 9-7, 9-12 |
 | **Delete Window** | In work station control mode, deletes the selected window from the screen profile (not from profile 0). | CP-UG 6-10; WSP-UG 5-22 |
 | **Copy** | Starts the copy function (work station control mode). Copy within a window, between windows, and between screen profiles; from host, PC or notepad into a host or notepad window. You cannot copy INTO the PC window or within it. | CP-UG 2-33, 6-8. Step by step (chapter 9) NOT read. |
 | **Print** | Work station control mode: prints the exact screen, or an enlarged window, to the 3270 PC's own printer. Application mode in a host window: sends the session to a printer on the 3274 control unit (a 3278 local copy). | CP-UG 5-8, 6-8 |
@@ -135,5 +135,11 @@ settings window for each connection, and a Help menu that opens the docs site.
 - The Enhanced PC keyboard equivalents were only read for WS Ctrl, Jump, ChgSc and Enlarge; the
   rest (Copy, Print, Auto, Help) are NOT VERIFIED. WSP-UG chapter 7 (keyboard definition) and
   CP-USE should hold them.
-- Which page of WSP-UG gives Alt + Esc for Jump on XT/AT keyboards and Alt + Insert for Enlarge
-  was not noted.
+- Settled 24 November 2026 (WSP-UG text layer, checked word for word): Jump is "Left Alt + Page Up
+  on the Enhanced PC keyboard or Alt + Esc on XT/AT keyboards" (WSP-UG 6-18, again 9-12 and 10-5).
+  Enlarge is "left Alt + Insert on the Enhanced PC keyboard or Alt + NumLk on the AT/XT keyboards"
+  (WSP-UG 9-7; 9-12 lists "Enlarge (Alt + NumLk)"). On AT/XT keyboards the work station control
+  keys are only WSCtrl (Shift + Esc), List (PF1), Print (PrtSc), A-Z and 0-9, Jump (Alt + Esc),
+  ChgSc (Alt + ScrLk) and Enlarge (Alt + NumLk), with Quit (Ctrl + F10) to stop a print
+  (WSP-UG 9-11, 9-12). Copy, Auto and Help are not in that list; whether they have an AT/XT key outside work station
+  control mode is not said there. The Enhanced PC keys for Copy, Print, Auto and Help are still open.
