@@ -91,15 +91,15 @@ jobs:
             asset: RetroTerm-win-x64.zip
           - os: ubuntu-latest
             rid: linux-x64
-            binary: RetroTerm.Desktop
+            binary: RetroTerm
             asset: RetroTerm-linux-x64.tar.gz
           - os: macos-15-intel
             rid: osx-x64
-            binary: RetroTerm.Desktop
+            binary: RetroTerm
             asset: RetroTerm-osx-x64.zip
           - os: macos-latest
             rid: osx-arm64
-            binary: RetroTerm.Desktop
+            binary: RetroTerm
             asset: RetroTerm-osx-arm64.zip
     runs-on: ${{ matrix.os }}
     steps:
@@ -126,7 +126,7 @@ jobs:
           if [ "${{ matrix.rid }}" = "win-x64" ]; then
             mv RetroTerm.exe RetroTerm-${{ matrix.rid }}.exe
           else
-            mv RetroTerm.Desktop RetroTerm-${{ matrix.rid }}
+            mv RetroTerm RetroTerm-${{ matrix.rid }}
             chmod +x RetroTerm-${{ matrix.rid }}
           fi
 

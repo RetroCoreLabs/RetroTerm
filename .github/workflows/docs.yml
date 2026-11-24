@@ -52,6 +52,10 @@ jobs:
       - name: Build site
         working-directory: src
         run: docfx docfx/docfx.json --warningsAsErrors
+        # nuget.config reads these two values to log in to the RetroIO feed on GitHub Packages.
+        env:
+          RETROCORE_NUGET_USER: ${{ github.actor }}
+          RETROCORE_NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-pages-artifact@v5
         with:
