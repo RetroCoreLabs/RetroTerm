@@ -61,7 +61,6 @@ manuals are the authority; x3270 is an oracle to run and read, never code to cop
 clean-room rewrite in C#.
 
 **A. Read and document — no machine, no Ronny**
-- [ ] Read Load PS in GA23-0059-4 (p. 5-18 on), the last part of that manual the data stream spec still lists as not read
 - [ ] The open questions still left at the end of each spec file (data stream, EBCDIC, TN3270, keyboard, IND$FILE, 3270 PC keys) — the ones a held manual could answer were settled on 24 November 2026; the rest need a TK5 or z/OS trace, or a manual not held (named in each question)
 - [ ] 3270 PC keys, what is still open (the keys themselves are written up in `docs\spec\IBM3270\3270-PC-WORKSTATION-KEYS.md` from SC23-0103-2 and 84X0982): what ExSel / Entry Assist does and whether it sends anything (needs the Entry Assist RPQ BK1147 User's Guide, not found yet); whether Print in a host window reaches the host; plain/Shift/Alt legends for the keys other than Jump and WS Ctrl (the summary card SX23-0231-02 is image only)
 - [ ] ISPF box lines (EBCDIC.md, "The box-drawing characters ISPF uses"): find which code page 310 byte ISPF sends for a GE(ON) dash or bar, and how ISPF sets ZGE (GE supported yes/no) - needs a trace from a real z/OS ISPF, the manuals do not say
@@ -69,7 +68,7 @@ clean-room rewrite in C#.
 
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
-- [ ] Inbound reply mode on BIND and UNBIND: GA23-0059-4 Table C-1 (p. C-1) resets it on "Bind Unowned" and sets note 13 on "Unbind LULU"; `ApplyBind` and `Unbind` leave it as it was (3270-DATA-STREAM.md section 14)
+- [ ] UNBIND, Table C-1 note 13 ("allow all selections"): which reply mode that means is not in the manual, so `Unbind` leaves the mode (BIND reset done 24 November 2026; RetroIO BUGS.md Q "Tn3270 Unbind reply mode", 3270-DATA-STREAM.md section 14); needs a 3274/3174 description or a real controller trace
 - [ ] Trigger fields (field validation bit 7, p. 4-23 to 4-26) are refused today; build them or keep refusing (the Field Validation reply already says not supported)
 - [ ] Left open by GA23-0059-4 in the query replies (3270-DATA-STREAM.md 9.4a, 9.9), after B15 was fixed in RetroIO on 24 November 2026: the CB flag on a terminal with no local copy, and whether nested sizes (every RetroTerm model) also need an Alternate Usable Area
 - [ ] The 3287 printer over TN3270E has only been tested against an in-process host written from RFC 2355 (built 24 November 2026); no real TN3270E host has sent it a job. Run it against one when a host that offers TN3270E is available

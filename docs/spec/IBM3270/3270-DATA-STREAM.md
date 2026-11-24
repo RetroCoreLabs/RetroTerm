@@ -1630,13 +1630,181 @@ no operator attribute selection and no programmed symbols):
 | CLEAR Key LULU | R | resets to field mode (cites p. C-1) |
 | WCC in EW/EWA (reset bit) | R | resets to field mode, only when the reset bit is set, as Table 3-3 says |
 | Erase/Reset (no row) | - | resets to field mode |
-| Bind Unowned | R | does NOT reset (`ApplyBind` leaves the reply mode) |
-| Unbind LULU | 13 (allow all selections) | does NOT change it (`Unbind` leaves the reply mode) |
+| Bind Unowned | R | resets to field mode since 24 November 2026 (`ApplyBind`), whether or not the BIND's sizes are taken |
+| Unbind LULU | 13 (allow all selections) | does NOT change it (`Unbind` leaves the reply mode; RetroIO BUGS.md, Q group, "Tn3270 Unbind reply mode") |
 | Power On | 13 | starts in field mode |
 | System Request Key LULU | R | not checked |
 
-What "allow all selections" (note 13) means for a terminal with no operator attribute selection is
-not said; my reading is that it is the same as field mode there (**NOT VERIFIED**).
+The Bind and Unbind rows were read again from the page image of p. C-1 on 24 November 2026, every
+column, and match the table above. What RetroIO does for each column of those two rows:
+
+| Column | Bind Unowned | RetroIO at BIND | Unbind LULU | RetroIO at UNBIND |
+|---|---|---|---|---|
+| Partitions | R | only implicit partition 0 exists; it is made again at the session's default size | 17 (no note 17 is printed) | partition 0 made again at the model's default size |
+| Inbound Reply Mode | R | field mode (Table 3-3: reset is "to field") | 13 | left as it was - see below |
+| Selection | R | not modelled: no operator attribute selection | NC | - |
+| Indicators | R | not modelled: no selection indicators | 7 | - |
+| INPID / INOP | R | INOP back to Read Modified in the normal read state: a record kept for a retry is dropped, so a Read Modified reads the screen again (p. 3-14, 3-19). INPID is always 0 | NR | - |
+| PS Content / PS LCID | NC | nothing (no programmed symbols) | NC | - |
+
+Row "Bind SSCP" is 9 in every column but INPID/INOP, which is R, so the same resets are right when
+the LU was SSCP-owned. Tests: `BindAndSscpLuTests` in RetroIO (`ABindResetsTheInboundReplyModeToField`,
+`ABindWhoseSizesAreRefusedStillResetsTheInboundReplyMode`,
+`ABindEndsTheRetryStateSoReadModifiedReadsTheScreenAgain`).
+
+**Note 13 is not done, on purpose.** "Allow all selections" is not a reply mode the manual defines:
+Set Reply Mode has field, extended field and character mode (p. 5-61, 5-62), and the selections are
+operator attribute selections, which RetroIO does not have. Character mode listing every character
+attribute type would allow every selection, but that is a reading, not the text, and it would change
+what goes inbound. So `Unbind` leaves the mode and the next BIND resets it. Note 8 (while unowned the
+last application write stays on the screen) also differs: `Unbind` clears the screen, as x3270 does.
+Both are in RetroIO's BUGS.md.
+
+---
+
+## 15. Load Programmed Symbols (Load PS), X'06' (GA23-0059-4 p. 5-18 to 5-33, read from the page images)
+
+Read 24 November 2026. The text layer of these pages is damaged ("8'0'" for "B'0'", "Table S-1"
+for "Table B-1"), so the tables below are from the page images of p. 5-19, 5-20, 5-21, 5-22, 5-29
+and 5-30.
+
+What it does (p. 5-18): loads character shapes into the device's read/write storage (RWS), which
+the Character Sets query reply names when the device has it. An RWS has 191 slots, one per code
+X'40' to X'FE'; the X'40' slot cannot be loaded and holds a blank. A Load PS with no shape data
+still runs: it changes only the set's settings (for example skip suppression) and not its shapes.
+
+Format (p. 5-18 to 5-21, from the images):
+
+| Byte | Bit | Content |
+|---|---|---|
+| 0-1 | | L - length |
+| 2 | | X'06' |
+| 3 | 0 | BASIC/EXT: B'0' basic form, only bytes 0 to 6; B'1' extended form, length in byte 7 |
+| | 1 | CLEAR: B'0' do not clear; B'1' clear all character slots not loaded |
+| | 2 | SKIP - skip suppress: B'0' not required; B'1' required ("Note 1", see below) |
+| | 3-7 | TYPE - data format: B'00001' type 1, 18 bytes per shape (a 16-bit vertical slice, then 16 8-bit horizontal slices; for 9 x 12 the last 4 bytes are zero); B'00010' type 2, type 1 compressed; B'00011' type 3, row loading top to bottom; B'00100' type 4, type 3 compressed; B'00101' type 5, column loading left to right; B'00110' type 6, type 5 compressed; B'01000' type 8, vector; B'00000' and others reserved |
+| 4 | | LCID - local character set ID, X'40' to X'EF'; X'FF' = this RWS is free (not assigned); others reserved |
+| 5 | | CHAR - first code point, X'41' to X'FE' |
+| 6 | | RWS - loadable character set RWS number |
+| 7 | | P LENGTH - length of the extended-form parameters, this byte included. Parameters may be left off from the end; one left off takes the default its zero value stands for |
+| 8 | 0 | APA: B'0' all points addressable; B'1' not APA |
+| | 1 | CB - LCID compare: B'0' compare; B'1' no compare |
+| | 2 | OB - selectable by PS key: B'0' the operator may select it; B'1' not |
+| | 3 | MULTID: B'0' release any other symbol set with the same LCID; B'1' release it unless it was loaded with MULTID = B'1' |
+| | 4 | USET: B'0' do not use the Symbol Envelope Table; B'1' use it |
+| | 5-6 | Reserved |
+| | 7 | SDPP: B'1' self-defining parameters follow |
+| 9 | | LW - X-units across a character cell (shape width) |
+| 10 | | LH - Y-units down a character cell (shape height) |
+| 11 | | SUBSN - X'00' one-byte codes; X'41'-X'FE' subsection ID for 2-byte data; other reserved |
+| 12 | | COLOR - X'00' all planes; X'01' blue; X'02' red; X'04' green; X'nn' a colour attribute value |
+| 13 | | ST. SUBS - starting subsection: X'00' (default) as in the Character Sets reply; X'41'-X'FE' for a 2-byte set; others reserved |
+| 14 | | ECHAR - last code point |
+| 15 | | NW - number of width pairs |
+| 16 | | NH - number of height pairs |
+| 17 | | Reserved, must be zero |
+| M to N | | the shapes, in the format TYPE names |
+
+Notes printed under the table (p. 5-21): 1. values other than those shown, and invalid values, are
+rejected (Table B-1, p. B-2). 2. The space lost to skip suppression is made up after the last line:
+the last line moves up from the bottom.
+
+Rules (p. 5-21 to 5-25):
+
+- **BASIC/EXT**: a device without the extended form rejects an extended Load PS with sense X'1005'
+  or X'1001'.
+- **SKIP**: a row holding characters from this set has the skip after it suppressed, so the next
+  row's characters sit directly under it.
+- **CLEAR**: every slot of the named RWS is cleared, then the shapes are loaded from CHAR on. CLEAR
+  with no shapes clears the set; later references to it show blanks. A dynamically allocated store
+  is freed; a preallocated one has every slot set to zeros.
+- **TYPE**: compressed types (2, 4, 6) are decompressed first. Types 1 and 2: 18 bytes per shape, a
+  9 x 16 cell. Type 3: LW bits per row, LH rows; type 5: LH bits per column, LW columns; for both,
+  each shape is padded to a whole byte, and LW/LH not given or zero means the device's own size.
+  Loading stops when the data runs out (the last whole shape is loaded; leftover bits are ignored and
+  a negative response with X'1001' or X'1005' is sent) or when the X'FE' slot has been loaded (the
+  rest is ignored, same negative response).
+- **LCID**: the LCID is taken away from any RWS it was on before (always with MULTID = B'0'; with
+  B'1' only if the earlier load had MULTID = B'0'); that RWS gets LCID X'FF', but only once this LCID
+  is on its new RWS. Several sets may share one LCID in different slot sizes or types, each loaded
+  with MULTID = B'0' (as printed). The named RWS loses any LCID it had; a later reference to that
+  released LCID is an error. An RWS with LCID X'FF' cannot be picked by the operator.
+- **Errors** (p. 5-22): an error found before the RWS is changed sends a sense code and leaves the
+  LCID; an error found while the RWS is being changed sends the sense code and the LCID IS changed
+  to the new one. Load PS fields after a failing one in the same WSF are not run.
+- **RWS**: byte 6 is the physical RWS, which is tied to the PS selection keys. CHAR outside X'41' to
+  X'FE' is rejected (X'1005' or X'1001').
+- **CHAR** (p. 5-23): the code point goes up by one for each shape, or for each shape and Symbol
+  Envelope Table entry pair when both are given. Slots not named keep what they had (subject to
+  CLEAR). A slot never loaded shows a space and has envelope values of zero. Shapes and envelope
+  values may be loaded separately.
+- **APA** B'1' (not APA) lets a printer leave points out to go faster (3287: one head sweep per
+  line). **CB** is about local copy to a printer (see 9.9). **OB** B'1' means the PS key for this
+  RWS cannot be enabled by the operator while it holds this LCID; Set Reply Mode turning off
+  character set selection turns it off for every set whatever OB says. **SDPP** says
+  self-defining parameters come before the shapes.
+- **LW/LH** (p. 5-23, 5-24): non-zero LW and LH load shapes of that size, top left in the slot; they
+  must not be larger than the set's slot, or the field is rejected. Zero or absent: the device's
+  default slot size. With types 1 and 2 only LW = 9 and LH = 16 are valid.
+- **COLOR** (p. 5-24): a triple-plane set loads only the named plane for B'001', B'010' or B'100'
+  (other values reserved and rejected); X'00' or absent loads all three. A shape may also be built
+  from colour attribute values (Color query reply): each value splits into its primaries and each
+  plane is loaded; when shown the planes are ORed per dot. A single-plane set rejects COLOR B'001',
+  B'010' or B'000' (as printed).
+- **ECHAR** (p. 5-24): the last code point in this field. Fewer shapes than ECHAR - CHAR + 1 leaves
+  the rest unchanged; more is a reject, and the store stays as before except for CLEAR and the
+  slots CHAR to ECHAR (as printed). It matters only for sets that require ECHAR.
+- **NW / NH** (p. 5-24, 5-25): the number of width and height indentation pairs for the whole set,
+  which also fixes the format of the Symbol Envelope Table parameter.
+
+Self-defining parameters (p. 5-25, 5-26):
+
+| Parameter | Bytes |
+|---|---|
+| Symbol Envelope Table | L, X'01', then NW pairs of width indents (left, right), then NH pairs of height indents (bottom, top). One per symbol, from CHAR on. With one pair it holds for the whole cell; with more, width pairs go bottom to top and height pairs left to right. A pair's sum must not exceed the cell width (height) |
+| Terminator | X'02FF'; everything after it is shape data |
+
+Compression (types 2, 4, 6; p. 5-26 to 5-33). A display shape is 18 one-byte slices (144 bits), a
+printer shape 10 (80 bits); for types 4 and 6 a slice is a row of LW bits or a column of LH bits.
+Each slice is padded with zeros to a multiple of 4 bits; each 4 bits is an "element". Every shape
+starts with header bits naming a comparison rule:
+
+| Rule | Header bits (as printed) | Each element is compared with |
+|---|---|---|
+| 1 | B'0' | an all-zero element |
+| 2 | B'1' | the same element of the previous slice (slice 1: zero) |
+| 3 | B'110' | the same element of the slice two back (slices 1 and 2: an all-ones element) |
+| 4 | B'1110' | nothing: the shape is blank |
+
+Other header bits are rejected. Then, per slice-pair (two slices, four elements; 9 pairs for a
+display shape, 5 for a printer): a 0 bit if the pair matches its reference pair; else a 1 bit and,
+for each of the four elements, 0 if it matches or 1 followed by the element's 4 bits. All shapes'
+bits are joined without regard to bytes and ended with 1 bits to a whole byte - at least 4 of them,
+so 4 to 11 (p. 5-30). Worked examples for rules 1 to 3 are on p. 5-31 to 5-33.
+
+Print oddities, written down rather than guessed at:
+
+- p. 5-19 says "Bytes 7 to 12 are parameters for the extended form", but the table on p. 5-21 goes
+  on to byte 17.
+- SKIP points at "Note 1", but the note about skip suppression is note 2 (p. 5-21).
+- Rule 2's header is printed B'1' (p. 5-29). Read as written it cannot be told from the first bit of
+  rule 3's B'110' or rule 4's B'1110'; B'10' would make the four a clean prefix code. **NOT
+  VERIFIED** - the page image shows B'1'.
+- The example's slice-pair 7 is printed X'12FF' (p. 5-30), but Figure 5-3 on p. 5-28 gives slice 13
+  as X'02' and slice 14 as X'FF'. One of the two is a misprint; which is not known.
+- p. 5-27 calls the printer forms "type 6" and p. 5-28 says the rules work on "Type 5 (printer)"
+  data; types 5 and 6 are column loading uncompressed and compressed (p. 5-19), so both may be right.
+- The single-plane COLOR rule (p. 5-24) rejects B'000', but byte 12 (p. 5-20) defines X'00' as "All
+  planes", and the triple-plane rule takes X'00'.
+
+**What RetroIO does today** (read in the code, 24 November 2026): Load PS is NOT built and there are
+no programmed symbols. A Write Structured Field holding X'06' is refused out loud: `ProtocolError`
+"Structured field X'06' is not built (...)", and the rest of that transmission is not run (p. 5-1).
+The Character Sets query reply says so to the host: flags X'82' (ALT and GF only - LOADABLE and EXT
+are 0), FORM 0 (no Load PS format), and both descriptors (the base set, LCID X'F0', and the Graphic
+Escape set, LCID X'F1') have LOAD = 0. SA, SFE and MF character set values are stored as sent and
+not checked against any LCID, so a host that names a loadable LCID gets no error from RetroIO; what
+is drawn is up to the caller (RetroTerm). Nothing here was built or changed for Load PS.
 
 ---
 
@@ -1677,8 +1845,8 @@ not said; my reading is that it is the same as field mode there (**NOT VERIFIED*
     alternate when there is no alternate (p. 6-60).
 11. **Sys Req: the ETX.** p. 9-3 ends the test request read with ETX; x3270 sends none over
     TN3270, and RetroIO follows x3270. Settled only when a host is seen answering one.
-12. **Not read yet:** Load PS (p. 5-18 on), which the Character Sets CB flag and FORM bits refer
-    to. Table B-1 (p. B-2 to B-5) and the Erase/Reset page (p. 5-15) were read on 24 November 2026
+12. **Not read yet:** nothing listed. Load PS (p. 5-18 to 5-33) was read on 24 November 2026 and is
+    in section 15, with its print oddities. Table B-1 (p. B-2 to B-5) and the Erase/Reset page (p. 5-15) were read on 24 November 2026
     (sections 9.14a and 13). Everything else once listed here (Character Sets
     descriptors, Create Partition, Field Validation, Field Outlining, Transparency, the Usable Area
     self-defining parameters, Appendix C and tnz's Color reply) was read on 23 November 2026 and is
