@@ -65,6 +65,8 @@ namespace RetroTerm.Tests.Oracle
         [InlineData("oversize")]
         [InlineData("termtest")]
         [InlineData("file-transfer")]
+        [InlineData("file-transfer-large")]
+        [InlineData("file-transfer-binary")]
         public async Task RetroTermShowsWhatS3270ShowsForTheRecordedSession(string name)
         {
             // s3270 first: a missing s3270 fails here, before anything else, by name.
@@ -114,7 +116,7 @@ namespace RetroTerm.Tests.Oracle
 
             Assert.NotEmpty(secrets);
             string[] files = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Oracle", "Recordings"), "*.txt");
-            Assert.Equal(8, files.Length);
+            Assert.Equal(10, files.Length);
             for (int i = 0; i < files.Length; i++)
             {
                 HostRecording.AssertHolds(files[i], secrets.ToArray());

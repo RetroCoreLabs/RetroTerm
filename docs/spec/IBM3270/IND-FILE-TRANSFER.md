@@ -354,8 +354,48 @@ inbound DDM bytes "must be equal to or less than the LIMIN value".
 
 **Resend on Read Modified.** x3270 keeps a copy of the last upload SF and sends it again if the
 host issues a Read Modified while upload data is pending [x3270 `Common/ft_dft.c` lines 657-664
-and 713-725; called from `Common/ctlr.c` lines 881 and 1107]. [IND] does not describe this:
-NOT VERIFIED that IND$FILE needs it.
+and 713-725; called from `Common/ctlr.c` lines 881 and 1107]. [IND] does not describe this.
+
+**TK5 needs it - measured 24 November 2026** (`Hercules\Tk5TransferBufferSizeTests` with s3270,
+`Hercules\HostStreamRecorderTests` cases `file-transfer-large` and `file-transfer-binary` with
+RetroTerm, all through `Tk5WireTap`). After every FULL upload block TK5 sends a Read Modified
+command, the one byte `F6`, and then expects the same block a second time; only after the second
+copy does the next Set Cursor + Get come. Seen after inbound records of 16374, 16384, 32629 and
+32757 bytes; never after the last, short block of a file (940, 1821, 1900, 2205 and 3650 bytes) or
+the 49-byte file of `file-transfer`. Where between 3650 and 16374 bytes it starts was not measured.
+
+```
+host   F3 ... 000F D04511 ... 0009 D04611 01040080      Set Cursor + Get
+client 88 3FFF D04605 6306 00000001 C080 61 3FF4 ...    block 1, 16384-byte record
+host   F6                                               Read Modified
+client 88 3FFF D04605 6306 00000001 C080 61 3FF4 ...    block 1 again, the same bytes
+host   F3 ... 000F D04511 ... 0009 D04611 01040080      the next Get
+```
+
+A terminal that answers that `F6` with an ordinary Read Modified loses the block **with no error on
+either side**: RetroTerm did, before the fix, on a 20,000-byte binary file. It answered with an ordinary
+Read Modified (that record was not decoded), the host took the 3,633 data bytes of block 2 as the whole file, said
+`TRANS03 File transfer complete`, and the GET gave back those 3,633 bytes. This is the retry of [DS]
+p. 3-14 to 3-18 (a Read Modified command in a retry state repeats the last inbound operation; any
+outbound transmission other than a read command acknowledges it, p. 3-23), applied to the upload
+data reply, which [DS] does not name as a retry case. RetroIO keeps the upload block for exactly
+that (`Display3270.SendStructuredFieldReply(field, retry: true)`, used by `IndFileTransfer` for Data
+for Get), and the RetroIO tests `AReadModifiedAfterUploadDataSendsTheSameBlockAgain` and
+`AReadModifiedAfterTheAcknowledgmentIsAnOrdinaryOne` hold it.
+
+**Block sizes measured on TK5, 24 November 2026** (100,025-byte text file, PUT then GET, ASCII CRLF):
+
+| LIMIN = LIMOUT | Client | Upload field (record) | Host download field (record) | File back intact |
+|---|---|---|---|---|
+| 16384 | RetroTerm | 16383 (16384), 16367 data | 16367 (16384) | yes (50,000-byte file) |
+| 16384 | s3270 | 16373 (16374), 16357 data | 16367 (16384) | yes |
+| 32639 | s3270 | 32628 (32629), 32612 data | 32622 (32639) | yes |
+| 32767 | s3270 | 32756 (32757), 32740 data | 32683 (32700) | **NO** |
+
+So the host fills each download WSF to exactly LIMOUT, the `F3`, a 6-byte field before the D0
+fields and the Insert request included, except at 32767, where it stopped at a 32700-byte record.
+x3270 puts (buffer size - 27) data bytes in an upload block, RetroTerm LIMIN - 17; both keep the
+structured field bytes after the AID at or under LIMIN, which is what [DS] p. 6-37 asks.
 
 ### 3.9 End of upload: "Get past end of file" (PC -> host)
 
@@ -697,6 +737,24 @@ and server-requester programming guides.
    `src\tests\RetroTerm.Tests\Oracle\Recordings\file-transfer.txt`: RetroTerm's DDM Query Reply
    was `00 0C 81 95 00 00 40 00 40 00 01 01` (LIMIN = LIMOUT = 16384) and TK5 took it in both
    directions. 32639 and 32767 were not tried, and the 49-byte file never reached the limit.
+   **ANSWERED 24 November 2026, measured on TK5** with s3270 (whose Transfer action takes the size and
+   puts it in the DDM reply) through `Tk5WireTap`, a 100,025-byte text file PUT then GET, test
+   `Hercules\Tk5TransferBufferSizeTests` (block sizes in section 3.8):
+   - **16384:** works. DDM `00 0C 81 95 00 00 40 00 40 00 01 01`; the upload Open is the long form
+     (0x29), the download Open the short form (0x23), as at 16384 before.
+   - **32639:** works. DDM `00 0C 81 95 00 00 7F 7F 7F 7F 01 01`; 3 full blocks and a short one each
+     way, the file back byte for byte.
+   - **32767:** the download works, the upload LOSES DATA with no error. DDM
+     `00 0C 81 95 00 00 7F FF 7F FF 01 01`. Block 1 (a 32757-byte record) went up, the host sent
+     `F6`, s3270 sent block 1 again, and the host then sent TWO Set Cursor + Get messages in a row; s3270
+     answered with blocks 2 and 3, the host sent `F6`, s3270 sent block 3 again, then block 4. Both
+     sides said the transfer was complete (s3270: "100025 bytes transferred"), but the GET gave back
+     65,980 bytes: block 2 was never stored. Why the host asked twice is not known: the inbound
+     record (32757 bytes) is within the LIMIN it was told, so by [DS] p. 6-37 the terminal did
+     nothing wrong. Not measured: whether RetroTerm at 32767 meets the same loss (its size is
+     fixed at 16384, `Ibm3270Emulator.FileTransferBufferSize`), and the largest size that still
+     works, which is somewhere from 32639 to 32766.
+   RetroTerm keeps 16384, which works; 32639 would also work against TK5.
 3. **ANSWERED 23 November 2026, measured on TK5:** yes. Every IND$FILE command was followed by a Read
    Partition Query (`F3 00 05 01 FF 02`), twice in one session. RetroTerm must answer Query at any time.
 4. **TK5 defaults conflict with the 1986 manual:** TK5 made `RECFM VB LRECL 255`; FTTERM says
@@ -713,7 +771,10 @@ and server-requester programming guides.
    message (no Close of the message file), so the transfer ends on that ack, as IBM's figures show.
 8. **IND$FILE's fixed ASCII/EBCDIC table** is not in any IBM document read here. Needed only if
    RetroTerm offers remapping to the user's code page.
-9. **Is the Read Modified resend (section 3.8) needed** for IND$FILE, or only for some other host?
+9. **ANSWERED 24 November 2026, measured on TK5:** the Read Modified resend (section 3.8) IS
+   needed. TK5 sends `F6` after every full upload block and stores the second copy; without the
+   resend the block is lost and both sides still report success. Still open: the block size at which
+   TK5 starts sending `F6` (between 3650 and 16374 bytes of record).
 10. **GET/GTP and PUT/PTP:** which verb pair is CUT and which is Asynchronous? Only matters if CUT
     is built.
 11. **Does TK5's IND$FILE fall back to CUT** when the Query Reply has no DDM? Only matters if

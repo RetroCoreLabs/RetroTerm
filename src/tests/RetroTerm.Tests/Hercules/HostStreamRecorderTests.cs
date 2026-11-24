@@ -53,6 +53,8 @@ namespace RetroTerm.Tests.Hercules
         [InlineData("model5")]
         [InlineData("termtest")]
         [InlineData("file-transfer")]
+        [InlineData("file-transfer-large")]
+        [InlineData("file-transfer-binary")]
         public async Task RecordTheSession(string name)
         {
             Tk5Settings settings = Tk5Settings.Load();
@@ -60,10 +62,26 @@ namespace RetroTerm.Tests.Hercules
             List<Tk5WireChunk> chunks;
             await using (Tk5WireTap tap = Tk5WireTap.Start(settings.Host, settings.Port))
             {
-                await using (RetroTermTk5Terminal terminal = await RetroTermTk5Terminal.OpenAsync(settings.Through("127.0.0.1", tap.Port), model))
+                try
                 {
-                    List<Tk5Step> steps = Steps(name, settings, terminal, tap);
-                    await Tk5Scenario.RunAsync(new MarkingTerminal(terminal, tap), steps, _output);
+                    await using (RetroTermTk5Terminal terminal = await RetroTermTk5Terminal.OpenAsync(settings.Through("127.0.0.1", tap.Port), model))
+                    {
+                        List<Tk5Step> steps = Steps(name, settings, terminal, tap);
+                        await Tk5Scenario.RunAsync(new MarkingTerminal(terminal, tap), steps, _output);
+                    }
+                }
+                finally
+                {
+                    // The transfer records as they crossed, passed or failed: the evidence a
+                    // failed transfer needs (no recording is written then).
+                    if (name.StartsWith("file-transfer", StringComparison.Ordinal))
+                    {
+                        List<string> wire = TransferWire.Summary(tap.Chunks());
+                        for (int i = 0; i < wire.Count; i++)
+                        {
+                            _output.WriteLine(wire[i]);
+                        }
+                    }
                 }
 
                 chunks = tap.Chunks();
@@ -121,7 +139,15 @@ namespace RetroTerm.Tests.Hercules
                     AddTermtest(steps);
                     break;
                 case "file-transfer":
-                    AddFileTransfer(steps, settings.User, terminal, tap);
+                    AddFileTransfer(steps, settings.User, terminal, tap, TransferDataSet, "ascii", System.Text.Encoding.ASCII.GetBytes(TransferText), string.Empty);
+                    break;
+                case "file-transfer-large":
+                    // Larger than the 16384 bytes RetroTerm gives as LIMIN and LIMOUT, so the file
+                    // goes in several data blocks each way (IND-FILE-TRANSFER.md open question 2).
+                    AddFileTransfer(steps, settings.User, terminal, tap, "RTTFL.TEXT", "ascii", TransferTestFiles.Text(LargeTextBytes), string.Empty);
+                    break;
+                case "file-transfer-binary":
+                    AddFileTransfer(steps, settings.User, terminal, tap, "RTTFB.DATA", "binary", TransferTestFiles.Binary(LargeBinaryBytes), BinaryOptions);
                     break;
                 default:
                     throw new ArgumentException("no such recording: " + name);
@@ -229,33 +255,45 @@ namespace RetroTerm.Tests.Hercules
             steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
         }
 
-        // Guide 08 section 1 in short, as Scenario08FileTransferTests: a text file up with
-        // IND$FILE PUT, the same data set back with IND$FILE GET, and the data set deleted.
+        // Guide 08 section 1 in short, as Scenario08FileTransferTests: a file up with IND$FILE
+        // PUT, the same data set back with IND$FILE GET, and the data set deleted.
         private const string TransferDataSet = "RTTFT.TEXT";
 
         private const string TransferText = "HELLO FROM RETROTERM\r\nLINE TWO OF THE TEST\r\n";
 
-        private void AddFileTransfer(List<Tk5Step> steps, string user, RetroTermTk5Terminal terminal, Tk5WireTap tap)
+        // The large files: over 16384 bytes, so several data blocks each way, and small enough
+        // that the recording (every byte as hex, both ways) stays well under a megabyte.
+        private const int LargeTextBytes = 50000;
+
+        private const int LargeBinaryBytes = 20000;
+
+        // Fixed 80-byte records for the binary file, 250 of them exactly, so no record is padded
+        // and the file comes back byte for byte. Given on the PUT only; GET takes the data set as
+        // it is.
+        private const string BinaryOptions = "RECFM(F) LRECL(80) BLKSIZE(3120)";
+
+        private void AddFileTransfer(List<Tk5Step> steps, string user, RetroTermTk5Terminal terminal, Tk5WireTap tap, string dataSet, string mode, byte[] file, string options)
         {
             steps.Add(new Tk5Step("PF3 to READY", t => t.PressAsync("PF3"), s => s.Contains("READY"), "READY", false));
-            steps.Add(Tk5CommonSteps.Tso("clean up " + TransferDataSet, "DELETE " + TransferDataSet, string.Empty, false));
-            steps.Add(Transfer(true, terminal, tap));
-            steps.Add(Tk5CommonSteps.Tso("LISTDS", "LISTDS " + TransferDataSet, user + "." + TransferDataSet, false));
-            steps.Add(Transfer(false, terminal, tap));
-            steps.Add(Tk5CommonSteps.Tso("delete the data set", "DELETE " + TransferDataSet, "READY", false));
+            steps.Add(Tk5CommonSteps.Tso("clean up " + dataSet, "DELETE " + dataSet, string.Empty, false));
+            steps.Add(Transfer(true, terminal, tap, dataSet, mode, file, options));
+            steps.Add(Tk5CommonSteps.Tso("LISTDS", "LISTDS " + dataSet, user + "." + dataSet, false));
+            steps.Add(Transfer(false, terminal, tap, dataSet, mode, file, string.Empty));
+            steps.Add(Tk5CommonSteps.Tso("delete the data set", "DELETE " + dataSet, "READY", false));
         }
 
         // Clear, then HOSTSEND or HOSTRECEIVE on the real session: the command types IND$FILE at
         // READY and answers the host's transfer records. The transfer is marked in the stream
-        // first, with the file that went up, so the replay can start the same transfer.
-        private Tk5Step Transfer(bool upload, RetroTermTk5Terminal terminal, Tk5WireTap tap)
+        // first, with the file that went up, so the replay can start the same transfer. A
+        // download must give back the very bytes that went up.
+        private Tk5Step Transfer(bool upload, RetroTermTk5Terminal terminal, Tk5WireTap tap, string dataSet, string mode, byte[] file, string options)
         {
             string name = upload ? "HOSTSEND" : "HOSTRECEIVE";
             return new Tk5Step(name, async t =>
             {
                 await t.PressAsync("CLEAR");
                 await t.WaitUntilAsync(s => true, "the cleared screen", Tk5Scenario.HostTimeoutMs);
-                byte[] bytes = upload ? System.Text.Encoding.ASCII.GetBytes(TransferText) : Array.Empty<byte>();
+                byte[] bytes = upload ? file : Array.Empty<byte>();
                 string path = Path.Combine(Path.GetTempPath(), "rtt-rec-" + Guid.NewGuid().ToString("N") + ".txt");
                 try
                 {
@@ -264,9 +302,9 @@ namespace RetroTerm.Tests.Hercules
                         File.WriteAllBytes(path, bytes);
                     }
 
-                    tap.Mark("transfer " + new TransferLine(upload, "ascii", TransferDataSet, bytes).Format());
-                    var args = new RetroTerm.Core.Commands.CommandArgs().Set("path", path).Set("dataset", TransferDataSet)
-                        .Set("mode", "ascii").Set("options", string.Empty).Set("timeout", "60000");
+                    tap.Mark("transfer " + new TransferLine(upload, mode, dataSet, bytes, options).Format());
+                    var args = new RetroTerm.Core.Commands.CommandArgs().Set("path", path).Set("dataset", dataSet)
+                        .Set("mode", mode).Set("options", options).Set("timeout", "60000");
                     RetroTerm.Core.Commands.ISessionCommand command = upload
                         ? new RetroTerm.Core.Commands.Builtin.HostSendCommand()
                         : new RetroTerm.Core.Commands.Builtin.HostReceiveCommand();
@@ -275,7 +313,7 @@ namespace RetroTerm.Tests.Hercules
                     Assert.True(result.Success, name + ": " + result.Error);
                     if (!upload)
                     {
-                        Assert.Equal(TransferText, File.ReadAllText(path, System.Text.Encoding.ASCII));
+                        Assert.Equal(Convert.ToHexString(file), Convert.ToHexString(File.ReadAllBytes(path)));
                     }
                 }
                 finally

@@ -257,6 +257,23 @@ namespace RetroTerm.Tests.Hercules
             return (byte)(byte.Parse(token.AsSpan(at + 3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) & 0x0F);
         }
 
+        /// <summary>
+        /// Runs s3270's own file transfer, the Transfer action of the x3270 scripting manual,
+        /// with the given keyword arguments (for example "Direction=send,HostFile=X,..."). s3270
+        /// types the IND$FILE command itself and answers only once the transfer has ended.
+        /// </summary>
+        /// <param name="arguments">
+        /// The keyword arguments, as written between the brackets.
+        /// </param>
+        /// <returns>
+        /// The data lines s3270 answered with, joined by " | ".
+        /// </returns>
+        public async Task<string> TransferAsync(string arguments)
+        {
+            Reply reply = await RunAsync("Transfer(" + arguments + ")");
+            return string.Join(" | ", reply.Data);
+        }
+
         public async ValueTask DisposeAsync()
         {
             try

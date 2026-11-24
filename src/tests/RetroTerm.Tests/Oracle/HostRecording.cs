@@ -50,21 +50,28 @@ namespace RetroTerm.Tests.Oracle
 
     /// <summary>
     /// What a <c>transfer</c> line of a recording says: the direction, the mode, the host data
-    /// set and, for an upload, the bytes of the PC file that went up.
+    /// set, for an upload the bytes of the PC file that went up, and any host options.
     /// </summary>
     /// <remarks>
     /// The line is <c>transfer send ascii RTTFT.TEXT 48454C4C4F...</c> (the file as hex) or
-    /// <c>transfer receive ascii RTTFT.TEXT</c>. The file's bytes are kept in the recording so the
-    /// replay can give every client the very file the recording client sent.
+    /// <c>transfer receive ascii RTTFT.TEXT</c>, either followed by the host options typed after
+    /// the mode, for example <c>RECFM(F) LRECL(80)</c>. The file's bytes are kept in the recording
+    /// so the replay can give every client the very file the recording client sent.
     /// </remarks>
     internal sealed class TransferLine
     {
         public TransferLine(bool upload, string mode, string dataSet, byte[] file)
+            : this(upload, mode, dataSet, file, string.Empty)
+        {
+        }
+
+        public TransferLine(bool upload, string mode, string dataSet, byte[] file, string options)
         {
             Upload = upload;
             Mode = mode;
             DataSet = dataSet;
             File = file;
+            Options = options;
         }
 
         /// <summary>
@@ -88,6 +95,12 @@ namespace RetroTerm.Tests.Oracle
         public byte[] File { get; }
 
         /// <summary>
+        /// Gets the host options typed after the mode, words separated by one blank; empty for
+        /// none.
+        /// </summary>
+        public string Options { get; }
+
+        /// <summary>
         /// Reads the text of a transfer line (what follows the word <c>transfer</c>).
         /// </summary>
         /// <param name="text">
@@ -99,15 +112,17 @@ namespace RetroTerm.Tests.Oracle
         public static TransferLine Parse(string text)
         {
             string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            bool upload = parts.Length == 4 && parts[0] == "send";
-            bool download = parts.Length == 3 && parts[0] == "receive";
+            bool upload = parts.Length >= 4 && parts[0] == "send";
+            bool download = parts.Length >= 3 && parts[0] == "receive";
             if ((!upload && !download) || (parts[1] != "ascii" && parts[1] != "binary"))
             {
                 // Refused by name, never half read (CLAUDE.md: a parser that accepts garbage costs more).
-                throw new InvalidDataException("a transfer line is 'send MODE DATASET HEX' or 'receive MODE DATASET', not '" + text + "'");
+                throw new InvalidDataException("a transfer line is 'send MODE DATASET HEX [OPTIONS]' or 'receive MODE DATASET [OPTIONS]', not '" + text + "'");
             }
 
-            return new TransferLine(upload, parts[1], parts[2], upload ? Convert.FromHexString(parts[3]) : Array.Empty<byte>());
+            int first = upload ? 4 : 3;
+            string options = parts.Length > first ? string.Join(' ', parts, first, parts.Length - first) : string.Empty;
+            return new TransferLine(upload, parts[1], parts[2], upload ? Convert.FromHexString(parts[3]) : Array.Empty<byte>(), options);
         }
 
         /// <summary>
@@ -116,9 +131,9 @@ namespace RetroTerm.Tests.Oracle
         /// <returns>
         /// The text.
         /// </returns>
-        public string Format() => Upload
+        public string Format() => (Upload
             ? "send " + Mode + " " + DataSet + " " + Convert.ToHexString(File)
-            : "receive " + Mode + " " + DataSet;
+            : "receive " + Mode + " " + DataSet) + (Options.Length > 0 ? " " + Options : string.Empty);
     }
 
     /// <summary>

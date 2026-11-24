@@ -165,7 +165,7 @@ namespace RetroTerm.Tests.Oracle
             }
 
             var args = new RetroTerm.Core.Commands.CommandArgs().Set("path", _transferPath).Set("dataset", transfer.DataSet)
-                .Set("mode", transfer.Mode).Set("options", string.Empty).Set("timeout", HostStreamReplay.TimeoutMs.ToString(CultureInfo.InvariantCulture));
+                .Set("mode", transfer.Mode).Set("options", transfer.Options).Set("timeout", HostStreamReplay.TimeoutMs.ToString(CultureInfo.InvariantCulture));
             RetroTerm.Core.Commands.ISessionCommand command = transfer.Upload
                 ? new RetroTerm.Core.Commands.Builtin.HostSendCommand()
                 : new RetroTerm.Core.Commands.Builtin.HostReceiveCommand();
@@ -427,10 +427,60 @@ namespace RetroTerm.Tests.Oracle
             // answer comes only when the transfer has ended, which needs the replay's host records.
             string command = "Transfer(Direction=" + (transfer.Upload ? "send" : "receive") +
                 ",HostFile=" + transfer.DataSet + ",\"LocalFile=" + _transferPath.Replace('\\', '/') + "\"" +
-                ",Host=tso,Mode=" + transfer.Mode + ",Exist=replace)";
+                ",Host=tso,Mode=" + transfer.Mode + ",Exist=replace,BufferSize=" + S3270BufferSize.ToString(CultureInfo.InvariantCulture) +
+                TransferKeywords(transfer.Options) + ")";
             await AidFinishedAsync();
             _transfer = RunAsync(command);
             await Task.Yield();
+        }
+
+        // The DFT buffer size s3270 is given, chosen so its upload blocks have the layout of the
+        // recording client's. RetroTerm says LIMIN 16384 (Ibm3270Emulator.FileTransferBufferSize)
+        // and fills each upload field to LIMIN - 1: AID X'88' plus a 16383-byte field, 16367 data
+        // bytes. s3270 fills BufferSize - 27 data bytes (measured on TK5 24 November 2026: 16357 at
+        // 16384, 32612 at 32639, 32740 at 32767; x3270 Common/ft_dft.c "5 bytes less than we're
+        // allowed"). Both stay within LIMIN, which counts the structured field bytes after the AID
+        // (GA23-0059-4 p. 6-37), so neither is wrong; but the recorded host asks for one Get per
+        // block, so a client with smaller blocks runs out of Gets and the replay cannot go on. At
+        // 16394, s3270 fills 16367 data bytes, as RetroTerm does, and every byte of every block is
+        // compared. The host's download blocks (at most 16384, the recorded LIMOUT) fit too. Not
+        // compared, as everywhere: the query reply, where s3270 then says 16394.
+        private const int S3270BufferSize = 16384 + 10;
+
+        // The host options of a transfer line as the Transfer action's own keywords, so s3270
+        // types them itself: RECFM(F|V|U), LRECL(n) and BLKSIZE(n), the TSO options of
+        // IND-FILE-TRANSFER.md section 2. Any other option is refused by name rather than dropped.
+        private static string TransferKeywords(string options)
+        {
+            if (options.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var keywords = new System.Text.StringBuilder();
+            string[] words = options.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < words.Length; i++)
+            {
+                string w = words[i].ToUpperInvariant();
+                if (w == "RECFM(F)" || w == "RECFM(V)" || w == "RECFM(U)")
+                {
+                    keywords.Append(",Recfm=").Append(w[6] == 'F' ? "fixed" : w[6] == 'V' ? "variable" : "undefined");
+                }
+                else if (w.StartsWith("LRECL(", StringComparison.Ordinal) && w.EndsWith(')'))
+                {
+                    keywords.Append(",Lrecl=").Append(w, 6, w.Length - 7);
+                }
+                else if (w.StartsWith("BLKSIZE(", StringComparison.Ordinal) && w.EndsWith(')'))
+                {
+                    keywords.Append(",Blksize=").Append(w, 8, w.Length - 9);
+                }
+                else
+                {
+                    throw new Xunit.Sdk.XunitException("the s3270 oracle client has no Transfer keyword for the host option '" + words[i] + "'");
+                }
+            }
+
+            return keywords.ToString();
         }
 
         public async Task<string> FinishTransferAsync()

@@ -222,3 +222,27 @@ the socket in RetroTerm and running SSH over it; neither is done.
 Seen once on 24 November 2026 in a Scenario10 run with s3270: PF3 from the ISPF primary menu showed
 "CLST020 LIST data set not allocated" instead of READY. It did not happen again and the cause is not
 known. If it comes back, keep the s3270 trace of that run.
+
+## B23 - Binary IND$FILE: s3270 types one blank more than RetroTerm, so the file-transfer-binary oracle case is red
+
+`src\tests\RetroTerm.Tests\Oracle\HostStreamOracleTests.cs`, case `file-transfer-binary` (recording
+`Oracle\Recordings\file-transfer-binary.txt`, made on TK5 24 November 2026).
+
+- **Measured, 24 November 2026:** every file transfer record of the replay is the same in RetroTerm
+  and s3270, both 16384-byte upload blocks, the Read Modified resends, the download blocks and the
+  file that comes back. The only records that differ are the two typed IND$FILE commands:
+  - PUT: RetroTerm `IND$FILE PUT RTTFB.DATA RECFM(F) LRECL(80) BLKSIZE(3120)`, s3270
+    `IND$FILE PUT RTTFB.DATA  RECFM(F) LRECL(80) BLKSIZE(3120)` (two blanks after the name; record 10,
+    `... 4B C4 C1 E3 C1 40 D9 ...` against `... 4B C4 C1 E3 C1 40 40 D9 ...`, and the cursor one further).
+  - GET: RetroTerm `IND$FILE GET RTTFB.DATA`, s3270 `IND$FILE GET RTTFB.DATA ` (a blank at the end;
+    record 23).
+  In ASCII mode the two type the same command, `IND$FILE PUT name ASCII CRLF` (`file-transfer` and
+  `file-transfer-large` are green). How x3270 builds the command was not read (its source is not on
+  this machine); what is measured is only that the extra blank comes where binary mode has no
+  `ASCII CRLF` after the name.
+- **Which is right:** the IND$FILE syntax of the 1986 FTTERM guide (IND-FILE-TRANSFER.md section 2)
+  separates the operands by blanks and TSO takes both forms; TK5 accepted RetroTerm's. Nothing in
+  RetroTerm is wrong, so there is nothing to fix here, and the comparison is not loosened for it.
+- **What would make it green:** an s3270 that does not add the blank, or a decision by Ronny to drop
+  this case from the oracle (it is the only binary transfer compared offline; the live round trip in
+  `HostStreamRecorderTests` checks the binary file comes back byte for byte).
