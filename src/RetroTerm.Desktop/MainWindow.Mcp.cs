@@ -29,7 +29,7 @@ namespace RetroTerm.Desktop;
 /// pump — the human sees the LLM type.
 ///
 /// Port: Preferences, MCP tab. Default 5715. Nothing else sets it - no environment variable.
-/// Claude Code: claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp
+/// Claude Code: claude mcp add --transport http --scope user retroterm http://127.0.0.1:5715/mcp
 /// </summary>
 public partial class MainWindow
 {
@@ -68,8 +68,12 @@ public partial class MainWindow
 
             // RECORDSTART / RECORDSTOP film the screen, each frame drawn the way SCREENSHOT draws
             // (MainWindow.Recording.cs). Same shape: Core declares, the desktop does.
+            // RECORDSTOP's MP4: the ffmpeg set in Preferences, Recording tab, else the one on the
+            // system PATH - asked at each stop, so a Preferences change counts at once.
             Core.Commands.Builtin.RecordCommands.RegisterAll(
-                _commandRegistry, StartRecording, StopRecording);
+                _commandRegistry, StartRecording, StopRecording,
+                () => Core.Recording.FfmpegLocator.FindOnThisMachine(Themes.ThemeManager.Instance.FfmpegPath),
+                Services.Mp4Encoder.MakeAsync);
 
             // LOCALKEY, ZOOM and PASTE act on the WINDOW rather than the connection. Everything
             // else here ends at TerminalSession.SendInputAsync, which cannot reach what the

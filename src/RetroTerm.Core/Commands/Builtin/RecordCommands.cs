@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using RetroTerm.Core.Recording;
 using RetroTerm.Core.Session;
 
 namespace RetroTerm.Core.Commands.Builtin;
@@ -146,14 +147,23 @@ public static class RecordCommands
     /// <param name="stop">
     /// The desktop's way of stopping one.
     /// </param>
+    /// <param name="findFfmpeg">
+    /// Which ffmpeg RECORDSTOP makes the MP4 with, asked at each stop so a Preferences change
+    /// counts at once: the desktop passes <see cref="FfmpegLocator.FindOnThisMachine"/> over its
+    /// Preferences path.
+    /// </param>
+    /// <param name="makeMp4">
+    /// What runs that ffmpeg on the finished film (the desktop's Mp4Encoder.MakeAsync).
+    /// </param>
     /// <exception cref="ArgumentNullException">
     /// Thrown when an argument is null.
     /// </exception>
-    public static void RegisterAll(CommandRegistry registry, ScreenRecordingStart start, ScreenRecordingStop stop)
+    public static void RegisterAll(CommandRegistry registry, ScreenRecordingStart start, ScreenRecordingStop stop,
+        Func<FfmpegChoice> findFfmpeg, Mp4Maker makeMp4)
     {
         if (registry == null) throw new ArgumentNullException(nameof(registry));
         registry.Register(new RecordStartCommand(start));
-        registry.Register(new RecordStopCommand(stop));
+        registry.Register(new RecordStopCommand(stop, findFfmpeg, makeMp4));
     }
 }
 
@@ -267,6 +277,8 @@ public sealed class RecordStartCommand : ISessionCommand
 public sealed class RecordStopCommand : ISessionCommand
 {
     private readonly ScreenRecordingStop _stop;
+    private readonly Func<FfmpegChoice> _findFfmpeg;
+    private readonly Mp4Maker _makeMp4;
 
     /// <summary>
     /// Builds the command around the desktop's recorder.
@@ -274,12 +286,20 @@ public sealed class RecordStopCommand : ISessionCommand
     /// <param name="stop">
     /// What stops the recording.
     /// </param>
+    /// <param name="findFfmpeg">
+    /// Which ffmpeg makes the MP4, or why there is none.
+    /// </param>
+    /// <param name="makeMp4">
+    /// What runs it.
+    /// </param>
     /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="stop"/> is null.
+    /// Thrown when an argument is null.
     /// </exception>
-    public RecordStopCommand(ScreenRecordingStop stop)
+    public RecordStopCommand(ScreenRecordingStop stop, Func<FfmpegChoice> findFfmpeg, Mp4Maker makeMp4)
     {
         _stop = stop ?? throw new ArgumentNullException(nameof(stop));
+        _findFfmpeg = findFfmpeg ?? throw new ArgumentNullException(nameof(findFfmpeg));
+        _makeMp4 = makeMp4 ?? throw new ArgumentNullException(nameof(makeMp4));
     }
 
     /// <summary>
@@ -290,7 +310,9 @@ public sealed class RecordStopCommand : ISessionCommand
     /// <summary>
     /// One line for the generated help.
     /// </summary>
-    public string Summary => "Stop the screen recording started by RECORDSTART and finish the file; reports its path, frames and length";
+    public string Summary => "Stop the screen recording started by RECORDSTART and finish the file; also makes an MP4 beside it "
+        + "when ffmpeg is found (Preferences, Recording tab, else the PATH); reports every file written with its kind, "
+        + "and which ffmpeg made the MP4 or why there is none";
 
     /// <summary>
     /// A usable example for the generated help.
@@ -317,17 +339,23 @@ public sealed class RecordStopCommand : ISessionCommand
     /// None.
     /// </param>
     /// <param name="cancellationToken">
-    /// Unused.
+    /// Stops ffmpeg if the MP4 is still being made.
     /// </param>
     /// <returns>
-    /// The file and what is in it, or why nothing was stopped.
+    /// The files and what is in them, or why nothing was stopped.
     /// </returns>
-    public Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
+    /// <remarks>
+    /// The MP4 is made HERE, in Core, after the desktop has closed the PNG, so the script DSL and
+    /// the MCP tool give the same reply from one place (CLAUDE.md, "One behaviour, one place").
+    /// The PNG is kept whatever ffmpeg does; a failing ffmpeg is reported with its own error text
+    /// and RECORDSTOP still succeeds, because the film the caller asked for was written.
+    /// </remarks>
+    public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
     {
         var outcome = _stop(session);
         if (outcome.Problem != null)
         {
-            return Task.FromResult(CommandResult.Fail(outcome.Problem));
+            return CommandResult.Fail(outcome.Problem);
         }
 
         var text = $"film saved to {outcome.Path} ({outcome.Width}x{outcome.Height}, {outcome.Pictures} picture(s) in "
@@ -337,8 +365,26 @@ public sealed class RecordStopCommand : ISessionCommand
             text += " - the recording had already ended by itself: " + outcome.EndedEarlyBecause;
         }
 
+        // The MP4, only from a film that was really written.
+        FfmpegChoice ffmpeg;
+        Mp4Outcome? mp4 = null;
+        if (outcome.Frames == 0 || !File.Exists(outcome.Path))
+        {
+            ffmpeg = new FfmpegChoice { Problem = "the animated PNG was not written, so there is nothing to make it from" };
+        }
+        else
+        {
+            ffmpeg = _findFfmpeg();
+            if (ffmpeg.Path != null)
+            {
+                mp4 = await _makeMp4(ffmpeg.Path, outcome.Path, outcome.Width, outcome.Height,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+        text += "\n" + Mp4FromAnimatedPng.Describe(outcome.Path, ffmpeg, mp4);
+
         var result = CommandResult.Ok(text);
         result.CaptureValue = outcome.Path;
-        return Task.FromResult(result);
+        return result;
     }
 }

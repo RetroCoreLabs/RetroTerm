@@ -15,8 +15,10 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using RetroTerm.Core.Commands;
 using RetroTerm.Core.Commands.Builtin;
+using RetroTerm.Core.Recording;
 using RetroTerm.Desktop;
 using RetroTerm.Desktop.Models;
+using RetroTerm.Desktop.Themes;
 using RetroTerm.Tests.Recording;
 using RetroTerm.Tests.TDV;
 using SkiaSharp;
@@ -39,9 +41,32 @@ namespace RetroTerm.Tests.Avalonia;
 /// opinion on how a terminal looks. The frames are also saved to images\rendered to be looked at.
 /// </remarks>
 [Collection("Avalonia")]
-public class RecordCommandOnARealWindowTests
+public class RecordCommandOnARealWindowTests : IDisposable
 {
     private TimeSpan _now;
+
+    /// <summary>
+    /// The ffmpeg path Preferences held before the test, put back by <see cref="Dispose"/>.
+    /// </summary>
+    private readonly string _ffmpegBefore;
+
+    /// <summary>
+    /// A path in Preferences that names no file, so RECORDSTOP makes no MP4 unless a test sets
+    /// another: the tests about the film itself then never start ffmpeg, whatever the machine has.
+    /// </summary>
+    private static readonly string MissingFfmpeg =
+        Path.Combine(Path.GetTempPath(), "retroterm-no-ffmpeg-" + Guid.NewGuid().ToString("N"), "ffmpeg.exe");
+
+    public RecordCommandOnARealWindowTests()
+    {
+        _ffmpegBefore = ThemeManager.Instance.FfmpegPath;
+        ThemeManager.Instance.FfmpegPath = MissingFfmpeg;
+    }
+
+    public void Dispose()
+    {
+        ThemeManager.Instance.FfmpegPath = _ffmpegBefore;
+    }
 
     private static string TempPng(string name)
         => Path.Combine(Path.GetTempPath(), "retroterm-" + name + "-" + Guid.NewGuid().ToString("N") + ".png");
@@ -320,6 +345,87 @@ public class RecordCommandOnARealWindowTests
         {
             main.Close();
             if (File.Exists(film)) File.Delete(film);
+        }
+    }
+
+    /// <summary>
+    /// The Preferences path decides: one that names no file gives the PNG only, and RECORDSTOP's
+    /// reply says so, on the real window's registry.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task WithTheFfmpegInPreferencesMissingTheFilmIsThePngAndTheReplySaysWhy()
+    {
+        var (main, tab, line) = await Window();
+        var film = TempPng("film-no-ffmpeg");
+
+        try
+        {
+            await Show(tab, line, "NO FFMPEG");
+            Assert.True((await Start(main, tab, film)).Success);
+            _now = TimeSpan.FromMilliseconds(400);
+
+            var stop = await Stop(main, tab);
+
+            Assert.True(stop.Success, stop.Error);
+            Assert.EndsWith("files written:\n"
+                + "  " + film + " - animated PNG\n"
+                + "no MP4: the ffmpeg set in Preferences (" + MissingFfmpeg + ") does not exist - fix the path in "
+                + "Preferences, Recording tab, or empty it to use the one on the PATH", stop.Output!, StringComparison.Ordinal);
+            Assert.True(File.Exists(film));
+            Assert.False(File.Exists(Mp4FromAnimatedPng.Mp4PathFor(film)));
+        }
+        finally
+        {
+            main.Close();
+            if (File.Exists(film)) File.Delete(film);
+        }
+    }
+
+    /// <summary>
+    /// A film of the real window's terminal, made into an MP4 by the ffmpeg set in Preferences -
+    /// here the one the PATH holds, found the way the app finds it. Needs ffmpeg; fails naming it.
+    /// </summary>
+    [AvaloniaFact]
+    [Trait("Category", "Ffmpeg")]
+    public async Task WithFfmpegSetInPreferencesTheRealWindowsFilmGetsAnMp4()
+    {
+        var ffmpeg = FfmpegLocator.FindOnThisMachine(null);
+        if (ffmpeg.Path == null)
+        {
+            Assert.Fail("this test needs ffmpeg and none was found the way RetroTerm looks for it: " + ffmpeg.Problem);
+        }
+        ThemeManager.Instance.FfmpegPath = ffmpeg.Path;
+
+        var (main, tab, line) = await Window();
+        var film = TempPng("film-with-ffmpeg");
+        var mp4 = Mp4FromAnimatedPng.Mp4PathFor(film);
+
+        try
+        {
+            await Show(tab, line, "FIRST");
+            Assert.True((await Start(main, tab, film)).Success);
+            await Show(tab, line, "SECOND");
+            _now = TimeSpan.FromMilliseconds(600);
+            main.TickRecordingForTesting(tab.Session);
+            _now = TimeSpan.FromMilliseconds(1500);
+
+            var stop = await Stop(main, tab);
+
+            Assert.True(stop.Success, stop.Error);
+            int width = (int)Math.Round(tab.Control.Bounds.Width);
+            int height = (int)Math.Round(tab.Control.Bounds.Height);
+            Assert.EndsWith("files written:\n"
+                + "  " + film + " - animated PNG\n"
+                + "  " + mp4 + " - MP4 (H.264, yuv420p, " + ((width + 1) & ~1) + "x" + ((height + 1) & ~1) + ")\n"
+                + "ffmpeg used: " + ffmpeg.Path + " (set in Preferences)", stop.Output!, StringComparison.Ordinal);
+            Assert.True(File.Exists(film));
+            Assert.True(new FileInfo(mp4).Length > 0);
+        }
+        finally
+        {
+            main.Close();
+            if (File.Exists(film)) File.Delete(film);
+            if (File.Exists(mp4)) File.Delete(mp4);
         }
     }
 }

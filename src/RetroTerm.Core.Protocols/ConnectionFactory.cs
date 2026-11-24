@@ -267,6 +267,32 @@ public static class ConnectionFactory
     }
 
     /// <summary>
+    /// Every protocol word <see cref="ParseProtocolType"/> understands, one per
+    /// <see cref="ProtocolType"/>, in lower case. A stored connection may carry any of them.
+    /// </summary>
+    /// <remarks>
+    /// Declared next to the parser so the list and the parser are read together. A command
+    /// parameter that takes a protocol declares one of these lists as its allowed words, so a
+    /// misspelling is refused by name instead of falling through to Telnet (BUGS.md B20).
+    /// </remarks>
+    public static readonly IReadOnlyList<string> ProtocolNames =
+        new[] { "telnet", "ssh", "tn3270", "serial", "gateway", "opcomsimulator" };
+
+    /// <summary>
+    /// The protocol words an ad-hoc open (MCP terminal_open, the script CONNECT) can use:
+    /// <see cref="ProtocolNames"/> without <c>gateway</c>.
+    /// </summary>
+    /// <remarks>
+    /// Gateway is left out because both of those paths build the connection with
+    /// <see cref="CreateConnection"/>, which throws for Gateway ("created directly via
+    /// GatewayConnection"); only the window's own connect path (MainWindow.ConnectGatewayAsync)
+    /// opens one. Accepting the word would only trade a clear refusal for that internal error.
+    /// opcomsimulator needs no host: it is the built-in OPCOM simulator.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> OpenableProtocolNames =
+        new[] { "telnet", "ssh", "tn3270", "serial", "opcomsimulator" };
+
+    /// <summary>
     /// Parses a protocol string (from HostConfiguration) to ProtocolType enum.
     /// Single source of truth for protocol name → enum mapping.
     /// </summary>

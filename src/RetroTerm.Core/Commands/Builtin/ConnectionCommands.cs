@@ -88,8 +88,11 @@ public sealed class ConnectCommand : ISessionCommand
             "Host name or IP for an ad-hoc telnet/ssh connection (serial uses port_name instead)"),
         new CommandParameter("port", CommandParameterType.Int, required: false, defaultValue: "23",
             "TCP port for an ad-hoc telnet/ssh connection"),
+        // The allowed words are declared here (BUGS.md B20): a misspelled protocol is refused
+        // by name on both surfaces instead of quietly becoming telnet.
         new CommandParameter("protocol", CommandParameterType.String, required: false, defaultValue: "telnet",
-            "telnet, ssh or serial"),
+            "telnet, ssh, tn3270, serial or opcomsimulator (the built-in OPCOM simulator, no host)",
+            allowedValues: ConnectionFactory.OpenableProtocolNames),
         new CommandParameter("username", CommandParameterType.String, required: false, defaultValue: null,
             "SSH user name"),
         new CommandParameter("password", CommandParameterType.String, required: false, defaultValue: null,
@@ -181,6 +184,11 @@ public sealed class ConnectCommand : ISessionCommand
                         "port_name/baud/data_bits/parity/stop_bits only apply with protocol=serial");
                 }
                 var host = args.GetString("host");
+                // The OPCOM simulator runs inside RetroTerm and has no host to name.
+                if (protocol == ConnectionFactory.ProtocolType.OpcomSimulator)
+                {
+                    host ??= string.Empty;
+                }
                 if (host == null)
                 {
                     return CommandResult.Fail("CONNECT needs a stored name, host=..., or protocol=serial with port_name=...");
@@ -370,8 +378,11 @@ public sealed class ConnSaveCommand : ISessionCommand
             "Host name or IP (required when creating a telnet/ssh connection; Serial uses port_name)"),
         new CommandParameter("port", CommandParameterType.Int, required: false, defaultValue: "23",
             "TCP port (telnet/ssh only)"),
+        // Every protocol a stored connection can hold, gateway included (the window opens those);
+        // a misspelling is refused by name rather than stored and later read as telnet (BUGS.md B20).
         new CommandParameter("protocol", CommandParameterType.String, required: false, defaultValue: "Telnet",
-            "Telnet, SSH or Serial"),
+            "telnet, ssh, tn3270, serial, gateway or opcomsimulator",
+            allowedValues: ConnectionFactory.ProtocolNames),
         new CommandParameter("port_name", CommandParameterType.String, required: false, defaultValue: null,
             "Serial port name, e.g. COM11 (required when creating a Serial connection)"),
         new CommandParameter("baud", CommandParameterType.Int, required: false, defaultValue: "9600",

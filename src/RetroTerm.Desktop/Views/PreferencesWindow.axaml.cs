@@ -294,6 +294,8 @@ public partial class PreferencesWindow : Window
 
         UpdateMcpInfoText();
 
+        LoadRecordingSettings();
+
         UpdatePreview(ThemeManager.Instance.CurrentTheme);
     }
 
@@ -429,8 +431,56 @@ public partial class PreferencesWindow : Window
         info.Text =
             "The MCP server listens on localhost only. Changes take effect the next time " +
             "RetroTerm starts. " +
-            $"Connect Claude Code with: claude mcp add --transport http retroterm http://127.0.0.1:{port}/mcp " +
+            $"Connect Claude Code with: claude mcp add --transport http --scope user retroterm http://127.0.0.1:{port}/mcp " +
             "— see docs\\MCP-AND-SCRIPTING.md.";
+    }
+
+    // ── Recording ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Puts the saved ffmpeg path in its box and starts watching the box.
+    /// </summary>
+    /// <remarks>
+    /// The box is watched through <see cref="TextBox.TextProperty"/>, not TextChanged: TextChanged
+    /// does not fire on a programmatic Text set (CLAUDE.md, Avalonia), and Browse sets it that way.
+    /// </remarks>
+    private void LoadRecordingSettings()
+    {
+        var box = this.FindControl<TextBox>("FfmpegPathBox");
+        if (box == null) return;
+        box.Text = ThemeManager.Instance.FfmpegPath;
+        box.PropertyChanged += (s, e) =>
+        {
+            if (e.Property == TextBox.TextProperty && !_initializing)
+            {
+                SaveRecordingSettings();
+            }
+        };
+    }
+
+    /// <summary>
+    /// Saves the ffmpeg path as typed, trimmed; an empty box means the PATH's ffmpeg.
+    /// </summary>
+    private void SaveRecordingSettings()
+    {
+        var tm = ThemeManager.Instance;
+        tm.FfmpegPath = this.FindControl<TextBox>("FfmpegPathBox")?.Text?.Trim() ?? string.Empty;
+        tm.SavePreferences();
+    }
+
+    private async void OnFfmpegBrowseClick(object? sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "ffmpeg program",
+            AllowMultiple = false
+        });
+        if (files.Count == 0) return;
+        string? path = files[0].Path.LocalPath;
+        if (path == null) return;
+
+        var box = this.FindControl<TextBox>("FfmpegPathBox");
+        if (box != null) box.Text = path;
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)

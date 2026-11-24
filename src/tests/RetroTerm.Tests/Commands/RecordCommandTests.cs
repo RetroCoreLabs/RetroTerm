@@ -38,7 +38,9 @@ public class RecordCommandTests
         var registry = new CommandRegistry();
         RecordCommands.RegisterAll(registry,
             (session, area, path, interval) => { onStart?.Invoke(); return null; },
-            session => ScreenRecordingOutcome.Refused("no recording is running for this session - RECORDSTART first"));
+            session => ScreenRecordingOutcome.Refused("no recording is running for this session - RECORDSTART first"),
+            () => new RetroTerm.Core.Recording.FfmpegChoice { Problem = "stub: never asked, the stop is refused" },
+            (ffmpeg, film, width, height, token) => throw new InvalidOperationException("stub: never run, the stop is refused"));
         return registry;
     }
 

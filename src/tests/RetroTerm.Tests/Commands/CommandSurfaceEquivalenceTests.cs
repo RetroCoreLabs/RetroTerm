@@ -207,7 +207,9 @@ public sealed class CommandSurfaceEquivalenceTests : IDisposable
         // RECORDSTART shares SCREENSHOT's area word list, so it is checked by the same rows.
         RecordCommands.RegisterAll(registry,
             (session, area, path, interval) => null,
-            session => ScreenRecordingOutcome.Refused("stub"));
+            session => ScreenRecordingOutcome.Refused("stub"),
+            () => new RetroTerm.Core.Recording.FfmpegChoice { Problem = "stub: never asked, the stop is refused" },
+            (ffmpeg, film, width, height, token) => throw new InvalidOperationException("stub: never run, the stop is refused"));
         return registry;
     }
 

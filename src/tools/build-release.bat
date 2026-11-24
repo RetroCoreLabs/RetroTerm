@@ -58,6 +58,16 @@ echo.
 echo [OK] RetroTerm.TestServer.exe published successfully
 echo.
 
+:: The three distribution files docs\DISTRIBUTION-README.md describes go beside the exe
+:: (BUGS.md B19, fixed 24 November 2026 - until then the folder held only the programs).
+:: The release workflow (.github\workflows\build.yml, step "Distribution files") copies the same
+:: three into every download.
+copy /Y "..\docs\DISTRIBUTION-README.md" "%PUBLISH_DIR%\README.md" >nul || goto :copyfailed
+copy /Y "..\docs\distribution-mcp.json" "%PUBLISH_DIR%\.mcp.json" >nul || goto :copyfailed
+copy /Y ".\tools\add-mcp-to-claude-code.ps1" "%PUBLISH_DIR%\add-mcp-to-claude-code.ps1" >nul || goto :copyfailed
+echo [OK] README.md, .mcp.json and add-mcp-to-claude-code.ps1 copied
+echo.
+
 :: Show results
 echo ========================================================================
 echo   Build Complete!
@@ -68,6 +78,7 @@ echo.
 echo Files created:
 echo   - RetroTerm.exe
 echo   - RetroTerm.TestServer.exe
+echo   - README.md, .mcp.json, add-mcp-to-claude-code.ps1
 echo.
 echo To test:
 echo   1. Terminal 1: cd publish ^&^& RetroTerm.TestServer.exe 2323
@@ -78,4 +89,11 @@ echo ========================================================================
 
 endlocal
 pause
+exit /b 0
+
+:copyfailed
+echo.
+echo ERROR: copying the distribution files failed!
+pause
+exit /b 1
 

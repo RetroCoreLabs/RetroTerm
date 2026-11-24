@@ -217,31 +217,6 @@ Measured the same day: SSH.NET against `localhost:3270` (an IPv4-only listener) 
 both - the 2 s difference is the connect. Fixing it means either a change in SSH.NET or connecting
 the socket in RetroTerm and running SSH over it; neither is done.
 
-## B18 - add-mcp-to-claude-code.ps1 registers the server for one folder only
-
-Found 24 November 2026 while updating the MCP docs: `src\tools\add-mcp-to-claude-code.ps1` runs
-`claude mcp add` without `--scope user`, so the server is registered only for the folder the script
-runs in, not for every project.
-
-## B19 - The published release has no .mcp.json, no add-mcp script and no README
-
-`DISTRIBUTION-README.md` describes a release folder holding `.mcp.json` and
-`add-mcp-to-claude-code.ps1`; neither `src\tools\build-release.bat` nor `.github\workflows\build.yml`
-copies them (or the README) into the published output.
-
-## B20 - terminal_open takes any misspelled protocol as telnet
-
-`terminal_open`'s `protocol` text says "telnet, ssh or serial"; the code also accepts `tn3270`,
-`gateway` and `opcomsimulator`, and any other word, a typo included, quietly becomes telnet instead of
-being refused by name. Fix: declare the allowed words on the argument (the same rule as SCREENSHOT's
-`area`) so a wrong one is refused on both surfaces.
-
-## B21 - The parser's into= message names five commands; the code allows many more
-
-The script parser's refusal for `into=` says only WAITFOR, WAITIDLE, READSCREEN, READNEW and STATUS
-return a value to store; the code allows it on every command that produces output. The message must
-come from the same rule the code uses.
-
 ## B22 - Once, PF3 from TK5's ISPF menu under s3270 showed CLST020 instead of READY
 
 Seen once on 24 November 2026 in a Scenario10 run with s3270: PF3 from the ISPF primary menu showed

@@ -16,7 +16,7 @@ namespace RetroTerm.Core.Commands.Builtin;
 /// <para><b>Shared by SCREENSHOT and RECORDSTART</b></para>
 /// docs\PLAN.md asked for both commands with "the same whole-window or terminal-only option", so the
 /// choice, its spelling in a script and its MCP enum are declared once here and both commands use
-/// <see cref="CreateParameter"/> and <see cref="Parse"/>. RECORDSTART takes its frames through the
+/// <see cref="ScreenCaptureAreaParameter.CreateParameter"/> and <see cref="ScreenCaptureAreaParameter.Parse"/>. RECORDSTART takes its frames through the
 /// same desktop renderer SCREENSHOT uses, one per look, without a second idea of what "window" means.
 /// </remarks>
 public enum ScreenCaptureArea

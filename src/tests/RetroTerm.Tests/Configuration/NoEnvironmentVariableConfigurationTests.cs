@@ -48,6 +48,12 @@ public class NoEnvironmentVariableConfigurationTests
         "ExpandEnvironmentVariables",
     };
 
+    /// <summary>
+    /// The one environment read allowed: FfmpegLocator reading the system PATH.
+    /// </summary>
+    private const string AllowedSystemPathRead =
+        "=> Find(preferencesPath, Environment.GetEnvironmentVariable(SystemPathVariable));";
+
     [Fact]
     public void NothingInTheShippingCodeReadsAnEnvironmentVariable()
     {
@@ -84,6 +90,16 @@ public class NoEnvironmentVariableConfigurationTests
                     if (trimmed.StartsWith("//", StringComparison.Ordinal)
                         || trimmed.StartsWith("///", StringComparison.Ordinal)
                         || trimmed.StartsWith("*", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    // The system PATH, read once to find an installed ffmpeg (FfmpegLocator,
+                    // docs\PLAN.md: "a path in Preferences, else the system PATH; no environment
+                    // variable of our own"). It is the operating system's program search list, not
+                    // a RetroTerm setting. Allowed in that one file, as that one line, and nowhere else.
+                    if (files[i].EndsWith(Path.Combine("Recording", "FfmpegLocator.cs"), StringComparison.Ordinal)
+                        && trimmed == AllowedSystemPathRead)
                     {
                         continue;
                     }

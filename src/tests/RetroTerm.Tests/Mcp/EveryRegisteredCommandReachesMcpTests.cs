@@ -113,7 +113,9 @@ public class EveryRegisteredCommandReachesMcpTests : IDisposable
 
         RecordCommands.RegisterAll(registry,
             (session, area, path, interval) => null,
-            session => ScreenRecordingOutcome.Refused("stub"));
+            session => ScreenRecordingOutcome.Refused("stub"),
+            () => new RetroTerm.Core.Recording.FfmpegChoice { Problem = "stub: never asked, the stop is refused" },
+            (ffmpeg, film, width, height, token) => throw new InvalidOperationException("stub: never run, the stop is refused"));
 
         LocalInputCommands.RegisterAll(registry,
             (TerminalSession session, string key, bool shift) => null,

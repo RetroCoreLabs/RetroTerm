@@ -312,7 +312,49 @@
                             <TextBlock Name="McpInfoText"
                                        Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
                                        TextWrapping="Wrap" Margin="4,4,0,0"
-                                       Text="The MCP server listens on localhost only. Changes take effect the next time RetroTerm starts. Connect Claude Code with: claude mcp add --transport http retroterm http://127.0.0.1:5715/mcp — see docs\MCP-AND-SCRIPTING.md."/>
+                                       Text="The MCP server listens on localhost only. Changes take effect the next time RetroTerm starts. Connect Claude Code with: claude mcp add --transport http --scope user retroterm http://127.0.0.1:5715/mcp — see docs\MCP-AND-SCRIPTING.md."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ═══════════════ Recording ═══════════════ -->
+            <!-- RECORDSTOP makes an MP4 beside the animated PNG with this ffmpeg, or with the one on
+                 the PATH when the box is empty (RetroTerm.Core.Recording.FfmpegLocator). -->
+            <TabItem Header="Recording" FontSize="13">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <Border Background="{DynamicResource SectionBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Screen recordings"
+                                       Foreground="{DynamicResource SectionHeader1Brush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+                            <Grid ColumnDefinitions="70,*,Auto" Margin="4,0">
+                                <TextBlock Grid.Column="0" Text="ffmpeg:"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <!-- MinHeight, not Height: a fixed 30 cut the bottom off y and g
+                                     in the rendered test picture (24 November 2026). -->
+                                <TextBox Grid.Column="1" Name="FfmpegPathBox"
+                                         FontSize="12" MinHeight="30"
+                                         PlaceholderText="empty: the ffmpeg on the PATH"
+                                         Background="{DynamicResource SecondaryButtonBrush}"
+                                         Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SecondaryButtonBorderBrush}"/>
+                                <Button Grid.Column="2" Classes="Secondary" Content="Browse..."
+                                        Margin="6,0,0,0" Padding="10,4"
+                                        Click="OnFfmpegBrowseClick"/>
+                            </Grid>
+
+                            <TextBlock Name="FfmpegInfoText"
+                                       Foreground="{DynamicResource DisabledTextBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="4,4,0,0"
+                                       Text="RECORDSTOP makes an MP4 (H.264) beside the animated PNG with this ffmpeg. Leave it empty to use the ffmpeg on the PATH. With none, only the animated PNG is written, and RECORDSTOP says why. RetroTerm does not ship ffmpeg."/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

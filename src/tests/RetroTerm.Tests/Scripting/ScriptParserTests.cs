@@ -141,6 +141,45 @@ public class ScriptParserTests
         Assert.Contains("into= does nothing on SEND", script.Errors[0].Message);
     }
 
+    /// <summary>
+    /// BUGS.md B21: the refusal named five commands typed by hand while the rule
+    /// (ISessionCommand.ProducesCapture) allowed into= on many more. The message must list
+    /// exactly the commands the rule allows, read from the registry, and every one of them must
+    /// really take into=.
+    /// </summary>
+    [Fact]
+    public void Parse_IntoRefusal_NamesExactlyTheCommandsTheRuleAllows()
+    {
+        var commands = _registry.Commands;
+        var allowed = new System.Collections.Generic.List<string>();
+        for (int i = 0; i < commands.Count; i++)
+        {
+            if (commands[i].ProducesCapture)
+            {
+                allowed.Add(commands[i].Name);
+            }
+        }
+        // More than the five the old message named, or this test would not have caught B21.
+        Assert.True(allowed.Count > 5, "only " + allowed.Count + " commands produce a capture");
+
+        var script = _parser.Parse("SEND \"x\" into=v");
+
+        Assert.False(script.IsValid);
+        Assert.Equal(
+            "into= does nothing on SEND — it produces no value to store (" + string.Join(", ", allowed) + " do)",
+            script.Errors[0].Message);
+
+        // Each named command takes into= (whatever else its line may lack).
+        for (int i = 0; i < allowed.Count; i++)
+        {
+            var line = _parser.Parse(allowed[i] + " into=v");
+            for (int e = 0; e < line.Errors.Count; e++)
+            {
+                Assert.DoesNotContain("into=", line.Errors[e].Message, System.StringComparison.Ordinal);
+            }
+        }
+    }
+
     [Fact]
     public void Parse_IntoOnCaptureCommands_IsAllowed()
     {

@@ -55,6 +55,14 @@ public sealed class ThemeManager
     /// </summary>
     public int McpPort { get; set; } = 5715;
 
+    // ── Recording ───────────────────────────────────────────────────
+    /// <summary>
+    /// The ffmpeg program RECORDSTOP makes an MP4 with, or empty to use the one on the system
+    /// PATH. A path that does not exist means no MP4 (and RECORDSTOP says so); it is never
+    /// replaced by the PATH's one. See RetroTerm.Core.Recording.FfmpegLocator.
+    /// </summary>
+    public string FfmpegPath { get; set; } = string.Empty;
+
     // ── Gateway Ethernet ────────────────────────────────────────────
     // An APPLICATION setting, not a per-connection one. The mapping describes how THIS
     // machine's network is shared with an emulated guest - which adapter, which segment -
@@ -331,10 +339,18 @@ public sealed class ThemeManager
 
     // ── Persistence ──────────────────────────────────────────────────
 
+    /// <summary>
+    /// A preferences file for a test to use instead of the user's real one, or null. Set by the
+    /// headless tests that change a Preferences field, so they never write the real
+    /// preferences.txt.
+    /// </summary>
+    internal static string? PreferencesPathForTesting { get; set; }
+
     private static string PreferencesPath
     {
         get
         {
+            if (PreferencesPathForTesting != null) return PreferencesPathForTesting;
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             return Path.Combine(appData, "RetroTerm", "preferences.txt");
         }
@@ -367,6 +383,7 @@ public sealed class ThemeManager
             writer.WriteLine($"kermit-autodetect={KermitAutoDetectReceive}");
             writer.WriteLine($"mcp-enabled={McpEnabled}");
             writer.WriteLine($"mcp-port={McpPort}");
+            writer.WriteLine($"ffmpeg-path={FfmpegPath}");
             writer.WriteLine($"eth-enabled={EthernetEnabled}");
             writer.WriteLine($"eth-mapping={(int)EthernetMapping}");
             writer.WriteLine($"eth-target={EthernetTarget}");
@@ -385,6 +402,11 @@ public sealed class ThemeManager
             // Non-critical — ignore write failures
         }
     }
+
+    /// <summary>
+    /// Reads the preferences file again, so a test can check that a value it saved comes back.
+    /// </summary>
+    internal void LoadPreferencesForTesting() => LoadPreferences();
 
     private void LoadPreferences()
     {
@@ -430,6 +452,8 @@ public sealed class ThemeManager
                     McpEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase);
                 else if (key == "mcp-port" && int.TryParse(value, out var mp) && mp > 0 && mp <= 65535)
                     McpPort = mp;
+                else if (key == "ffmpeg-path")
+                    FfmpegPath = value;
                 else if (key == "eth-enabled")
                     EthernetEnabled = string.Equals(value, "True", StringComparison.OrdinalIgnoreCase);
                 else if (key == "eth-mapping" && int.TryParse(value, out var em) &&

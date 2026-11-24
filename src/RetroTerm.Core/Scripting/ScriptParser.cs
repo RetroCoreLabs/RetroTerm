@@ -40,6 +40,36 @@ public sealed class ScriptParser
 {
     private readonly CommandRegistry _registry;
 
+    /// <summary>
+    /// The names of every registered command whose <see cref="ISessionCommand.ProducesCapture"/>
+    /// is true, in registry order, comma separated - the commands <c>into=</c> works on.
+    /// </summary>
+    /// <returns>
+    /// The names, for the into= refusal.
+    /// </returns>
+    /// <remarks>
+    /// Read from the same property the parser tests before it refuses, so the message cannot
+    /// name a different set from the one the rule allows (BUGS.md B21).
+    /// </remarks>
+    private string CaptureCommandNames()
+    {
+        var commands = _registry.Commands;
+        var names = new StringBuilder();
+        for (int i = 0; i < commands.Count; i++)
+        {
+            if (!commands[i].ProducesCapture)
+            {
+                continue;
+            }
+            if (names.Length > 0)
+            {
+                names.Append(", ");
+            }
+            names.Append(commands[i].Name);
+        }
+        return names.ToString();
+    }
+
     public ScriptParser(CommandRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -228,11 +258,13 @@ public sealed class ScriptParser
             if (string.Equals(key, "into", StringComparison.OrdinalIgnoreCase))
             {
                 // into= on a command with nothing to store would fill the variable
-                // with guaranteed-empty text.
+                // with guaranteed-empty text. The list in the message is built from the same
+                // ProducesCapture the test above reads, over the live registry (BUGS.md B21):
+                // it used to be five names typed by hand while many more commands allowed it.
                 if (!command.ProducesCapture)
                 {
                     errors.Add(new ScriptParseError(lineNumber,
-                        $"into= does nothing on {command.Name} — it produces no value to store (WAITFOR, WAITIDLE, READSCREEN, READNEW, STATUS do)"));
+                        $"into= does nothing on {command.Name} — it produces no value to store ({CaptureCommandNames()} do)"));
                     return;
                 }
                 intoVariable = value;

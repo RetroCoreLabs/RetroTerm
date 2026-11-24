@@ -29,7 +29,8 @@
 #
 # What each platform gets, since 30 September 2026 (before that all four were bare binaries, and
 # macOS and Linux showed no icon anywhere):
-#   Windows  RetroTerm-win-x64.exe - the icon is compiled into the exe.
+#   Windows  RetroTerm-win-x64.zip holding a RetroTerm-win-x64 folder - RetroTerm.exe (the icon is
+#            compiled into it) and the three distribution files below.
 #   macOS    RetroTerm-osx-*.zip holding RetroTerm.app - Info.plist from src/packaging/macos/ and an
 #            .icns rendered from src/assets/RetroTerm.svg. Signed ad hoc, not notarised: Gatekeeper
 #            refuses a downloaded copy until the quarantine attribute is removed; the release
@@ -37,6 +38,14 @@
 #   Linux    RetroTerm-linux-x64.tar.gz - the program, retroterm.desktop, the icon at the hicolor
 #            sizes rendered from the same SVG, and install.sh from src/packaging/linux/.
 # The SVG is the one source for every icon size on macOS and Linux.
+#
+# Every platform's download also carries the three files docs/DISTRIBUTION-README.md describes
+# (BUGS.md B19, fixed 24 November 2026 - before that the release held only the program):
+#   README.md                   docs/DISTRIBUTION-README.md
+#   .mcp.json                   docs/distribution-mcp.json
+#   add-mcp-to-claude-code.ps1  src/tools/add-mcp-to-claude-code.ps1
+# The step "Distribution files" copies them into out/dist, and each platform's packaging step
+# takes them from there, so the list is in one place.
 name: build
 on:
   push:
@@ -61,7 +70,10 @@ jobs:
       # The Hercules tests drive a live TK5 mainframe (src/tests/RetroTerm.Tests/Hercules); a hosted
       # runner has none, so they are a separate gate run where TK5 is up. They are not skipped there:
       # they FAIL when the host does not answer.
-      - run: dotnet test src/RetroTerm.slnx -c Release --no-build -nodeReuse:false --filter "Category!=Hercules&Category!=Oracle" --logger "console;verbosity=minimal"
+      # The Ffmpeg tests make an MP4 with a real ffmpeg and read it back with ffprobe
+      # (Recording/RecordStopMp4Tests); they FAIL, naming what is missing, where there is none, so
+      # like Hercules and Oracle they are run where ffmpeg is installed rather than here.
+      - run: dotnet test src/RetroTerm.slnx -c Release --no-build -nodeReuse:false --filter "Category!=Hercules&Category!=Oracle&Category!=Ffmpeg" --logger "console;verbosity=minimal"
 
   publish:
     strategy:
@@ -72,7 +84,7 @@ jobs:
           - os: windows-latest
             rid: win-x64
             binary: RetroTerm.exe
-            asset: RetroTerm-win-x64.exe
+            asset: RetroTerm-win-x64.zip
           - os: ubuntu-latest
             rid: linux-x64
             binary: RetroTerm.Desktop
@@ -108,11 +120,32 @@ jobs:
             chmod +x RetroTerm-${{ matrix.rid }}
           fi
 
-      # Windows ships the bare exe: its icon is compiled into it from RetroTerm.ico.
-      - name: Windows - the exe as it is
-        if: runner.os == 'Windows'
+      # The three files every download carries beside the program (see the header).
+      - name: Distribution files
         shell: bash
-        run: cp out/win-x64/RetroTerm-win-x64.exe out/${{ matrix.asset }}
+        run: |
+          set -e
+          mkdir -p out/dist
+          cp docs/DISTRIBUTION-README.md out/dist/README.md
+          cp docs/distribution-mcp.json out/dist/.mcp.json
+          cp src/tools/add-mcp-to-claude-code.ps1 out/dist/add-mcp-to-claude-code.ps1
+          ls -la out/dist
+
+      # Windows ships the exe in a zip with the distribution files: its icon is compiled into it
+      # from RetroTerm.ico. Inside the zip it is RetroTerm.exe again, the name the README uses.
+      # ZipFile.CreateFromDirectory takes every file, .mcp.json included.
+      - name: Windows - build the zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = 'out/pkg/RetroTerm-win-x64'
+          New-Item -ItemType Directory -Force $pkg | Out-Null
+          Copy-Item out/win-x64/RetroTerm-win-x64.exe "$pkg/RetroTerm.exe"
+          Copy-Item out/dist/* $pkg -Force
+          Copy-Item out/dist/.mcp.json $pkg -Force
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path 'out/pkg').Path + '/RetroTerm-win-x64', (Join-Path (Resolve-Path 'out').Path '${{ matrix.asset }}'), 'Optimal', $true)
 
       # macOS only shows an icon for a .app bundle, so the binary goes into RetroTerm.app with an
       # Info.plist and an .icns rendered from src/assets/RetroTerm.svg - every size of the iconset,
@@ -141,7 +174,9 @@ jobs:
           iconutil -c icns "$iconset" -o "$app/Contents/Resources/RetroTerm.icns"
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict --verbose=2 "$app"
-          ditto -c -k --sequesterRsrc --keepParent "$app" out/${{ matrix.asset }}
+          cp out/dist/README.md out/dist/.mcp.json out/dist/add-mcp-to-claude-code.ps1 out/pkg/
+          # The zip holds RetroTerm.app and the three distribution files side by side.
+          (cd out/pkg && ditto -c -k --sequesterRsrc . ../${{ matrix.asset }})
           find "$app" -type f -exec ls -la {} \;
 
       # Linux shows an icon through a .desktop file in the user's application menu, so the
@@ -159,6 +194,7 @@ jobs:
           mkdir -p "$pkg"
           cp out/linux-x64/RetroTerm-linux-x64 "$pkg/RetroTerm"
           cp src/packaging/linux/retroterm.desktop src/packaging/linux/install.sh "$pkg/"
+          cp out/dist/README.md out/dist/.mcp.json out/dist/add-mcp-to-claude-code.ps1 "$pkg/"
           chmod +x "$pkg/RetroTerm" "$pkg/install.sh"
           for s in 16 24 32 48 64 128 256 512; do
             mkdir -p "$pkg/icons/${s}x${s}"
@@ -168,6 +204,20 @@ jobs:
           cp src/assets/RetroTerm.svg "$pkg/icons/scalable/retroterm.svg"
           tar -C out/pkg -czf out/${{ matrix.asset }} RetroTerm-linux-x64
           tar -tvzf out/${{ matrix.asset }}
+
+      # Refuse to hand on a download that lacks any of the distribution files.
+      - name: Check the download holds the distribution files
+        shell: bash
+        run: |
+          set -e
+          case "${{ matrix.asset }}" in
+            *.tar.gz) list=$(tar -tzf out/${{ matrix.asset }}) ;;
+            *.zip)    list=$(unzip -Z1 out/${{ matrix.asset }}) ;;
+          esac
+          echo "$list"
+          for f in README.md .mcp.json add-mcp-to-claude-code.ps1; do
+            echo "$list" | grep -E "(^|/)${f//./\.}$" > /dev/null || { echo "missing from the download: $f"; exit 1; }
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -195,12 +245,12 @@ jobs:
             --title "RetroTerm ${{ github.ref_name }}" \
             --notes "Self-contained builds, no .NET runtime needed.
 
-          - RetroTerm-win-x64.exe: Windows x64. A single exe; run it.
+          - RetroTerm-win-x64.zip: Windows x64. Unzip it and run RetroTerm.exe; it is a single self-contained exe.
           - RetroTerm-osx-arm64.zip (Apple silicon) and RetroTerm-osx-x64.zip (Intel): unzip to get RetroTerm.app and drag it into Applications. It is not notarised, so the first time run: xattr -dr com.apple.quarantine /Applications/RetroTerm.app
           - RetroTerm-linux-x64.tar.gz: Linux x64. tar -xzf RetroTerm-linux-x64.tar.gz && cd RetroTerm-linux-x64 && ./install.sh puts RetroTerm in the application menu with its icon (under ~/.local/share, no root). ./RetroTerm also runs it straight from the folder.
 
-          Every build hosts the MCP server on http://127.0.0.1:5715/mcp; see docs/DISTRIBUTION-README.md." \
-            artifacts/RetroTerm-win-x64/RetroTerm-win-x64.exe \
+          Every build hosts the MCP server on http://127.0.0.1:5715/mcp. Each download carries README.md, .mcp.json (a Claude Code project configuration for that server) and add-mcp-to-claude-code.ps1." \
+            artifacts/RetroTerm-win-x64/RetroTerm-win-x64.zip \
             artifacts/RetroTerm-linux-x64/RetroTerm-linux-x64.tar.gz \
             artifacts/RetroTerm-osx-x64/RetroTerm-osx-x64.zip \
             artifacts/RetroTerm-osx-arm64/RetroTerm-osx-arm64.zip

@@ -99,7 +99,11 @@ public sealed class RetroTermToolProvider
             "protocol=serial with port_name (+ baud, data_bits, parity, stop_bits) for ad-hoc serial.",
             Text("name", false, "Stored connection name — opens it exactly as saved, serial included; " +
                                 "every other parameter is ignored"),
-            Text("protocol", false, "telnet, ssh or serial (default telnet)"),
+            // The allowed words are declared on the argument (BUGS.md B20), so a misspelled
+            // protocol is refused by name instead of quietly opening a telnet connection.
+            new CommandParameter("protocol", CommandParameterType.String, false, null,
+                "telnet (default), ssh, tn3270, serial or opcomsimulator (the built-in OPCOM simulator, no host)",
+                allowedValues: ConnectionFactory.OpenableProtocolNames),
             Text("host", false, "Host name or IP address (telnet/ssh; serial uses port_name)"),
             Number("port", "TCP port (RetroCore terminal ports are plain telnet)"),
             Text("emulator", false, "Terminal emulator: VT100 (default) or TDV2200"),
@@ -412,7 +416,8 @@ public sealed class RetroTermToolProvider
                 Password = GetString(args, "password")
             };
 
-            if (parameters.Host.Length == 0)
+            // The OPCOM simulator runs inside RetroTerm and has no host to name.
+            if (parameters.Host.Length == 0 && parameters.Protocol != ConnectionFactory.ProtocolType.OpcomSimulator)
             {
                 return Error("terminal_open needs a stored connection name, a host, " +
                              "or protocol=serial with port_name");
@@ -786,7 +791,32 @@ public sealed class RetroTermToolProvider
     }
 
     /// <summary>
-    /// The refusal for a hand-written tool called with an argument name it does not declare.
+    /// The declared parameter of a name, ignoring case, or null.
+    /// </summary>
+    /// <param name="declared">
+    /// The tool's declared arguments.
+    /// </param>
+    /// <param name="name">
+    /// The argument name as sent.
+    /// </param>
+    /// <returns>
+    /// The parameter, or null when none has that name.
+    /// </returns>
+    private static CommandParameter? FindDeclared(IReadOnlyList<CommandParameter> declared, string name)
+    {
+        for (int i = 0; i < declared.Count; i++)
+        {
+            if (string.Equals(declared[i].Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return declared[i];
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The refusal for a hand-written tool called with an argument name it does not declare, or with a value
+    /// that argument refuses (not a whole number, or not one of its declared words).
     /// </summary>
     /// <param name="toolName">
     /// The tool called.
@@ -795,7 +825,7 @@ public sealed class RetroTermToolProvider
     /// The arguments as sent.
     /// </param>
     /// <returns>
-    /// The error result, or null when the tool is not hand-written or every name is declared.
+    /// The error result, or null when the tool is not hand-written or every name and value is accepted.
     /// </returns>
     private static CallToolResult? RefuseUnknownArgument(string toolName, IDictionary<string, JsonElement>? args)
     {
@@ -808,6 +838,17 @@ public sealed class RetroTermToolProvider
         while (e.MoveNext())
         {
             if (!CommandParameterValidation.TryCheckName(toolName, declared, e.Current.Key, "tools/list", out var error))
+            {
+                return Error(error!);
+            }
+
+            // The value, by the same rule and with the same words a registry command uses:
+            // a whole number where one is declared, and a word from the list where the
+            // argument declares one (terminal_open's protocol, BUGS.md B20).
+            var parameter = FindDeclared(declared, e.Current.Key);
+            var raw = JsonToString(e.Current.Value);
+            if (parameter != null && raw != null
+                && !CommandParameterValidation.TryCheckValue(toolName, parameter, raw, out error))
             {
                 return Error(error!);
             }

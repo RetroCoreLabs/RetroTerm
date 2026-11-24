@@ -12,7 +12,8 @@ This folder is a distribution. Everything in it is described below.
 
 The GitHub repository builds the same application for Linux x64 and for macOS on Intel and on
 Apple silicon, attached to each release at `https://github.com/RetroCoreLabs/RetroTerm/releases`
-beside the Windows build, `RetroTerm-win-x64.exe`:
+beside the Windows build, `RetroTerm-win-x64.zip`. Every one of them carries this README,
+`.mcp.json` and `add-mcp-to-claude-code.ps1` beside the program:
 
 - `RetroTerm-osx-arm64.zip` (Apple silicon) and `RetroTerm-osx-x64.zip` (Intel) each hold
   `RetroTerm.app`, with its icon. Drag it into Applications. It is signed ad hoc but not
@@ -31,12 +32,13 @@ machine.
 
 | File | What it is |
 |---|---|
-| `RetroTerm.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release the same file is named `RetroTerm-win-x64.exe`; the Linux and macOS builds are separate files, see above). Nothing to install and no .NET runtime needed. |
+| `RetroTerm.exe` | The whole application. Self-contained, single file, Windows x64 (on the GitHub release it is inside `RetroTerm-win-x64.zip` with the three files below; the Linux and macOS builds are separate downloads, see above). Nothing to install and no .NET runtime needed. |
 | `README.md` | This file. |
 | `.mcp.json` | A ready-made Claude Code project configuration that points at RetroTerm's MCP server. Copy it into the folder you run Claude Code from. In the repository it is `docs/distribution-mcp.json`. |
-| `add-mcp-to-claude-code.ps1` | The same thing as a one-line script (`src/tools/add-mcp-to-claude-code.ps1` in the repository): registers the server with Claude Code for the folder it is run in. |
+| `add-mcp-to-claude-code.ps1` | A one-line script (`src/tools/add-mcp-to-claude-code.ps1` in the repository) that registers the server with Claude Code for every project (`--scope user`). |
 
-Note: `src/tools/build-release.bat` and the release workflow do not copy these two files (or this README) into the published folder today; a published folder may hold only the exe. Both files are optional - the command line below does the same job.
+`src/tools/build-release.bat` and the release workflow both put these three files beside the
+program. Both MCP files are optional - the command line below does the same job.
 
 There are no other files to ship. The MCP server, the terminal fonts, the themes and the
 help text are all inside the exe. Native libraries are unpacked by the exe itself on first
@@ -52,7 +54,7 @@ work:
 
 | File | Holds |
 |---|---|
-| `preferences.txt` | Theme, font, MCP on/off and port, and the other Preferences settings |
+| `preferences.txt` | Theme, font, MCP on/off and port, the ffmpeg path, and the other Preferences settings |
 | `host-configurations.json` | Your saved connections (Manage Connections) |
 | `tdv-key-bindings.json` | Key bindings you have made on the virtual keyboard |
 | `push-keys.json` | The strings programmed on the TDV PUSH keys |
@@ -109,8 +111,7 @@ current folder only):
 claude mcp add --transport http --scope user retroterm http://127.0.0.1:5715/mcp
 ```
 
-`add-mcp-to-claude-code.ps1` runs the same line without `--scope user`, so it registers the
-server for the folder it is run in.
+`add-mcp-to-claude-code.ps1` runs exactly this line.
 
 **Per project:** copy `.mcp.json` from this folder into the folder you start Claude Code in.
 It contains:
@@ -167,7 +168,9 @@ have. The set, grouped:
   `terminal_cursor`, `terminal_waitunlock`, `terminal_codepage`, `terminal_hostsend`,
   `terminal_hostreceive` (IND$FILE), `terminal_submit` (JCL to the card reader).
 - **Pictures:** `terminal_screenshot` (PNG, `area=terminal` or `area=window`),
-  `terminal_recordstart` and `terminal_recordstop` (an animated PNG film).
+  `terminal_recordstart` and `terminal_recordstop` (an animated PNG film, and an MP4 beside it
+  when ffmpeg is installed: set its path in Preferences, Recording tab, or leave that empty to
+  use the one on the PATH; RetroTerm does not ship ffmpeg).
 - **Build:** `terminal_build` says which build of RetroTerm is answering.
 - **Help:** `terminal_help`.
 
