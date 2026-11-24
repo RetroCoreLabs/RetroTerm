@@ -406,8 +406,20 @@ namespace RetroTerm.Tests.Hercules
                 else if (b == Order3270.RepeatToAddress && i + 3 < record.Length)
                 {
                     BufferAddress.TryDecode(record[i + 1], record[i + 2], out int a);
-                    item = "RA to " + a.ToString(CultureInfo.InvariantCulture) + " of X'" + record[i + 3].ToString("X2", CultureInfo.InvariantCulture) + "'";
-                    step = 4;
+                    if (record[i + 3] == Order3270.GraphicEscape && i + 4 < record.Length)
+                    {
+                        // RA may repeat a GE character: the GE order sits between the address and
+                        // the character (GA23-0059-4 p. 4-9). TK5's M.7 TERMTEST sends one
+                        // (SBA 1897, RA to 0 of GE X'D3'); read as a plain RA, the X'08' showed as
+                        // the character and the real one as text.
+                        item = "RA to " + a.ToString(CultureInfo.InvariantCulture) + " of GE X'" + record[i + 4].ToString("X2", CultureInfo.InvariantCulture) + "'";
+                        step = 5;
+                    }
+                    else
+                    {
+                        item = "RA to " + a.ToString(CultureInfo.InvariantCulture) + " of X'" + record[i + 3].ToString("X2", CultureInfo.InvariantCulture) + "'";
+                        step = 4;
+                    }
                 }
                 else if (b == Order3270.EraseUnprotectedToAddress && i + 2 < record.Length)
                 {

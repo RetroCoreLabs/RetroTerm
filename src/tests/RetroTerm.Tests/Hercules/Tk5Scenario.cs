@@ -32,6 +32,18 @@ namespace RetroTerm.Tests.Hercules
             Compare = compare;
         }
 
+        /// <summary>
+        /// A step compared with s3270 except for the text of some rows, each left out for a
+        /// reason the caller states (a row that shows each terminal's own query reply, or a code
+        /// page 310 character whose Unicode choice is documented to differ from x3270's).
+        /// </summary>
+        public Tk5Step(string name, Tk5StepAction act, Tk5ScreenTest done, string what, int[] rowsNotCompared, string whyNotCompared)
+            : this(name, act, done, what, true)
+        {
+            RowsNotCompared = rowsNotCompared;
+            WhyNotCompared = whyNotCompared;
+        }
+
         public string Name { get; }
 
         public Tk5StepAction Act { get; }
@@ -45,6 +57,16 @@ namespace RetroTerm.Tests.Hercules
         /// whose text is different every time (the TSO fortune cookie).
         /// </summary>
         public bool Compare { get; }
+
+        /// <summary>
+        /// Rows counted from 0 whose text is not compared, or null for every row.
+        /// </summary>
+        public int[]? RowsNotCompared { get; }
+
+        /// <summary>
+        /// Why <see cref="RowsNotCompared"/> are left out.
+        /// </summary>
+        public string? WhyNotCompared { get; }
     }
 
     /// <summary>
@@ -98,7 +120,7 @@ namespace RetroTerm.Tests.Hercules
                     continue;
                 }
 
-                List<string> differences = retroTerm[i].DifferencesFrom(reference[i], referenceName);
+                List<string> differences = retroTerm[i].DifferencesFrom(reference[i], referenceName, steps[i].RowsNotCompared);
                 for (int d = 0; d < differences.Count; d++)
                 {
                     report.Append("step '").Append(steps[i].Name).Append("', ").Append(differences[d]).Append('\n');

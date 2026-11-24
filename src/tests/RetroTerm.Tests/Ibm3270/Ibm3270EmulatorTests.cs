@@ -152,6 +152,62 @@ public class Ibm3270EmulatorTests
     }
 
     [Fact]
+    public void ACharacterSetAttributeOfF1DrawsFromCodePage310WithoutAGraphicEscape()
+    {
+        // The last part of the record TK5's M.7 TERMTEST sends after a field-test PF key,
+        // copied byte for byte from the wire (24 November 2026, Hercules Scenario10TermtestTests):
+        // SBA 1760, SA(colour 0), SF, "CHARACTER ATTRIBUTES:", SF, "NORMAL", SA(blink) "BLINK",
+        // SA(reverse) "REVERSE", SA(underscore) "UNDERSCORE", SA(highlight 0), then
+        // SA(character set X'F1') and 29 code page 310 characters with NO Graphic Escape in
+        // front, SA(character set 0), SA(highlight 0), two blanks, a null, and SBA 1897 RA to 0
+        // of GE X'D3' (the box intersection, filling the rest of the last row).
+        byte[] apl =
+        {
+            0x41, 0x57, 0x53, 0x8A, 0x8B, 0x8F, 0x9F, 0xC2, 0xD2, 0xB6, 0xB8, 0x9A, 0x9B, 0xAA, 0xAB, 0x9D, 0xBA, 0xBB, 0xC3,
+            0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9,
+        };
+        var record = new List<byte>
+        {
+            0xF1, 0xC3, 0x11, 0x5B, 0x60, 0x28, 0x00, 0x00,
+            0x1D, 0xF8, 0xC3, 0xC8, 0xC1, 0xD9, 0xC1, 0xC3, 0xE3, 0xC5, 0xD9, 0x40, 0xC1, 0xE3, 0xE3, 0xD9, 0xC9, 0xC2, 0xE4, 0xE3, 0xC5, 0xE2, 0x7A,
+            0x1D, 0xF0, 0xD5, 0xD6, 0xD9, 0xD4, 0xC1, 0xD3,
+            0x28, 0x41, 0xF1, 0xC2, 0xD3, 0xC9, 0xD5, 0xD2,
+            0x28, 0x41, 0xF2, 0xD9, 0xC5, 0xE5, 0xC5, 0xD9, 0xE2, 0xC5,
+            0x28, 0x41, 0xF4, 0xE4, 0xD5, 0xC4, 0xC5, 0xD9, 0xE2, 0xC3, 0xD6, 0xD9, 0xC5,
+            0x28, 0x41, 0x00, 0x28, 0x43, 0xF1,
+        };
+        record.AddRange(apl);
+        record.AddRange(new byte[] { 0x28, 0x43, 0x00, 0x28, 0x41, 0x00, 0x40, 0x40, 0x00, 0x11, 0x5D, 0xE9, 0x3C, 0x40, 0x40, 0x08, 0xD3 });
+        var e = new Ibm3270Emulator();
+
+        e.ProcessData(record.ToArray());
+
+        // Row 22: the field at 1760, "CHARACTER ATTRIBUTES:" from 1761, the field at 1782,
+        // NORMAL BLINK REVERSE UNDERSCORE from 1783 to 1810, the code page 310 run from 1811 to
+        // the end of the row.
+        Assert.Equal('C', (char)e.Buffer.GetCell(22, 1).Codepoint);
+        Assert.Equal('U', (char)e.Buffer.GetCell(22, 41).Codepoint);
+        for (int i = 0; i < apl.Length; i++)
+        {
+            char expected = CodePage.Cp310.ToUnicode(apl[i]);
+            Assert.True(expected != '\0', "code page 310 has no character for X'" + apl[i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture) + "'");
+            Assert.Equal(expected, (char)e.Buffer.GetCell(22, 51 + i).Codepoint);
+        }
+
+        // The run ends the row exactly (1811 + 29 = 1840). After SA(character set 0) the base
+        // page again: the two blanks at the start of row 23 (X'40' is a blank in both pages, so
+        // this only checks they were written).
+        Assert.Equal(80, 51 + apl.Length);
+        Assert.Equal(' ', (char)e.Buffer.GetCell(23, 0).Codepoint);
+
+        // The RA with GE: 1897 (row 23, column 57) to the end of the buffer.
+        for (int column = 57; column < 80; column++)
+        {
+            Assert.Equal(CodePage.Cp310.ToUnicode(0xD3), (char)e.Buffer.GetCell(23, column).Codepoint);
+        }
+    }
+
+    [Fact]
     public void TheScreensOwnBasePageIsUsedNotAlways037()
     {
         // X'4A' is the cent sign in 037 and something else in 277 (Denmark, Norway).

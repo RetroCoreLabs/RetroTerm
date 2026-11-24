@@ -134,11 +134,34 @@ namespace RetroTerm.Tests.Hercules
         /// Lists every difference between this screen and another, after masking the text that
         /// changes between runs. Empty when they match.
         /// </summary>
-        public List<string> DifferencesFrom(Tk5Screen other, string theirName)
+        public List<string> DifferencesFrom(Tk5Screen other, string theirName) => DifferencesFrom(other, theirName, null);
+
+        /// <summary>
+        /// As <see cref="DifferencesFrom(Tk5Screen, string)"/>, with the text of the rows given
+        /// left out (everything else, fields, colours, highlights and cursor, is still compared).
+        /// </summary>
+        /// <param name="other">
+        /// The other terminal's screen.
+        /// </param>
+        /// <param name="theirName">
+        /// Its name, for the report.
+        /// </param>
+        /// <param name="rowsNotCompared">
+        /// Rows counted from 0 whose text is not compared, or null.
+        /// </param>
+        /// <returns>
+        /// The differences.
+        /// </returns>
+        public List<string> DifferencesFrom(Tk5Screen other, string theirName, int[]? rowsNotCompared)
         {
             var found = new List<string>();
             for (int r = 0; r < Rows; r++)
             {
+                if (rowsNotCompared != null && System.Array.IndexOf(rowsNotCompared, r) >= 0)
+                {
+                    continue;
+                }
+
                 string mine = s_changing.Replace(Lines[r], "#");
                 string theirs = s_changing.Replace(other.Lines[r], "#");
                 if (mine != theirs)

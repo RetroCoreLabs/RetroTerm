@@ -63,10 +63,20 @@ namespace RetroTerm.Tests.Hercules
                 throw new Xunit.Sdk.XunitException("s3270 not found at '" + settings.S3270 + "' (the s3270 entry in tk5-tests.json).");
             }
 
-            var start = new ProcessStartInfo(settings.S3270, "-model " + model)
+            // -utf8: without it s3270 writes the screen in the Windows ANSI code page, which this
+            // side read as UTF-8, so every character past ASCII (the accented letters of code page
+            // 37, the APL and box characters of code page 310) arrived as U+FFFD and could not be
+            // compared (found 24 November 2026 on TK5's M.7 TERMTEST symbol-set screens).
+            // -codepage cp037: s3270's own default is "bracket", code page 37 with the square
+            // brackets moved to X'AD' and X'BD' (and Y-acute and diaeresis to X'BA' and X'BB'),
+            // which is not what RetroTerm's default (true code page 37, EBCDIC.md) shows; measured
+            // 24 November 2026 on the TERMTEST symbol set 0 table, rows A and B.
+            var start = new ProcessStartInfo(settings.S3270, "-utf8 -codepage cp037 -model " + model)
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
+                StandardInputEncoding = new System.Text.UTF8Encoding(false),
+                StandardOutputEncoding = new System.Text.UTF8Encoding(false),
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };

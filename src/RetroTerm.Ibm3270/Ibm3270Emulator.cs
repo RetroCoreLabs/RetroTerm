@@ -67,6 +67,10 @@ namespace RetroTerm.Ibm3270
         // The largest file transfer structured field, both ways (Display3270.FileTransferLimit).
         private const int FileTransferBufferSize = 16384;
 
+        // The local ID the Character Sets query reply gives code page 310, the Graphic Escape set
+        // (RetroIO Display3270, QueryCode.CharacterSets: "SET 1, flags 0, local ID X'F1'").
+        private const byte GraphicEscapeSetId = 0xF1;
+
         // Not readonly: Reset puts a new one in place, a 3278 just switched on (see Reset).
         private Display3270 _display;
 
@@ -1285,8 +1289,21 @@ namespace RetroTerm.Ibm3270
             // A character the host sent behind a Graphic Escape order is from code page 310 (APL,
             // box pieces; GA23-0059-4 p. 4-9), every other one from the screen's own base page.
             // Whether the font has a glyph for it is a separate question (docs\PLAN.md, the font item).
+            // The same set is also reached WITHOUT Graphic Escape, by the character set attribute
+            // (type X'43', SA or SFE) naming local ID X'F1', which our Character Sets query reply
+            // gives code page 310 (Display3270, QueryCode.CharacterSets). The character attribute
+            // wins over the field's, X'00' meaning "take the field's" (GA23-0059-4 p. 4-19). TK5's
+            // M.7 TERMTEST writes its APL sample line and its symbol set 1 table this way
+            // (SA 43 F1, measured 24 November 2026); until then only GE was looked at here.
+            byte charset = _display.GetCharacterCharacterSet(address);
+            if (charset == 0 && fa >= 0)
+            {
+                charset = _display.GetFieldCharacterSet(fa);
+            }
+
             byte code = _display.GetByte(address);
-            char c = _display.IsGraphicEscape(address) ? CodePage.Cp310.ToUnicode(code) : _display.CodePage.ToUnicode(code);
+            bool alternate = _display.IsGraphicEscape(address) || charset == GraphicEscapeSetId;
+            char c = alternate ? CodePage.Cp310.ToUnicode(code) : _display.CodePage.ToUnicode(code);
             if (c == '\0')
             {
                 c = ' ';

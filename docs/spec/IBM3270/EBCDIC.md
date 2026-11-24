@@ -479,8 +479,32 @@ committed to `IBM-manuals\`.
   was told GE is there and still sent none.
 - The setting was put back to `3277` in the same session, and checked: after
   re-entering ISPF the menu showed `TERMINAL : 3277` again.
-- Not looked at: the panels of RFE, RPF and REVIEW, option T, and M.7 TERMTEST
-  ("Verify 3270 terminal capabilities"), any of which might use GE.
+- **M.7 TERMTEST does use code page 310, both ways** (measured 24 November 2026, every
+  host record decoded with `Tk5WireTap.Decode`; Hercules `Scenario10TermtestTests`).
+  TERMTEST ("TERMTEST 11.3") first sends a Read Partition Query (`F3 00 05 01 FF 02`) and
+  prints the reply it got, one query reply per line, then the TSO macros' answers
+  (GTSIZE 24 x 80, GTTERM "QUERY BIT ON", the cell size from the Usable Area reply).
+  - After any field-test PF key (PF10-12 highlighting, PF1-7 colour, PF8 "GE") the record
+    ends with a CHARACTER ATTRIBUTES line: `SA 41 F1` "BLINK", `SA 41 F2` "REVERSE",
+    `SA 41 F4` "UNDERSCORE", then **`SA 43 F1`** and 29 bytes with NO GE order in front
+    (`41 57 53 8A 8B 8F 9F C2 D2 B6 B8 9A 9B AA AB 9D BA BB C3 F0`-`F9`: underlined A P L,
+    arrows, superscripts ...), then `SA 43 00`. The character set attribute X'F1' is the
+    local ID our Character Sets reply gives code page 310, so the set is reached without GE.
+  - The same record ends with **`SBA 1897`, `RA` to 0 of `GE X'D3'`**: the first X'08' seen
+    on TK5, a Graphic Escape inside a Repeat to Address, filling the last 23 cells with the
+    box intersection ┼.
+  - `SYMSET1` shows the whole symbol set 1 table (CGCSGID 03C3-0136, code page 310) with
+    `SA 43 F1` on every row; `SYMSET0` the base set (02B9-0025, code page 37) with
+    `SA 43 00`.
+  - RetroTerm drew the `SA 43 F1` characters from code page 37 until 24 November 2026
+    (only GE was looked at); fixed in `Ibm3270Emulator.CellFor`, test
+    `Ibm3270EmulatorTests.ACharacterSetAttributeOfF1DrawsFromCodePage310WithoutAGraphicEscape`.
+  - Compared with s3270 (3279-2, `-utf8 -codepage cp037`) at every step, the only text
+    differences left are each terminal's own query reply (the cell height, 16 against
+    12, and on SYMSET0 the base set's ID, X'F0' against X'00') and the code page 310 bytes where this file chooses a different Unicode
+    character than x3270 (X'95', X'9C', X'A4', X'C1', X'C2', X'C3', X'E2', X'E3', X'E4'-X'E7';
+    see the full table). Fields, colours, highlighting and cursor match.
+- Not looked at: the panels of RFE, RPF and REVIEW, and option T.
 
 Note that X'85' is in the group
 fig. 10-41 note 4 calls "graphic plot characters" that "cannot be entered from

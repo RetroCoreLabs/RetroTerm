@@ -241,3 +241,9 @@ being refused by name. Fix: declare the allowed words on the argument (the same 
 The script parser's refusal for `into=` says only WAITFOR, WAITIDLE, READSCREEN, READNEW and STATUS
 return a value to store; the code allows it on every command that produces output. The message must
 come from the same rule the code uses.
+
+## B22 - Once, PF3 from TK5's ISPF menu under s3270 showed CLST020 instead of READY
+
+Seen once on 24 November 2026 in a Scenario10 run with s3270: PF3 from the ISPF primary menu showed
+"CLST020 LIST data set not allocated" instead of READY. It did not happen again and the cause is not
+known. If it comes back, keep the s3270 trace of that run.
