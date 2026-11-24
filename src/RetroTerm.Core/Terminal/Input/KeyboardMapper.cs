@@ -110,6 +110,18 @@ public enum TerminalModes
     /// the mapper.
     /// </remarks>
     AutoRepeatDisabled = 128,
+
+    /// <summary>
+    /// S8C1T (or DECSCL with 8-bit controls) is in force: a key's CSI and SS3 introducers go out
+    /// as the single 8-bit C1 characters 9/11 and 8/15 instead of ESC [ and ESC O.
+    /// </summary>
+    /// <remarks>
+    /// VT420 Programmer Reference (EK-VT420-RM-002), Chapter 3: every key code table gives the
+    /// code as "CSI" or "SS3" with its 8-bit column/row (9/11, 8/15), and the terminal sends the
+    /// 7-bit form only when 7-bit controls are selected. Named for the departure from the factory
+    /// default (7-bit), like the two flags above.
+    /// </remarks>
+    EightBitControls = 256,
 }
 
 /// <summary>
@@ -144,7 +156,86 @@ public abstract class BaseKeyboardMapper : IKeyboardMapper
     protected const int VkDecimal = 110;
     protected const int VkDivide = 111;
 
+    /// <summary>
+    /// DEC keys that a PC keyboard does not have, so no Windows virtual-key code names them. They
+    /// get codes above every VK code (VK codes stop at 0xFE) so the mapper can still be asked for
+    /// them: SENDKEY VT.FIND, VT.SELECT and VT.KPENTER press them, and an on-screen VT keyboard
+    /// will too. A physical PC key never produces these.
+    /// </summary>
+    public const int DecFind = 0x1001;
+
+    /// <summary>
+    /// The DEC Select key (editing keypad). See <see cref="DecFind"/>.
+    /// </summary>
+    public const int DecSelect = 0x1002;
+
+    /// <summary>
+    /// The DEC numeric keypad's own Enter key. Windows gives it the same code as Return (13), so it
+    /// needs its own here. See <see cref="DecFind"/>.
+    /// </summary>
+    public const int DecKeypadEnter = 0x1003;
+
     public virtual string? MapKey(int keyCode, KeyModifiers modifiers, TerminalModes terminalModes)
+    {
+        string? sequence = MapKeySevenBit(keyCode, modifiers, terminalModes);
+        return terminalModes.HasFlag(TerminalModes.EightBitControls) ? ToEightBitControls(sequence) : sequence;
+    }
+
+    /// <summary>
+    /// Rewrites a leading ESC [ as CSI (9/11) and a leading ESC O as SS3 (8/15), which is what a
+    /// VT sends for its keys once 8-bit controls are selected (VT420 Programmer Reference,
+    /// EK-VT420-RM-002, Tables 3-1 to 3-6: every code is given as CSI or SS3 with its 8-bit
+    /// column/row). Anything else - a plain character, a C0 control, a lone ESC - is unchanged.
+    /// </summary>
+    /// <param name="sequence">
+    /// The key's 7-bit sequence, or null.
+    /// </param>
+    /// <returns>
+    /// The 8-bit form, or the input unchanged.
+    /// </returns>
+    /// <remarks>
+    /// The result is a string whose first character is U+009B or U+008F. How that becomes bytes is
+    /// the profile's transport encoding, the same as for everything else typed: one byte on an
+    /// 8-bit line (exactly the manual's 9/11), two bytes (C2 9B) on a UTF-8 line. The manual has no
+    /// UTF-8, so it says nothing about the second case.
+    /// </remarks>
+    protected static string? ToEightBitControls(string? sequence)
+    {
+        if (sequence == null || sequence.Length < 2 || sequence[0] != '\x1b')
+        {
+            return sequence;
+        }
+
+        if (sequence[1] == '[')
+        {
+            return "\u009B" + sequence.Substring(2);
+        }
+
+        if (sequence[1] == 'O')
+        {
+            return "\u008F" + sequence.Substring(2);
+        }
+
+        return sequence;
+    }
+
+    /// <summary>
+    /// What the key sends with 7-bit controls. <see cref="MapKey"/> converts the result when 8-bit
+    /// controls are selected.
+    /// </summary>
+    /// <param name="keyCode">
+    /// The key code.
+    /// </param>
+    /// <param name="modifiers">
+    /// The modifiers held.
+    /// </param>
+    /// <param name="terminalModes">
+    /// The terminal's modes.
+    /// </param>
+    /// <returns>
+    /// The 7-bit sequence, or null when the key sends nothing.
+    /// </returns>
+    protected virtual string? MapKeySevenBit(int keyCode, KeyModifiers modifiers, TerminalModes terminalModes)
     {
         // Application keypad mode (DECKPAM) changes what the numeric keypad sends, and it does so
         // regardless of any other mapping — so it is decided here, before the tables.
@@ -158,6 +249,16 @@ public abstract class BaseKeyboardMapper : IKeyboardMapper
             {
                 return keypadSequence;
             }
+        }
+
+        // Numeric keypad mode (DECKPNM): the keypad's own Enter key sends what Return sends (VT420
+        // Programmer Reference, EK-VT420-RM-002, Table 3-4, "Numeric" column). The keypad's
+        // digits, comma, minus and period are deliberately NOT answered here in numeric mode:
+        // they are ordinary text and travel the text path, and a non-null answer would deliver
+        // them twice (ApplicationKeypadTests pins that). SENDKEY gets their text from VtNamedKeys.
+        if (keyCode == DecKeypadEnter && modifiers == KeyModifiers.None && !terminalModes.HasFlag(TerminalModes.ApplicationKeypad))
+        {
+            return _keyMappings.TryGetValue(13, out var ret) ? ret : null;
         }
 
         // DECBKM (private mode 67) decides what the backarrow key sends, and like the keypad above
@@ -357,6 +458,9 @@ public abstract class BaseKeyboardMapper : IKeyboardMapper
             case VkDecimal: return "\x1bOn";
             case VkDivide: return "\x1bOo";
 
+            // The keypad Enter key: SS3 M (VT420 Programmer Reference, Table 3-4, Application).
+            case DecKeypadEnter: return "\x1bOM";
+
             default: return null;
         }
     }
@@ -409,6 +513,22 @@ public class VT100KeyboardMapper : BaseKeyboardMapper
         _keyMappings[121] = "\x1b[21~"; // 121 = VK_F10
         _keyMappings[122] = "\x1b[23~"; // 122 = VK_F11
         _keyMappings[123] = "\x1b[24~"; // 123 = VK_F12
+
+        // F13 to F20 and the editing keys a PC keyboard lacks. Every VT profile types on this
+        // mapper (their KeyboardLayout is "VT100"), so the VT220-and-later keys live here too.
+        // VT420 Programmer Reference (EK-VT420-RM-002) Table 3-6: F13 CSI 25~, F14 CSI 26~,
+        // Help (F15) CSI 28~, Do (F16) CSI 29~, F17 to F20 CSI 31~ to 34~ (27 and 30 are skipped
+        // by DEC). Table 3-1: Find CSI 1~, Select CSI 4~.
+        _keyMappings[124] = "\x1b[25~"; // 124 = VK_F13
+        _keyMappings[125] = "\x1b[26~"; // 125 = VK_F14
+        _keyMappings[126] = "\x1b[28~"; // 126 = VK_F15 (Help)
+        _keyMappings[127] = "\x1b[29~"; // 127 = VK_F16 (Do)
+        _keyMappings[128] = "\x1b[31~"; // 128 = VK_F17
+        _keyMappings[129] = "\x1b[32~"; // 129 = VK_F18
+        _keyMappings[130] = "\x1b[33~"; // 130 = VK_F19
+        _keyMappings[131] = "\x1b[34~"; // 131 = VK_F20
+        _keyMappings[DecFind] = "\x1b[1~";
+        _keyMappings[DecSelect] = "\x1b[4~";
 
         // VT100 doesn't support modifier keys or extended keypad modes here;
         // base class will transform cursor keys in ApplicationCursorKeys mode.

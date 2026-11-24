@@ -238,26 +238,131 @@ namespace RetroTerm.Desktop.Controls
             Rect rect = CapRect(cap);
             context.DrawRectangle(FillFor(cap), EdgePen, rect, 4, 4);
 
+            List<KeyLabel> labels = LayoutLabels(cap);
+            for (int i = 0; i < labels.Count; i++)
+            {
+                context.DrawText(labels[i].Text, labels[i].Origin);
+            }
+        }
+
+        /// <summary>
+        /// One legend of a cap, laid out and placed: the text and where its top left goes, in this
+        /// control's coordinates. Drawing and the label-fit test both use this, so the test
+        /// measures what is drawn.
+        /// </summary>
+        internal readonly struct KeyLabel
+        {
+            public KeyLabel(string which, FormattedText text, Point origin)
+            {
+                Which = which;
+                Text = text;
+                Origin = origin;
+            }
+
+            /// <summary>
+            /// "main", "top" or "front".
+            /// </summary>
+            public string Which { get; }
+
+            public FormattedText Text { get; }
+
+            public Point Origin { get; }
+        }
+
+        /// <summary>
+        /// The key's drawn rectangle in this control's coordinates.
+        /// </summary>
+        internal static Rect KeyRect(KeyCap cap) => CapRect(cap);
+
+        /// <summary>
+        /// Lays out every legend of a cap.
+        /// </summary>
+        internal static List<KeyLabel> LayoutLabels(KeyCap cap)
+        {
+            Rect rect = CapRect(cap);
+            var labels = new List<KeyLabel>(3);
             IBrush ink = cap.Role == KeyRole.Blank ? BlankLegendBrush : LegendBrush;
 
-            if (cap.TopLegend != null)
-            {
-                DrawText(context, cap.TopLegend, 11, ink, new Point(rect.X + 5, rect.Y + 2), rect.Width - 8);
-                // With a front legend as well (ChgSc/Jump, Print/*), the main legend sits higher so
-                // the two do not run into each other.
-                double mainY = cap.FrontLegend != null ? rect.Y + rect.Height * 0.30 : rect.Y + rect.Height / 2 - 2;
-                DrawText(context, cap.Legend, cap.FrontLegend != null ? 11 : 13, ink, new Point(rect.X + 5, mainY), rect.Width - 8);
-            }
-            else
-            {
-                DrawCentred(context, cap.Legend, LegendSize(cap.Legend), ink, rect, cap.FrontLegend != null ? -6 : 0);
-            }
+            // The legends are placed from the outside in, each by its MEASURED size, so none of
+            // them can run into another or off the key. Two faults this replaced (found by eye on
+            // the 3278, then pinned by EveryLegendsInkFitsItsKeyAndTouchesNoOtherLegend): the front
+            // legend got a fixed 14 px strip at 9 pt, so ERASE INPUT and ALT CURSR wrapped to two
+            // lines and ran off the bottom of the key; and the main legend was sized by counting
+            // characters and moved up a fixed 6 px whatever the front legend took, so CURSR BLINK
+            // ran into ALT CURSR.
+            double top = rect.Y + 2;
+            double bottom = rect.Bottom - 2;
+            double inner = rect.Width - 8;
 
+            // Front legend first: ONE line, at the largest size up to 9 pt whose width fits the
+            // key, sat on the key's bottom edge. Everything above it is what the others may use.
             if (cap.FrontLegend != null)
             {
                 IBrush front = cap.Role == KeyRole.Blank ? BlankLegendBrush : FrontLegendBrush;
-                DrawCentred(context, cap.FrontLegend, 9, front, new Rect(rect.X, rect.Bottom - 15, rect.Width, 14), 0);
+                FormattedText formatted = OneLine(cap.FrontLegend, 9, front, inner);
+                double y = bottom - formatted.Height;
+                labels.Add(new KeyLabel("front", formatted, new Point(rect.X + (rect.Width - formatted.Width) / 2, y)));
+                bottom = y;
             }
+
+            if (cap.TopLegend != null)
+            {
+                FormattedText formatted = OneLine(cap.TopLegend, 11, ink, inner);
+                labels.Add(new KeyLabel("top", formatted, new Point(rect.X + 5, top)));
+                top += formatted.Height;
+                if (cap.Legend.Length > 0)
+                {
+                    // Left aligned under the top legend, like the shifted pair on a real cap.
+                    FormattedText main = Fitted(cap.Legend, cap.FrontLegend != null ? 11 : 13, ink, inner, bottom - top, TextAlignment.Left);
+                    labels.Add(new KeyLabel("main", main, new Point(rect.X + 5, top + (bottom - top - main.Height) / 2)));
+                }
+            }
+            else if (cap.Legend.Length > 0)
+            {
+                // Centred in the space left between the key's top and the front legend. It may wrap
+                // (CURSR BLINK takes two lines) but must fit that space, so the size comes down
+                // until the measured block does.
+                FormattedText main = Fitted(cap.Legend, LegendSize(cap.Legend), ink, inner, bottom - top, TextAlignment.Center);
+                labels.Add(new KeyLabel("main", main, new Point(rect.X + 4, top + (bottom - top - main.Height) / 2)));
+            }
+
+            return labels;
+        }
+
+        // The smallest size a legend is ever drawn at; below this it is not readable anyway.
+        private const double MinimumLegendSize = 6;
+
+        // A layout width no legend reaches, so the text is measured on one line at its natural
+        // width. Never pass 0 for "no limit": a MaxTextWidth of 0 laid out nothing at all, every
+        // top and front legend vanished (seen in the rendered PNG on 24 November 2026).
+        private const double UnwrappedWidth = 10000;
+
+        // One line, no wrapping: the largest size up to `size` whose measured width fits.
+        private static FormattedText OneLine(string text, double size, IBrush brush, double maxWidth)
+        {
+            FormattedText formatted = Format(text, size, brush, UnwrappedWidth, TextAlignment.Left);
+            while (formatted.Width > maxWidth && size > MinimumLegendSize)
+            {
+                size -= 0.5;
+                formatted = Format(text, size, brush, UnwrappedWidth, TextAlignment.Left);
+            }
+
+            return formatted;
+        }
+
+        // Wrapped to `maxWidth`: the largest size up to `size` whose measured block fits both the
+        // width (a single word wider than the box overflows it, so width is checked too) and the
+        // height it is given.
+        private static FormattedText Fitted(string text, double size, IBrush brush, double maxWidth, double maxHeight, TextAlignment alignment)
+        {
+            FormattedText formatted = Format(text, size, brush, maxWidth, alignment);
+            while ((formatted.Height > maxHeight || formatted.Width > maxWidth) && size > MinimumLegendSize)
+            {
+                size -= 0.5;
+                formatted = Format(text, size, brush, maxWidth, alignment);
+            }
+
+            return formatted;
         }
 
         private IBrush FillFor(KeyCap cap)
@@ -288,25 +393,6 @@ namespace RetroTerm.Desktop.Controls
         private static double LegendSize(string legend)
         {
             return legend.Length <= 2 ? 15 : legend.Length <= 5 ? 11 : legend.Length <= 9 ? 9 : 8;
-        }
-
-        // Centred inside the area: the text is laid out the area's width wide and centred by the
-        // layout itself, then placed vertically by its measured height. Long legends wrap.
-        private static void DrawCentred(DrawingContext context, string text, double size, IBrush brush, Rect area, double yOffset)
-        {
-            if (text.Length == 0)
-            {
-                return;
-            }
-
-            FormattedText formatted = Format(text, size, brush, area.Width - 4, TextAlignment.Center);
-            double y = area.Y + (area.Height - formatted.Height) / 2 + yOffset;
-            context.DrawText(formatted, new Point(area.X + 2, y));
-        }
-
-        private static void DrawText(DrawingContext context, string text, double size, IBrush brush, Point at, double maxWidth)
-        {
-            context.DrawText(Format(text, size, brush, maxWidth, TextAlignment.Left), at);
         }
 
         private static FormattedText Format(string text, double size, IBrush brush, double maxWidth, TextAlignment alignment)

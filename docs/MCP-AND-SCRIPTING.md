@@ -344,7 +344,26 @@ nothing is sent (`IBM.PF3` on a TDV tab fails). Upper or lower case does not mat
   key: `F1` and `F51` are one key. The sequence sent follows the terminal's mode (extended, or
   2115 compatibility). Programmable PUSH keys have no fixed sequence and are refused.
   `docs\TDV-KEYBOARD-COMPLETE-REFERENCE.md` has the full table.
-- **VT**: no key names yet; SENDKEY on a VT tab is refused - use `terminal_sendraw`.
+- **VT (every VT tab)**, from `VtNamedKeys`: a named key goes through the same path as a key
+  pressed in the terminal window, so it sends exactly what that key sends: a key the host loaded
+  with DECUDK sends the host's text, otherwise the bytes follow the terminal's current modes.
+  The bytes are from the VT420 Programmer Reference (`docs\spec\DEC\VT420-Programmer-Reference-EK-VT420-RM-002.pdf`),
+  Chapter 3. With 8-bit controls selected (S8C1T), CSI is the single character 9/11 and SS3 is
+  8/15; on a VT tab, whose line is UTF-8, each of those goes out as two bytes (`C2 9B`, `C2 8F`).
+
+  | Name | PC key | Sends | Manual |
+  |---|---|---|---|
+  | `UP` `DOWN` `RIGHT` `LEFT` | arrows | `CSI A`..`D`; `SS3 A`..`D` when the host set cursor key mode (DECCKM) | Table 3-3 |
+  | `PF1` .. `PF4` | F1 .. F4 | `SS3 P` .. `SS3 S`, in both keypad modes | Table 3-4 |
+  | `KP0` .. `KP9` | keypad 0-9 | the digit; `SS3 p` .. `SS3 y` in application keypad mode (DECKPAM) | Table 3-4 |
+  | `KPCOMMA` `KPMINUS` `KPPERIOD` | keypad `,` `-` `.` | `,` `-` `.`; `SS3 l` `SS3 m` `SS3 n` in DECKPAM | Table 3-4 |
+  | `KPENTER` | none (Windows gives keypad Enter the Return code) | what Return sends; `SS3 M` in DECKPAM | Table 3-4 |
+  | `FIND` `INSERT` `REMOVE` `SELECT` `PREV` `NEXT` | -, Insert, Delete, -, Page Up, Page Down | `CSI 1~` .. `CSI 6~` | Table 3-1 |
+  | `F6` .. `F20` | F6 .. F20 | `CSI 17~` `18~` `19~` `20~` `21~` `23~` `24~` `25~` `26~` `28~` (Help) `29~` (Do) `31~` .. `34~` | Table 3-6 |
+
+  Left out, because no held manual gives them for a VT keyboard: F1 to F5 (local functions
+  on a real VT420 - Hold, Print, Set-Up, Session, Break - and PF1 to PF4 on the PC keyboard
+  here), and the keypad's divide, multiply and plus keys. `shift` sends the key with Shift held.
 
 ### Security
 
@@ -401,7 +420,7 @@ same parameters and defaults; `IND$PUT` and `IND$GET` are script-only aliases of
 | `CONNSAVE` / `CONNDEL` | `CONNSAVE "ND-lab" host=10.0.0.1 port=5001 emulator=TDV2200` — create/update; serial: `CONNSAVE "nexys" protocol=Serial port_name=COM11 baud=115200 data_bits=7 parity=even` (`host`/`port` with Serial is refused, not silently dropped); `CONNDEL "old"` |
 | `SENDFILE` | `SENDFILE "C:\\files\\data.bin"` — Kermit send (start the remote receive first); `;`-separated for several |
 | `RECEIVEFILE` | `RECEIVEFILE "C:\\incoming"` — Kermit receive into a directory |
-| `SENDKEY` | `SENDKEY HJELP`, `SENDKEY IBM.PF3` — a named terminal key; `FAMILY.KEY` (TDV, IBM, VT) or a bare name looked up in the tab's own terminal. The key names are listed in section 1.2, "Key names for SENDKEY" |
+| `SENDKEY` | `SENDKEY HJELP`, `SENDKEY IBM.PF3`, `SENDKEY VT.PF1` — a named terminal key; `FAMILY.KEY` (TDV, IBM, VT) or a bare name looked up in the tab's own terminal. The key names are listed in section 1.2, "Key names for SENDKEY" |
 | `STATUSLINE` | `STATUSLINE` — the status line: a 3270's line 25 plus whether the keyboard is locked and why; on a VT tab, the line the host writes |
 | `FIELDS` | `FIELDS` — every 3270 field, one line each: row and column of its first character, length, protected or input, numeric, hidden, bright, modified, colour and its text; a hidden field never shows its text |
 | `SETFIELD` | `SETFIELD 2 HERC01` — empty a 3270 input field (numbered as FIELDS numbers it) and type the text; nothing is sent until a key such as `SENDKEY IBM.ENTER` |

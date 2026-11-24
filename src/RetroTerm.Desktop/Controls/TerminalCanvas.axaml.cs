@@ -1609,17 +1609,10 @@ public partial class TerminalCanvas : Control
             var terminalModes = GetTerminalModes();
             var keyCode = AvaloniaKeyHelper.ToVKCodeForMapper(e.Key);
 
-            // A key the host loaded with DECUDK sends what the host asked for, not its factory
-            // sequence. Asked BEFORE the mapper, because that substitution is the whole point of
-            // the feature; keys with no definition fall straight through.
-            if (_emulator != null && _emulator.TryGetUserDefinedKey(keyCode, out var defined))
-            {
-                InputReceived?.Invoke(System.Text.Encoding.ASCII.GetString(defined));
-                e.Handled = true;
-                return;
-            }
-
-            var text = _keyboardMapper.MapKey(keyCode, modifiers, terminalModes);
+            // DECUDK first, then the mapper with the emulator's live modes - the ONE press path,
+            // shared with SENDKEY's VT key names (VtNamedKeys.Encode), so a named key and a real
+            // key send the same bytes. It used to be written out here, and SENDKEY had no VT path.
+            var text = VtNamedKeys.Encode(_emulator!, _keyboardMapper, keyCode, modifiers);
             if (text != null)
             {
                 System.Diagnostics.Debug.WriteLine(

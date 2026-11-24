@@ -26,13 +26,13 @@ namespace RetroTerm.Core.Commands.Builtin;
 public sealed class SendKeyCommand : ISessionCommand
 {
     public string Name => "SENDKEY";
-    public string Summary => "Press a named terminal key: TDV.HJELP, IBM.PF3, IBM.ENTER (a bare name like HJELP uses the tab's own terminal) — the family must match the tab";
+    public string Summary => "Press a named terminal key: TDV.HJELP, IBM.PF3, IBM.ENTER, VT.PF1, VT.UP (a bare name like HJELP uses the tab's own terminal) — the family must match the tab";
     public string Example => "SENDKEY HJELP";
 
     public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
     {
         new CommandParameter("key", CommandParameterType.String, required: true, defaultValue: null,
-            "Key name, optionally with its family: TDV.HJELP, IBM.PF3, IBM.CLEAR. Without a family it is looked up in the tab's own terminal. TDV keys are the legends printed on the TDV2200 keyboard (HJELP, ANGRE, F1..F8, ...) or a grid " +
+            "Key name, optionally with its family: TDV.HJELP, IBM.PF3, IBM.CLEAR, VT.PF1, VT.FIND. Without a family it is looked up in the tab's own terminal. TDV keys are the legends printed on the TDV2200 keyboard (HJELP, ANGRE, F1..F8, ...) or a grid " +
             "position like G53 or F51. A legend and a grid position can name the SAME key: F1 and " +
             "F51 are one key, because F51 is where the key labelled F1 sits."),
         new CommandParameter("shift", CommandParameterType.Bool, required: false, defaultValue: "false",
@@ -85,8 +85,7 @@ public sealed class SendKeyCommand : ISessionCommand
 
         if (session.Emulator is not TDVEmulatorBase)
         {
-            return CommandResult.Fail("SENDKEY has no key names for VT terminals yet (current: "
-                + session.Emulator.GetType().Name + ") — use SENDRAW to send the bytes");
+            return await PressVtKeyAsync(session, keySpec, args.GetBool("shift", false), cancellationToken).ConfigureAwait(false);
         }
 
         // Name → grid position; a grid position itself (G53) also works.
@@ -135,6 +134,58 @@ public sealed class SendKeyCommand : ISessionCommand
                 sb.Append(c);
             }
         }
+        sb.Append(')');
+        return CommandResult.Ok(sb.ToString());
+    }
+
+    /// <summary>
+    /// A VT key by name (VT.PF1, VT.UP, VT.FIND, ...). The name only picks the key; the bytes come
+    /// from VtNamedKeys.Encode, the same path a real key press in the terminal window takes, with
+    /// the emulator's live modes (DECCKM, DECKPAM/DECKPNM, 7- or 8-bit controls) and any DECUDK
+    /// definition the host loaded.
+    /// </summary>
+    private static async Task<CommandResult> PressVtKeyAsync(TerminalSession session, string keySpec, bool shift, CancellationToken cancellationToken)
+    {
+        if (!VtNamedKeys.TryGetKeyCode(keySpec, out int keyCode))
+        {
+            return CommandResult.Fail("unknown VT key '" + keySpec + "' — the keys are: "
+                + string.Join(" ", VtNamedKeys.Names));
+        }
+
+        // The mapper the profile types on, built the same way TerminalCanvas builds its own.
+        IKeyboardMapper mapper = KeyboardMapperFactory.CreateMapper(session.Emulator.Profile);
+
+        // The modes are read on the session thread, where the emulator lives (SessionPump rule).
+        KeyModifiers modifiers = shift ? KeyModifiers.Shift : KeyModifiers.None;
+        string? text = await session.RunOnSessionThreadAsync(
+            () => VtNamedKeys.Encode(session.Emulator, mapper, keyCode, modifiers)).ConfigureAwait(false);
+
+        if (text == null)
+        {
+            return CommandResult.Fail("VT." + keySpec.ToUpperInvariant() + " sends nothing on this terminal in its current mode — nothing was sent");
+        }
+
+        await session.SendInputAsync(text, cancellationToken).ConfigureAwait(false);
+
+        var sb = new StringBuilder(64);
+        sb.Append("sent VT.").Append(keySpec.ToUpperInvariant()).Append(" (");
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '\x1B')
+            {
+                sb.Append("ESC");
+            }
+            else if (c < 0x20 || (c >= 0x80 && c <= 0x9F))
+            {
+                sb.Append('<').Append(((int)c).ToString("X2", System.Globalization.CultureInfo.InvariantCulture)).Append('>');
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
         sb.Append(')');
         return CommandResult.Ok(sb.ToString());
     }

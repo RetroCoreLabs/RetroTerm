@@ -76,6 +76,9 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
         // way round made every fresh terminal claim a mode nobody had set.
         if (!BackarrowSendsBackspace) modes |= TerminalModes.BackarrowSendsDelete;
         if (!AutoRepeatKeys) modes |= TerminalModes.AutoRepeatDisabled;
+        // S8C1T / DECSCL: keys send their CSI and SS3 as single 8-bit characters. Until
+        // 24 November 2026 this was stored and reported (DECRQSS) but no key ever honoured it.
+        if (Send8BitControls) modes |= TerminalModes.EightBitControls;
 
         return modes;
     }

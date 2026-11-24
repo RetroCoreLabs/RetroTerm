@@ -223,7 +223,9 @@ public class AvaloniaKeyHelperTests
     [InlineData(Key.LeftShift)]
     [InlineData(Key.LeftCtrl)]
     [InlineData(Key.LeftAlt)]
-    [InlineData(Key.F13)]
+    // F13 to F20 ARE special since 24 November 2026: they are the VT top-row F13 to F20 (VT420
+    // Programmer Reference Table 3-6). F21 and above have no VT key.
+    [InlineData(Key.F21)]
     [InlineData(Key.F24)]
     public void IsSpecialKey_NonSpecialKeys_ReturnsFalse(Key key)
     {

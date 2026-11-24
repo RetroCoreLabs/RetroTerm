@@ -76,6 +76,9 @@ public static class AvaloniaKeyHelper
             Key.Insert or Key.Delete or
             Key.F1 or Key.F2 or Key.F3 or Key.F4 or Key.F5 or Key.F6 or
             Key.F7 or Key.F8 or Key.F9 or Key.F10 or Key.F11 or Key.F12 or
+            // F13 to F20 exist on some PC keyboards and are the VT top-row F13 to F20 (VT420
+            // Programmer Reference Table 3-6); without these they never reached the mapper.
+            Key.F13 or Key.F14 or Key.F15 or Key.F16 or Key.F17 or Key.F18 or Key.F19 or Key.F20 or
             Key.Tab or Key.Escape or Key.Back or Key.Enter => true,
             _ => false
         };

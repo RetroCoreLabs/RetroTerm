@@ -85,14 +85,30 @@ public class SendKeyCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task SendKey_OnVt100_FailsPointingToSendraw()
+    public async Task SendKey_OnVt100_ATdvNameIsAnUnknownVtKeyAndSendsNothing()
     {
+        // VT terminals have key names now (VT.PF1, VT.UP, ...; VtNamedKeyMatchesKeyPressTests
+        // checks every one). A TDV legend is not one of them.
         var session = await ConnectAsync(new VT100Emulator(80, 24));
 
         var result = await _registry.ExecuteAsync("SENDKEY", session,
             new CommandArgs().Set("key", "HJELP"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Contains("SENDRAW", result.Error);
+        Assert.Contains("unknown VT key", result.Error);
+        Assert.Empty(_connection.GetSentData());
+    }
+
+    [Fact]
+    public async Task SendKey_OnVt100_Pf1SendsSs3P()
+    {
+        var session = await ConnectAsync(new VT100Emulator(80, 24));
+
+        var result = await _registry.ExecuteAsync("SENDKEY", session,
+            new CommandArgs().Set("key", "VT.PF1"), TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success, result.Error);
+        // VT420 Programmer Reference, Table 3-4: PF1 is SS3 P.
+        Assert.Equal("\x1bOP", _connection.GetLastSentAsString());
     }
 }

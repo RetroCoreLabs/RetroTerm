@@ -49,6 +49,118 @@ namespace RetroTerm.Tests.Avalonia
             }
         }
 
+        /// <summary>
+        /// Every legend on every key of every layout drawn by the shared control is rendered on its
+        /// own and its INK (the pixels it actually paints, not the box the text layout reports) is
+        /// measured: the ink must stay inside the key's edge, and no two legends of one key may
+        /// touch or overlap. Found by eye first on the 3278: ALT CURSR ran into CURSR BLINK and
+        /// ERASE INPUT ran off the bottom of its key.
+        /// </summary>
+        [AvaloniaTheory]
+        [InlineData("IBM3278")]
+        [InlineData("KB3270PLUS")]
+        public void EveryLegendsInkFitsItsKeyAndTouchesNoOtherLegend(string id)
+        {
+            var description = id == "IBM3278" ? Ibm3270Keyboards.Ibm3278 : Ibm3270Keyboards.Kb3270Plus;
+            var faults = new List<string>();
+
+            for (int i = 0; i < description.Keys.Count; i++)
+            {
+                var cap = description.Keys[i];
+                var key = DescribedKeyboardView.KeyRect(cap);
+                // The edge pen is 1 px wide on the key's outline; ink must stay inside it.
+                var inside = key.Deflate(1);
+                var labels = DescribedKeyboardView.LayoutLabels(cap);
+                var inks = new PixelRect?[labels.Count];
+
+                for (int j = 0; j < labels.Count; j++)
+                {
+                    inks[j] = InkBounds(labels[j], key);
+                    if (inks[j] is not PixelRect ink)
+                    {
+                        // Every legend in the list has text, so it must paint something. Without
+                        // this a layout that drew NOTHING passed: a first fix laid every top and
+                        // front legend out empty and this test stayed green until the PNG was read.
+                        faults.Add(Name(cap) + ": " + labels[j].Which + " legend paints no ink");
+                        continue;
+                    }
+
+                    if (ink.X < inside.X || ink.Y < inside.Y || ink.Right > inside.Right || ink.Bottom > inside.Bottom)
+                    {
+                        faults.Add(Name(cap) + ": " + labels[j].Which + " legend ink " + ink + " leaves the key " + inside);
+                    }
+                }
+
+                for (int a = 0; a < labels.Count; a++)
+                {
+                    for (int b = a + 1; b < labels.Count; b++)
+                    {
+                        if (inks[a] is PixelRect ia && inks[b] is PixelRect ib && ia.Intersects(ib))
+                        {
+                            faults.Add(Name(cap) + ": " + labels[a].Which + " legend ink " + ia + " runs into " + labels[b].Which + " legend ink " + ib);
+                        }
+                    }
+                }
+            }
+
+            Assert.True(faults.Count == 0, string.Join("\n", faults));
+        }
+
+        private static string Name(KeyCap cap)
+        {
+            return "'" + cap.Legend + "'" + (cap.TopLegend != null ? " top '" + cap.TopLegend + "'" : string.Empty)
+                + (cap.FrontLegend != null ? " front '" + cap.FrontLegend + "'" : string.Empty);
+        }
+
+        // Renders one legend alone on a transparent bitmap that covers its key plus a wide margin
+        // (so ink that overflows is still seen), and returns the box of every painted pixel in the
+        // control's coordinates, or null when it paints nothing.
+        private static PixelRect? InkBounds(DescribedKeyboardView.KeyLabel label, Rect key)
+        {
+            const int Margin = 40;
+            int left = (int)key.X - Margin;
+            int top = (int)key.Y - Margin;
+            int width = (int)key.Width + 2 * Margin;
+            int height = (int)key.Height + 2 * Margin;
+
+            byte[] png;
+            using (var target = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96)))
+            {
+                using (var context = target.CreateDrawingContext())
+                {
+                    context.DrawText(label.Text, new Point(label.Origin.X - left, label.Origin.Y - top));
+                }
+
+                using var stream = new MemoryStream();
+                target.Save(stream, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+                png = stream.ToArray();
+            }
+
+            using var bitmap = SKBitmap.Decode(png);
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    if (bitmap.GetPixel(x, y).Alpha > 0)
+                    {
+                        if (x < minX) { minX = x; }
+                        if (x > maxX) { maxX = x; }
+                        if (y < minY) { minY = y; }
+                        if (y > maxY) { maxY = y; }
+                    }
+                }
+            }
+
+            if (maxX < 0)
+            {
+                return null;
+            }
+
+            // Right and Bottom of a PixelRect are one past the last pixel.
+            return new PixelRect(minX + left, minY + top, maxX - minX + 1, maxY - minY + 1);
+        }
+
         [AvaloniaFact]
         public void AClickOnAKeyPressesItAndShiftLatchesForOneKey()
         {
