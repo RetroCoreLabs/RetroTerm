@@ -49,6 +49,15 @@ public sealed class InProcessSessionHost : ITerminalSessionHost, IDisposable
 
         try
         {
+            // The connection's 3270 code page, by the same helper the desktop tab uses, before
+            // the first byte arrives. A page the terminal refuses fails the open by name.
+            var codePageProblem = await Ibm3270ConnectionSettings.ApplyCodePageAsync(session, parameters.CodePage).ConfigureAwait(false);
+            if (codePageProblem != null)
+            {
+                throw new InvalidOperationException(codePageProblem);
+            }
+
+
             await session.ConnectAsync(connection, cancellationToken).ConfigureAwait(false);
         }
         catch

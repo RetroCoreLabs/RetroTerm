@@ -106,7 +106,11 @@ public sealed class ConnectCommand : ISessionCommand
         new CommandParameter("parity", CommandParameterType.String, required: false, defaultValue: "none",
             "Serial parity: none, odd, even, mark or space"),
         new CommandParameter("stop_bits", CommandParameterType.String, required: false, defaultValue: "1",
-            "Serial stop bits: 1, 1.5 or 2")
+            "Serial stop bits: 1, 1.5 or 2"),
+        // The 3270 choices, declared once for CONNECT, CONNSAVE and terminal_open with the
+        // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
+        Ibm3270ConnectionSettings.ModelParameter(),
+        Ibm3270ConnectionSettings.CodePageParameter()
     };
 
     public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
@@ -132,6 +136,24 @@ public sealed class ConnectCommand : ISessionCommand
         else
         {
             var protocol = ConnectionFactory.ParseProtocolType(args.GetString("protocol", "telnet")!);
+
+            // model and codepage: only with tn3270. CONNECT keeps this tab's terminal (it does
+            // not swap it), so a model can only be checked against the terminal the tab already
+            // has: a different one is refused by name, and terminal_open model=... makes a new one.
+            var problem3270 = Ibm3270ConnectionSettings.Check(protocol, null,
+                args.GetString(Ibm3270ConnectionSettings.ModelArgument), args.GetString(Ibm3270ConnectionSettings.CodePageArgument),
+                out var model, out var codePage);
+            if (problem3270 != null)
+            {
+                return CommandResult.Fail(problem3270);
+            }
+            if (model != null && !IsTerminal(session, model))
+            {
+                return CommandResult.Fail("'" + Ibm3270ConnectionSettings.ModelArgument + "' is " + model
+                    + " but this tab's terminal is " + session.Emulator.Profile.Name
+                    + "; CONNECT keeps the tab's terminal - open a new one with terminal_open model=" + model);
+            }
+
             if (protocol == ConnectionFactory.ProtocolType.Serial)
             {
                 // Serial has its own fields. host/port do not map onto a COM port, and
@@ -201,7 +223,8 @@ public sealed class ConnectCommand : ISessionCommand
                     Username = args.GetString("username"),
                     Password = args.GetString("password"),
                     // The session keeps its current emulator — CONNECT does not swap it.
-                    EmulatorType = session.Emulator.GetType().Name
+                    EmulatorType = session.Emulator.GetType().Name,
+                    CodePage = codePage
                 };
             }
         }
@@ -213,6 +236,15 @@ public sealed class ConnectCommand : ISessionCommand
         {
             return CommandResult.Fail(
                 $"stored connection '{name}' has no serial port name — CONNSAVE it with port_name=COM...");
+        }
+
+        // The 3270 code page, given now or saved with the stored connection, through the same
+        // helper the desktop tab and the headless host use. Before the connect, so the first
+        // screen is already in the right characters.
+        var codePageProblem = await Ibm3270ConnectionSettings.ApplyCodePageAsync(session, parameters.CodePage).ConfigureAwait(false);
+        if (codePageProblem != null)
+        {
+            return CommandResult.Fail(codePageProblem);
         }
 
         try
@@ -228,6 +260,16 @@ public sealed class ConnectCommand : ISessionCommand
         }
 
         return CommandResult.Ok($"connected to {parameters.DisplayName}");
+    }
+
+    // Whether the tab's terminal is this 3278 model. The emulator's profile carries the name it
+    // announces to the host, the model plus "-E" (Ibm3270Emulator.TerminalTypeFor), so the
+    // model is that name without the two-character suffix.
+    private static bool IsTerminal(TerminalSession session, string model)
+    {
+        string name = session.Emulator.Profile.Name;
+        return string.Equals(name, model, StringComparison.OrdinalIgnoreCase)
+            || (name.Length == model.Length + 2 && name.StartsWith(model + "-", StringComparison.OrdinalIgnoreCase));
     }
 }
 
@@ -331,6 +373,13 @@ public sealed class ConnShowCommand : ISessionCommand
         }
         sb.Append("emulator: ").Append(config.EmulatorType)
           .Append(' ').Append(config.Width).Append('x').Append(config.Height).Append('\n');
+        if (ConnectionFactory.ParseProtocolType(config.Protocol) == ConnectionFactory.ProtocolType.TN3270)
+        {
+            // The same default the window's code page box names when none is saved.
+            sb.Append("code page: ")
+              .Append(config.CodePage?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "37 (the terminal's default)")
+              .Append('\n');
+        }
         if (!string.IsNullOrEmpty(config.Username))
         {
             sb.Append("username: ").Append(config.Username).Append('\n');
@@ -408,7 +457,12 @@ public sealed class ConnSaveCommand : ISessionCommand
         new CommandParameter("onconnect", CommandParameterType.String, required: false, defaultValue: null,
             "Script (library name) to run right after this connection is established, e.g. auto-login; empty string clears it"),
         new CommandParameter("ondisconnect", CommandParameterType.String, required: false, defaultValue: null,
-            "Script (library name) to run when the connection DROPS (not on deliberate disconnect); empty string clears it")
+            "Script (library name) to run when the connection DROPS (not on deliberate disconnect); empty string clears it"),
+        // The same two 3270 choices as CONNECT and terminal_open, saved where the Manage
+        // Connections window reads them: the model in EmulatorType (the size box), the code page
+        // in CodePage (the code page box).
+        Ibm3270ConnectionSettings.ModelParameter(),
+        Ibm3270ConnectionSettings.CodePageParameter()
     };
 
     public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
@@ -438,11 +492,29 @@ public sealed class ConnSaveCommand : ISessionCommand
                 "port_name/baud/data_bits/parity/stop_bits only apply with protocol=Serial");
         }
 
+        // model and codepage: only on a TN3270 connection, and a model must not contradict the
+        // emulator given in the same command. The model is the terminal type the window's size
+        // box writes (IBM-3278-2 to IBM-3278-5).
+        var problem3270 = Ibm3270ConnectionSettings.Check(effectiveProtocol, args.GetString("emulator"),
+            args.GetString(Ibm3270ConnectionSettings.ModelArgument), args.GetString(Ibm3270ConnectionSettings.CodePageArgument),
+            out var terminal3270, out var codePage);
+        if (problem3270 != null)
+        {
+            return CommandResult.Fail(problem3270);
+        }
+        bool modelGiven = args.Contains(Ibm3270ConnectionSettings.ModelArgument);
+
         if (existing == null)
         {
             // The terminal's own screen unless the caller gives a size. A TDV saved from a script
-            // used to get 24 rows, the literal here, and lose its 25th line.
-            var newEmulator = args.GetString("emulator", "VT100")!;
+            // used to get 24 rows, the literal here, and lose its 25th line. A TN3270 connection
+            // gets the terminal the protocol allows (ConnectionFactory.EmulatorTypeFor, the rule
+            // the window and the connect paths use), so the stored type is the model it opens.
+            var newEmulator = modelGiven ? terminal3270! : args.GetString("emulator", "VT100")!;
+            if (effectiveProtocol == ConnectionFactory.ProtocolType.TN3270)
+            {
+                newEmulator = ConnectionFactory.EmulatorTypeFor(effectiveProtocol, newEmulator);
+            }
             var (newWidth, newHeight) = EmulatorFactory.GetRecommendedSize(newEmulator);
             var config = new HostConfiguration
             {
@@ -454,7 +526,8 @@ public sealed class ConnSaveCommand : ISessionCommand
                 Height = args.GetInt("height", newHeight),
                 IsFavorite = args.GetBool("favorite", false),
                 OnConnectScript = NullIfEmpty(args.GetString("onconnect")),
-                OnDisconnectScript = NullIfEmpty(args.GetString("ondisconnect"))
+                OnDisconnectScript = NullIfEmpty(args.GetString("ondisconnect")),
+                CodePage = codePage
             };
 
             if (isSerial)
@@ -506,6 +579,13 @@ public sealed class ConnSaveCommand : ISessionCommand
             // height are given in the same command, which then win below.
             (existing.Width, existing.Height) = EmulatorFactory.GetRecommendedSize(existing.EmulatorType);
         }
+        if (modelGiven)
+        {
+            // The model is the terminal and fixes the screen, as the window's size box does.
+            existing.EmulatorType = terminal3270!;
+            (existing.Width, existing.Height) = EmulatorFactory.GetRecommendedSize(existing.EmulatorType);
+        }
+        if (codePage != null) existing.CodePage = codePage;
         if (args.Contains("username")) existing.Username = args.GetString("username");
         if (args.Contains("width")) existing.Width = args.GetInt("width", existing.Width);
         if (args.Contains("height")) existing.Height = args.GetInt("height", existing.Height);

@@ -933,6 +933,31 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// The base code pages a connection can be set to, as their IBM numbers in RetroIO's
+        /// order ("37", "273", "277", ...): the words the script and MCP <c>codepage</c> argument
+        /// accepts (ConnectionFactory.Ibm3270CodePageNumbers reads this by name).
+        /// </summary>
+        /// <remarks>
+        /// Made from CodePage.All, the same list the Manage Connections code page box is filled
+        /// from, so the window and the commands can never offer different pages. Code page 310 is
+        /// not in it: it is the Graphic Escape set beside every base page, never one itself.
+        /// </remarks>
+        /// <returns>
+        /// One number per base page.
+        /// </returns>
+        public static string[] CodePageNumbers()
+        {
+            IReadOnlyList<CodePage> all = CodePage.All;
+            var numbers = new string[all.Count];
+            for (int i = 0; i < numbers.Length; i++)
+            {
+                numbers[i] = all[i].Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            return numbers;
+        }
+
+        /// <summary>
         /// The TERMINAL-TYPE a model announces: "IBM-3278-" and the model, with "-E" for the
         /// extended data stream, as x3270 builds it (telnet.c, the Asprintf of "IBM-%s%s").
         /// </summary>

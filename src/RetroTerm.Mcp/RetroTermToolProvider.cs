@@ -115,7 +115,11 @@ public sealed class RetroTermToolProvider
             Number("baud", "Serial speed in bits per second, default 9600"),
             Number("data_bits", "Serial data bits 5-8, default 8"),
             Text("parity", false, "Serial parity: none (default), odd, even, mark or space"),
-            Text("stop_bits", false, "Serial stop bits: 1 (default), 1.5 or 2")),
+            Text("stop_bits", false, "Serial stop bits: 1 (default), 1.5 or 2"),
+            // The two 3270 choices, the same declarations CONNECT and CONNSAVE use, with the
+            // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
+            Ibm3270ConnectionSettings.ModelParameter(),
+            Ibm3270ConnectionSettings.CodePageParameter()),
 
         new HandWrittenTool("terminal_close",
             "Close a terminal session opened with terminal_open.",
@@ -355,6 +359,10 @@ public sealed class RetroTermToolProvider
             config.MarkAsUsed();
             await _configurationManager.SaveAsync().ConfigureAwait(false);
         }
+        else if (Check3270(args, out var terminal3270, out var codePage) is string problem3270)
+        {
+            return Error("terminal_open: " + problem3270);
+        }
         else if (ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet")
                  == ConnectionFactory.ProtocolType.Serial)
         {
@@ -402,11 +410,15 @@ public sealed class RetroTermToolProvider
         }
         else
         {
-            var netEmulator = GetString(args, "emulator") ?? "VT100";
+            var netProtocol = ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet");
+            // The terminal the protocol allows (TN3270: a 3278 model, the model argument's when
+            // given), by the one rule the window's connect path uses too.
+            var netEmulator = ConnectionFactory.EmulatorTypeFor(netProtocol, terminal3270);
             var netSize = EmulatorFactory.GetRecommendedSize(netEmulator);
             parameters = new ConnectionFactory.ConnectionParameters
             {
-                Protocol = ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet"),
+                Protocol = netProtocol,
+                CodePage = codePage,
                 Host = GetString(args, "host") ?? string.Empty,
                 Port = GetInt(args, "port", 23),
                 EmulatorType = netEmulator,
@@ -426,6 +438,18 @@ public sealed class RetroTermToolProvider
 
         var id = await _host.OpenSessionAsync(parameters, ct).ConfigureAwait(false);
         return Ok($"sessionId: {id}\nconnected to {parameters.DisplayName} as {parameters.EmulatorType}");
+    }
+
+    // terminal_open's model and codepage, by the rule CONNECT and CONNSAVE use
+    // (Ibm3270ConnectionSettings.Check). The words are already checked against the lists.
+    private static string? Check3270(IDictionary<string, JsonElement>? args, out string? terminal, out int? codePage)
+    {
+        return Ibm3270ConnectionSettings.Check(
+            ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet"),
+            GetString(args, "emulator"),
+            GetString(args, Ibm3270ConnectionSettings.ModelArgument),
+            GetString(args, Ibm3270ConnectionSettings.CodePageArgument),
+            out terminal, out codePage);
     }
 
     private async Task<CallToolResult> CloseAsync(IDictionary<string, JsonElement>? args)

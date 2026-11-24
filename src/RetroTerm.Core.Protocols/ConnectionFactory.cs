@@ -670,6 +670,36 @@ public static class ConnectionFactory
     /// </summary>
     public static readonly string[] Ibm3278Models = { "IBM-3278-2", "IBM-3278-3", "IBM-3278-4", "IBM-3278-5" };
 
+    private static IReadOnlyList<string>? s_ibm3270CodePageNumbers;
+
+    /// <summary>
+    /// The EBCDIC base code pages a 3270 connection can use, as IBM numbers ("37", "277", ...):
+    /// the allowed words of the script and MCP <c>codepage</c> argument.
+    /// </summary>
+    /// <remarks>
+    /// Not a second list: it is read, by type name, from Ibm3270Emulator.CodePageNumbers, which
+    /// makes it from RetroIO's CodePage.All, the list the Manage Connections code page box shows.
+    /// By name for the same reason as <see cref="CreateTn3270Connection"/>: RetroIO's 3270
+    /// package is net10.0 and this layer is netstandard2.1. When RetroTerm.Ibm3270 is not there
+    /// the list is empty, so every code page is refused by name rather than accepted unchecked.
+    /// </remarks>
+    public static IReadOnlyList<string> Ibm3270CodePageNumbers
+    {
+        get
+        {
+            if (s_ibm3270CodePageNumbers == null)
+            {
+                var emulator = Type.GetType("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270");
+                var method = emulator?.GetMethod("CodePageNumbers");
+                s_ibm3270CodePageNumbers = method == null
+                    ? Array.Empty<string>()
+                    : (string[])method.Invoke(null, null)!;
+            }
+
+            return s_ibm3270CodePageNumbers;
+        }
+    }
+
     /// <summary>
     /// The three places a 3287 print job can go (Ronny, 23 November 2026).
     /// </summary>
