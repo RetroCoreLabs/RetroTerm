@@ -69,7 +69,6 @@ clean-room rewrite in C#.
 **R. RetroIO — owned by the `retroio` session since 22 November 2026** (Ronny: "talk to llm retroio for its tasks and you focus here on retroterm"). Built and committed in RetroIO `657fe47`: `RetroIO.Protocols.Telnet` and `RetroIO.Protocols.Tn3270` with the headless 3278 model 2 milestone. Handed over, still open there:
 - [ ] Code page 310 (APL) and other EBCDIC code pages
 - [ ] UNBIND, Table C-1 note 13 ("allow all selections"): which reply mode that means is not in the manual, so `Unbind` leaves the mode (BIND reset done 24 November 2026; RetroIO BUGS.md Q "Tn3270 Unbind reply mode", 3270-DATA-STREAM.md section 14); needs a 3274/3174 description or a real controller trace
-- [ ] Trigger fields (field validation bit 7, p. 4-23 to 4-26) are refused today; build them or keep refusing (the Field Validation reply already says not supported)
 - [ ] Left open by GA23-0059-4 in the query replies (3270-DATA-STREAM.md 9.4a, 9.9), after B15 was fixed in RetroIO on 24 November 2026: the CB flag on a terminal with no local copy, and whether nested sizes (every RetroTerm model) also need an Alternate Usable Area
 - [ ] The 3287 printer over TN3270E has only been tested against an in-process host written from RFC 2355 (built 24 November 2026); no real TN3270E host has sent it a job. Run it against one when a host that offers TN3270E is available
 - [ ] SCS for the 3287: only the codes of GA23-0061-2 p. 2-25 are handled; any other code (and BEL, named there but not defined) is refused out loud. IBM's SCS reference (the SNA character string manual) is not held under docs\spec; it is needed for the rest (for example the SA attribute types on paper, and which sense a 3287 gives for an unknown code)
@@ -102,14 +101,13 @@ clean-room rewrite in C#.
   - [ ] Ronny's decision: should the window size pick the 3270 screen size? (queued, not started)
   - [ ] Try a large screen against TK5 by hand (only the fake host in `Ibm3270ConnectionChoiceTests` has seen IBM-DYNAMIC from RetroTerm; whether TK5's VTAM takes it is not measured)
 - [ ] Screens above 16 383 cells: 16-bit addressing now works inside an explicit partition (RetroIO, 24 November 2026, 3270-DATA-STREAM.md 13.3), but implicit partition 0 is always 12/14-bit (p. 4-4, D-1), so the session's own screen size stays at most 16 383 cells; s3270 4.5 refuses such a screen too ("Exceeds protocol limit")
-- [ ] Partitions, what RetroIO still lacks (3270-DATA-STREAM.md 13.3):
-  - [ ] Scrolling: presentation space larger than the viewport, window origin, RS/CS, Set Window Origin X'0B', Modify Partition X'0F0A' (refused out loud today)
-  - [ ] PWAIT, System Lock and Enter Inhibit per partition, saved and raised by Activate and Destroy (the keyboard lock is one for the whole display)
-  - [ ] The jump-partition key (p. 2-5)
-  - [ ] Reject an enter action in retry-read state (p. 3-17)
+- [ ] Partitions, what RetroIO still lacks (3270-DATA-STREAM.md 13.3, 10):
+  - [ ] Horizontal scrolling and Modify Partition X'0F0A' (refused out loud; the replies say SCROLL only, MODIFY 0)
   - [ ] Text partitions, protected partitions, presentation-space copy (refused out loud today)
-- [ ] RetroTerm: draw every partition in its viewport (today only the active one is drawn, through the display getters); `GetPartition` and `TryGetScreenPosition` are there for it
-- [ ] RetroTerm's `Ibm3270QueryReplyTests` pin the old Usable Area bytes (ADDR X'01', BUFFSZ) and the old reply list; they go red against the new RetroIO package (ADDR X'03', BUFFSZ 0, Alphanumeric Partitions and Field Outlining replies added) and must be updated to the manual's values
+  - [ ] The acknowledgment rule for TN3270 is RetroIO's own reading (every non-read host record acknowledges; no SNA Change Direction to read): check it against a real host or a 3174 trace
+- [ ] RetroTerm: draw every partition in its viewport, through its window (today only the active one is drawn); `GetPartition` and `TryGetScreenPosition` (now window-aware) are there for it
+- [ ] RetroTerm: take the new RetroIO 3270 API (24 November 2026): `KeyboardLock.PartitionWait`, `InvalidField` and `KeystrokeQueueFull` on line 25; keys for `JumpPartition()`, `ScrollUp()`, `ScrollDown()`; `Partition3270.ViewportRows`, `WindowRow`, `ScrollRows`, `PartitionWait`, `SystemLock`; `Display3270.EnterInhibit`, `TriggerPending`, `QueuedKeystrokes`
+- [ ] RetroTerm's `Ibm3270QueryReplyTests` pin the old Usable Area bytes (ADDR X'01', BUFFSZ) and the old reply list; they go red against the new RetroIO package (ADDR X'03', BUFFSZ 0, Alphanumeric Partitions and Field Outlining replies added; since 24 November 2026 also Alphanumeric Partitions M X'7FFF' with flags X'80', and Field Validation X'07') and must be updated to the manual's values
 - [ ] APL / graphic-escape characters (code page 310). Measured on Windows 24 November 2026 (EBCDIC.md "What RetroTerm draws for code page 310"): the 3270 draws with Consolas, not Lucida Console; Consolas has 86 of the 136 characters (every box piece and block), the other 50 APL symbols are filled in from Segoe UI Symbol at that font's own size. What is left:
   - [ ] Which font fills the 50 in on Linux and macOS (not measured; no Segoe UI Symbol there)
   - [ ] The 50 Segoe UI Symbol glyphs sit at a different size and weight than the Consolas letters beside them - look at `ibm3270-cp310-table.png` with Ronny and decide whether that is good enough or needs our own font (see the "own font" item below)

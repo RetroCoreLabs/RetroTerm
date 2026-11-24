@@ -1254,11 +1254,33 @@ Sent for Query, or a Query List naming X'8A', Equivalent or All, when the device
 | | 6 | 1 = mandatory entry supported (X'02') |
 | | 7 | 1 = trigger supported (X'01') |
 
-**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026, not run): RetroIO
-sends this reply with X'06' (mandatory fill and mandatory entry, no trigger) and does both checks
-on the keyboard, locking with the Mandatory Fill or Mandatory Entry reason. A field validation pair
-with the trigger bit, or with any of bits 0-4 set, is refused out loud (ProtocolError): trigger
-fields are not built. RetroTerm draws the lock on line 25 as "X" only (see PLAN, the line 25 item).
+**What RetroIO and RetroTerm do today** (24 November 2026, tests run): RetroIO sends this reply
+with X'07' (mandatory fill, mandatory entry and trigger) and does all three on the keyboard. A field
+validation pair with any of bits 0-4 set is refused out loud (ProtocolError).
+
+Trigger fields, as built (p. 4-23 to 4-26; `TriggerFieldTests.cs`):
+
+- Primed by a data key, Delete or Erase EOF in the field; unprimed by a write to the partition,
+  Erase Input, EAU or the trigger action.
+- Trying to move the cursor out of a primed field (any key that moves it, a scroll that drags it)
+  is the trigger action: Enter Inhibit (retry-enter state) without PWAIT or System Lock (p. 3-21),
+  and one record goes inbound: AID X'7F', the cursor, SBA to the position after the field's
+  attribute, then the field data without nulls. The cursor stays in the field. Fill checking runs
+  first (note 1). A Read Modified command sends that record again.
+- Until the reply every keystroke is queued, not shown, up to 64 (this display's choice; a full
+  queue raises `KeyboardLock.KeystrokeQueueFull`). Sys Req empties the queue. Reset and the jump
+  key are not queued.
+- Affirmative reply: a W with keyboard restore as the first byte when INPID is 0, or a WSF whose
+  first structured field is an Outbound 3270DS to INPID holding a W with keyboard restore. After it
+  the cursor goes where the triggering key would have put it, unless the reply had an IC order;
+  then the queue runs.
+- Negative reply: any other host record that is not a read command and has no error. The queue is
+  emptied and `KeyboardLock.InvalidField` is raised; Reset clears it (this display's choice).
+
+Choices of this display, not settled by the manual: the "field address" sent as an SBA order; a
+trigger action under Enter Inhibit refused; the cursor-select key queued like the others; the
+note 2 mandatory-entry move winning over an IC order. RetroTerm draws the lock on line 25 as "X"
+only (see PLAN, the line 25 item).
 
 ### 9.14 Field Outlining, X'8C' (p. 6-49, 6-50, from the images)
 
@@ -1391,6 +1413,31 @@ text and no graphics under it, "transparent" has nothing to show through.
 
 Read acknowledgment for an enter on partition 0 (p. 3-23): an EW, EWA or W with keyboard restore,
 or an EAU.
+
+**What RetroIO does, since 24 November 2026** (`PartitionInputInhibitTests.cs`):
+
+- PWAIT and System Lock belong to a partition (`Partition3270.PartitionWait`, `SystemLock`) and are
+  kept when another partition is active (p. 2-9). `Display3270.Lock` shows the active partition's:
+  `PartitionWait` (shown "X <-Wait->", this display's text for "X, clock between arrows", p. 3-20)
+  when there is more than one partition, `WaitingForHost` (TWAIT) when there is one, then
+  `SystemLock`. The display's own conditions (operator errors, the query TWAIT, the trigger
+  conditions) come first, because Activate leaves them shown (p. 5-8 step 5b).
+- Enter Inhibit and the read state (normal, retry enter, retry read), INPID and INOP belong to the
+  display (`Display3270.EnterInhibit`). An enter action from any partition is refused under Enter
+  Inhibit (p. 3-21 step 1); typing in another partition is not.
+- A Read Partition in a retry state is rejected with X'0871' (p. 3-18). Read Modified in a retry
+  state works on INPID and sends the kept record again; RB and RMA in a retry state read INPID too,
+  except after a query (p. 3-22 step 3).
+- The jump key is `Display3270.JumpPartition()`: next higher PID, else the lowest (p. 2-5); it does
+  nothing in implicit state, with one partition, or under the query TWAIT (p. 3-20).
+- Acknowledgment: TN3270 has no SNA request header, so there is no Change Direction or End Bracket
+  to read. RetroIO takes every host record that is not a read command, and has no error, as the
+  acknowledgment (a WSF holding a Read Partition only for a query). A W, EW or EWA without a WCC is
+  not one (p. 3-6). This is this display's reading for TN3270, not a sentence of the manual. It
+  ends PWAIT on INPID and leaves System Lock until a keyboard restore to that partition, or Reset
+  while it is active. Destroying or replacing INPID acknowledges too (p. 3-23).
+- Not settled by the manual and left as it is: which indicator a display shows when an enter is
+  refused by Enter Inhibit from another partition (RetroIO shows none and refuses the key).
 
 ---
 
@@ -1574,7 +1621,8 @@ greater than the active one, or the lowest PID if there is none. Destroy Partiti
 ### 13.3 What RetroIO builds (24 November 2026)
 
 Built in `RetroIO.Protocols.Tn3270` (`Display3270`, with each partition a `Partition3270`), with the
-tests in `PartitionTests.cs` (31 cases, each citing its page):
+tests in `PartitionTests.cs`, `ScrollingPartitionTests.cs` and `PartitionInputInhibitTests.cs`,
+each case citing its page:
 
 - **Create Partition** with UOM B'0000' (cells) and A-MODE B'0000' (12/14-bit) or B'0001' (16-bit),
   all its omitted-parameter defaults, and the checks of p. 5-10: zero viewport, viewport outside the
@@ -1594,23 +1642,30 @@ tests in `PartitionTests.cs` (31 cases, each citing its page):
   go back to implicit partition 0.
 - **Query replies**: Usable Area ADDR X'3' and BUFFSZ 0 (p. 6-88, 6-90: "If the device supports
   partitions ... the BUFFSZ parameter will be set to zero"); Alphanumeric Partitions X'84' with
-  NA 16, M = the larger implicit size in cells, flags 0 (section 9.11).
+  NA 16, M 32767 (this display's choice, X'7FFF'; X'FFFF' is reserved), flags X'80' = SCROLL
+  (section 9.11).
+- **Vertical scrolling** (p. 2-3, 2-4, 7-16, 7-17): H may be larger than HV when W equals WV. The
+  window starts at RW (RW + HV at most H, CW must be 0), and the cursor of a new partition starts at
+  the window origin (p. 5-10 item 8). RS is taken as given: 0 means the scroll keys move nothing,
+  X'FFFF' moves one viewport height (both this display's choices). **Set Window Origin X'0B'**
+  (p. 5-63) moves the window and puts a cursor outside it on the nearest row. The cursor keys wrap
+  inside the window; any other cursor move outside it (field keys, typing, Home, an IC order) is an
+  automatic scroll by the fewest rows; Erase/Write brings the window back to row 0.
+  `Display3270.ScrollUp()` and `ScrollDown()` are the operator's scroll keys: RS rows, the cursor
+  dragged along at the window edge; refused while locked, and a move past the end stops at the end
+  (both this display's choices). `TryGetScreenPosition` returns the address the window shows there.
+- **Input inhibit per partition and the jump key**: see section 10.
 - For a renderer: `ExplicitPartitioned`, `ActivePartitionId`, `ScreenRows`/`ScreenColumns` (the
   usable area), `GetPartition(pid)`, `TryGetScreenPosition(row, column, ...)`; each `Partition3270`
   has the same getters as the display. `GetByte` and the other display getters read the active
   partition.
 
-Refused out loud (`ProtocolError`), because the replies say they are not supported: a presentation
-space larger or smaller than its viewport (scrolling, SCROLL 0), a window origin other than (0, 0),
-RS or CS X'0002' to X'FFFE', UOM other than B'0000' (CELLUNITS 0), A-MODE text (no Text Partitions
-reply), reserved A-MODE values, PROT and COPY (flags 0), BASE other than 0 (one base set), a cell size
-other than AW x AH (VCP 0). Set Window Origin X'0B' and Modify Partition X'0F0A' stay refused as
-unbuilt structured fields.
-
-Not built and NOT loud, because they are operator-side conditions, not host data: the
-jump-partition key; PWAIT, System Lock and Enter Inhibit per partition (RetroIO's keyboard lock is
-one for the whole display, so Activate and Destroy have no per-partition conditions to save and
-raise); an enter action rejected in retry-read state (p. 3-17). All three are in the plan.
+Refused out loud (`ProtocolError`), because the replies say they are not supported: horizontal
+scrolling (W other than WV, CW other than 0, CS X'0002' to X'FFFE'; Table B-1), a presentation space
+with fewer rows than its viewport, UOM other than B'0000' (CELLUNITS 0), A-MODE text (no Text
+Partitions reply), reserved A-MODE values, PROT and COPY (flags 0), BASE other than 0 (one base set),
+a cell size other than AW x AH (VCP 0), and **Modify Partition X'0F0A'** by name (MODIFY 0, p. 5-34,
+6-19).
 
 Choices made here that the manual does not settle, said plainly:
 
