@@ -17,6 +17,9 @@ on:
 
 permissions:
   contents: read
+  # DocFX restores the projects, and RetroTerm.Ibm3270 takes RetroIO.Protocols.Tn3270 from GitHub
+  # Packages (src/nuget.config); without this line the build token is refused with 403.
+  packages: read
   pages: write
   id-token: write
 
