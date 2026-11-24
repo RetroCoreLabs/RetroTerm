@@ -977,10 +977,17 @@ public partial class TerminalSession : IDisposable
     /// </param>
     private void ProcessHostRecord(IHostRecordResponseConnection responder, ReadOnlySpan<byte> record)
     {
-        responder.HostRecordStarting();
+        HostRecordResponseRequest request = responder.HostRecordStarting();
         HostRecordOutcome? outcome = null;
         try
         {
+            // The emulator learns what the host asked to hear before it sees the record: a
+            // printer that is not ready refuses a record only when the host will be told.
+            if (Emulator is IHostRecordOutcomeTerminal asked)
+            {
+                asked.HostRecordResponseRequested(request);
+            }
+
             Emulator.ProcessData(record);
             if (Emulator is IHostRecordOutcomeTerminal reporter)
             {
@@ -1008,12 +1015,18 @@ public partial class TerminalSession : IDisposable
     private void ProcessScsRecord(IHostRecordResponseConnection responder, ReadOnlySpan<byte> record)
     {
         ProtocolTracer.TraceIncoming(record);
-        responder.HostRecordStarting();
+        HostRecordResponseRequest request = responder.HostRecordStarting();
         HostRecordOutcome? outcome = null;
         try
         {
             if (Emulator is ITn3270EAware aware)
             {
+                // As for a 3270 record: the response flag first (ProcessHostRecord).
+                if (Emulator is IHostRecordOutcomeTerminal asked)
+                {
+                    asked.HostRecordResponseRequested(request);
+                }
+
                 aware.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, record);
                 if (Emulator is IHostRecordOutcomeTerminal reporter)
                 {

@@ -86,7 +86,7 @@ public interface ITn3270EConnection
     bool ResponsesAgreed { get; }
 
     /// <summary>
-    /// A printer that answered Intervention Required is ready again: sends REQUEST with
+    /// A printer that answered Intervention Required (or Component Disconnected) is ready again: sends REQUEST with
     /// ERR-COND-CLEARED (RFC 2355 section 10.4.1). Does nothing when the host was never told of
     /// the error, and says so in the log.
     /// </summary>

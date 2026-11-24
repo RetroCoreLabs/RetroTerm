@@ -235,11 +235,14 @@ namespace RetroTerm.Tests.Ibm3270
             printer.EndOfJobReceived();
             Assert.False(printer.IsReady);
 
-            // Not ready: the record is refused, unprinted, as Intervention Required (GA23-0061-2
-            // p. 4-26, "The printout is suppressed").
+            // Not ready, and the host asked to hear (ERROR-RESPONSE, ALWAYS-RESPONSE): the record
+            // is refused, unprinted, as Intervention Required (GA23-0061-2 p. 4-26, "The printout
+            // is suppressed").
+            printer.HostRecordResponseRequested(HostRecordResponseRequest.ErrorResponse);
             printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC1 });
             Assert.Equal(HostRecordOutcome.InterventionRequired, printer.LastRecordOutcome);
             Assert.Equal(0, printer.Printer.PendingBytes);
+            printer.HostRecordResponseRequested(HostRecordResponseRequest.AlwaysResponse);
             printer.ProcessData(PrintLine("REFUSED"));
             Assert.Equal(HostRecordOutcome.InterventionRequired, printer.LastRecordOutcome);
             Assert.Empty(raised);
@@ -254,6 +257,57 @@ namespace RetroTerm.Tests.Ibm3270
             printer.ProcessData(PrintLine("AFTER"));
             Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
             Assert.True(printer.Printer.PendingBytes > 0);
+        }
+
+        [Fact]
+        public void ANoResponseRecordWhileNotReadyIsKeptAsAWaitingJobNotRefused()
+        {
+            // RFC 2355 8.1.3, NO-RESPONSE: "The receiver must therefore not send any response to
+            // this data-message." A refusal would never reach the host, so the record is printed
+            // into a job that waits behind the one that could not be written.
+            var output = new SwitchableOutput(_folder) { Fails = true };
+            var printer = new Ibm3287PrinterEmulator(() => _now);
+            printer.Configure(output, 0);
+            printer.ConnectionStatusChanged(ConnectionStatus.Connected);
+            printer.Tn3270EChanged(true, "PRT0001", bindImage: false, sysReq: false, responses: true);
+            var raised = new List<Tn3270EKey>();
+            printer.Tn3270EKeyPressed += raised.Add;
+
+            printer.HostRecordResponseRequested(HostRecordResponseRequest.NoResponse);
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC8, 0xC9 });
+            printer.EndOfJobReceived();
+            Assert.False(printer.IsReady);
+
+            // Not ready, NO-RESPONSE: taken, not refused.
+            printer.HostRecordResponseRequested(HostRecordResponseRequest.NoResponse);
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC2, 0xD6 });
+            Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
+            Assert.True(printer.Printer.PendingBytes > 0);
+            printer.EndOfJobReceived();
+            Assert.Equal(2, printer.Jobs.Count);
+            Assert.True(printer.Jobs[1].Failed);
+            Assert.Equal("waiting: the printer is not ready", printer.Jobs[1].Result);
+
+            // The flag is used for one record only: the next record without a flag from the
+            // session is NO-RESPONSE too, never the flag of an earlier record.
+            printer.HostRecordResponseRequested(HostRecordResponseRequest.AlwaysResponse);
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC1 });
+            Assert.Equal(HostRecordOutcome.InterventionRequired, printer.LastRecordOutcome);
+            printer.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, new byte[] { 0xC5 });
+            Assert.Equal(HostRecordOutcome.Applied, printer.LastRecordOutcome);
+            printer.EndOfJobReceived();
+
+            // Ready again: every waiting job is written, in order.
+            output.Fails = false;
+            _now = Start.AddSeconds(Ibm3287PrinterEmulator.NotReadyRetrySeconds);
+            Assert.True(printer.RetryWhenNotReady(_now));
+            string[] files = Files();
+            Array.Sort(files, StringComparer.Ordinal);
+            Assert.Equal(3, files.Length);
+            Assert.Equal("HI" + Environment.NewLine, File.ReadAllText(files[0]));
+            Assert.Equal("BO" + Environment.NewLine, File.ReadAllText(files[1]));
+            Assert.Equal("E" + Environment.NewLine, File.ReadAllText(files[2]));
+            Assert.Equal(new[] { Tn3270EKey.ErrorConditionCleared }, raised.ToArray());
         }
 
         [Fact]

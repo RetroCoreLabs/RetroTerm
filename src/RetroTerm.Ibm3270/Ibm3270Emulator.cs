@@ -464,6 +464,19 @@ namespace RetroTerm.Ibm3270
         public HostRecordOutcome LastRecordOutcome => _lastRecordOutcome;
 
         /// <summary>
+        /// What the host asked to hear about the next record. A display applies every record the
+        /// same way whatever the host wants to hear (RFC 2355 10.4.1: "the receiver must attempt
+        /// to process the data"), so it keeps nothing; the connection alone decides what to send.
+        /// </summary>
+        /// <param name="request">
+        /// The record's response flag.
+        /// </param>
+        public void HostRecordResponseRequested(HostRecordResponseRequest request)
+        {
+            // Nothing to keep: see the summary.
+        }
+
+        /// <summary>
         /// Says which error a refused record is.
         /// </summary>
         /// <remarks>

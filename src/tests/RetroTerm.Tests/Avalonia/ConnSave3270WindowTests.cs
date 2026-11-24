@@ -40,6 +40,27 @@ public class ConnSave3270WindowTests
         throw new Xunit.Sdk.XunitException("no ComboBox named " + name);
     }
 
+    // Every field of the profile that differs from its snapshot, as "name: now vs snapshot", so a
+    // failing IsDirty says WHICH field the window changed rather than only that one did.
+    private static string ChangedFields(RetroTerm.Desktop.ViewModels.ConnectionProfileViewModel profile)
+    {
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var fields = typeof(RetroTerm.Desktop.ViewModels.ConnectionProfileViewModel).GetFields(flags);
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < fields.Length; i++)
+        {
+            string name = fields[i].Name;
+            if (!name.StartsWith("_snapshot", System.StringComparison.Ordinal)) continue;
+            string live = "_" + char.ToLowerInvariant(name[9]) + name.Substring(10);
+            var liveField = typeof(RetroTerm.Desktop.ViewModels.ConnectionProfileViewModel).GetField(live, flags);
+            if (liveField == null) continue;
+            object? now = liveField.GetValue(profile);
+            object? then = fields[i].GetValue(profile);
+            if (!Equals(now, then)) sb.Append(live).Append(": ").Append(now).Append(" vs ").Append(then).Append("; ");
+        }
+        return sb.ToString();
+    }
+
     private static T FindNamed<T>(Window window, string name) where T : Control
     {
         var all = new List<ILogical>(window.GetLogicalDescendants());
@@ -72,6 +93,7 @@ public class ConnSave3270WindowTests
             await reread.LoadAsync();
             var window = new ManageConnectionsWindow(reread);
             window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "tk5")!);
+            Assert.False(window.ProfileForTesting.IsDirty);
 
             window.ShowKeyboardTabForTesting();
             Assert.Equal(ManageConnectionsWindow.DoubleClickSelectsWordText, Find(window, "DoubleClickCombo").SelectedItem);
@@ -112,6 +134,7 @@ public class ConnSave3270WindowTests
             var window = new ManageConnectionsWindow(reread);
             window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "prt")!);
             window.ShowPrinterTabForTesting();
+            Assert.False(window.ProfileForTesting.IsDirty);
 
             Assert.Equal(ManageConnectionsWindow.PrinterOutputPrinterText, Find(window, "PrinterOutputCombo").SelectedItem);
             Assert.Equal("jobs", FindNamed<TextBox>(window, "PrinterFolderBox").Text);
@@ -159,9 +182,9 @@ public class ConnSave3270WindowTests
             Assert.Equal("TERM0001", box.Text);
             Assert.False(problem.IsVisible);
 
-            // Not asserted here: IsDirty. A CONNSAVE'd profile already reads as changed when it is
-            // opened (BUGS.md B25, protocol "tn3270" against the window's "TN3270"), so it would
-            // prove nothing. The file round trip below is the proof.
+            // Opened and not touched, so not changed: Save stays dark (BUGS.md B25, where the
+            // command's "tn3270" against the window's "TN3270" read as a change).
+            Assert.False(window.ProfileForTesting.IsDirty);
 
             // A name CONNSAVE would refuse is refused here with the same words, and the stored
             // name stays as it was.
@@ -236,6 +259,7 @@ public class ConnSave3270WindowTests
             Assert.Equal("100x50", size.Text);
             Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
             Assert.Equal("100x50", window.ProfileForTesting.Ibm3270ScreenSize);
+            Assert.False(window.ProfileForTesting.IsDirty);
 
             // Changed in the window and saved to the file.
             size.Text = "120x60";
@@ -301,6 +325,105 @@ public class ConnSave3270WindowTests
             window.ShowKeyboardTabForTesting();
             Assert.Equal("277 Denmark, Norway", Find(window, "CodePageCombo").SelectedItem);
             Assert.Equal(277, window.ProfileForTesting.CodePage);
+            Assert.False(window.ProfileForTesting.IsDirty);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Every protocol and a terminal, typed in lower case to CONNSAVE (as a script or an MCP call
+    /// may type them), are stored in the one spelling the window writes, so the connection opens
+    /// in Manage Connections as not changed (BUGS.md B25).
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData("telnet", "vt220", "Telnet", "VT220")]
+    [InlineData("ssh", "xterm", "SSH", "XTERM")]
+    [InlineData("tn3270", "ibm-3278-4", "TN3270", "IBM-3278-4")]
+    [InlineData("tn3270", "ibm-3287-1", "TN3270", "IBM-3287-1")]
+    [InlineData("serial", "tdv2200", "Serial", "TDV2200")]
+    [InlineData("gateway", "tdv2215", "Gateway", "TDV2215")]
+    [InlineData("opcomsimulator", "vt100", "OpcomSimulator", "VT100")]
+    public async Task ALowerCaseConnSaveIsStoredInTheWindowsSpellingAndOpensUnchanged(
+        string protocol, string emulator, string storedProtocol, string storedEmulator)
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var manager = new ConfigurationManager(path);
+            var registry = new CommandRegistry();
+            ConnectionCommands.RegisterAll(registry, manager);
+            using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+            var args = new CommandArgs().Set("name", "c").Set("protocol", protocol).Set("emulator", emulator);
+            if (protocol == "serial")
+            {
+                args.Set("port_name", "COM11");
+            }
+            else
+            {
+                args.Set("host", "localhost").Set("port", "3270");
+            }
+            var saved = await registry.ExecuteAsync("CONNSAVE", session, args);
+            Assert.True(saved.Success, saved.Error);
+
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var stored = ConnectionCommands.FindByName(reread, "c")!;
+            Assert.Equal(storedProtocol, stored.Protocol);
+            Assert.Equal(storedEmulator, stored.EmulatorType);
+
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(stored);
+            Assert.Equal(storedProtocol, window.ProfileForTesting.Protocol);
+            Assert.Equal(storedEmulator, window.ProfileForTesting.EmulatorType);
+            // Opening it does not move the port to the protocol's default: port 3270 is a default
+            // (TN3270's), and the protocol-change rule used to rewrite it to 22 on an SSH one.
+            Assert.Equal(stored.Port, window.ProfileForTesting.Port);
+            Assert.True(!window.ProfileForTesting.IsDirty, ChangedFields(window.ProfileForTesting));
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A file written before B25 was fixed holds the protocol and terminal as they were typed.
+    /// It still loads, as that connection, and opens as not changed.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AnOldFileWithLowerCaseNamesStillOpensUnchanged()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var manager = new ConfigurationManager(path);
+            await manager.AddAsync(new HostConfiguration
+            {
+                Name = "old",
+                Protocol = "tn3270",
+                EmulatorType = "ibm-3278-3",
+                Host = "localhost",
+                Port = 3270,
+                Width = 80,
+                Height = 32
+            });
+
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "old")!);
+            Assert.Equal("TN3270", window.ProfileForTesting.Protocol);
+            Assert.Equal("IBM-3278-3", window.ProfileForTesting.EmulatorType);
+            Assert.False(window.ProfileForTesting.IsDirty);
         }
         finally
         {

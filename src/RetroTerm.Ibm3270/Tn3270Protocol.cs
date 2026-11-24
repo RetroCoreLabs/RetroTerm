@@ -120,9 +120,12 @@ namespace RetroTerm.Ibm3270
         private bool _applying;
         private bool _answered;
 
-        // True after an Intervention Required response went to the host, until ERR-COND-CLEARED
-        // (RFC 2355 10.4.1). A new TN3270E agreement starts a new session, so it starts false.
-        private bool _interventionReported;
+        // True after an Intervention Required or Component Disconnected response went to the
+        // host, until ERR-COND-CLEARED (RFC 2355 10.4.1: "In the case of Intervention Required or
+        // Component Disconnected being passed by the server to the host application ... the
+        // client must send ... ERR-COND-CLEARED"). A new TN3270E agreement starts a new session,
+        // so it starts false.
+        private bool _errorConditionReported;
 
         // The TN3270E subnegotiation command codes (RFC 2355 section 3; x3270 include\tn3270e.h).
         private const byte OpAssociate = 0x00;
@@ -540,18 +543,31 @@ namespace RetroTerm.Ibm3270
         /// Anything sent with <see cref="SendRecord"/> until <see cref="HostRecordProcessed"/> is
         /// that record's reply.
         /// </remarks>
-        public void HostRecordStarting()
+        /// <returns>
+        /// The record's RESPONSE-FLAG as the session hands it to the emulator: NoResponse for a
+        /// plain TN3270 record, for a flag that cannot be honoured (QueueResponse says why), and
+        /// for a record that was never received.
+        /// </returns>
+        public HostRecordResponseRequest HostRecordStarting()
         {
             if (_pending.Count == 0)
             {
                 ProtocolError?.Invoke("The session started a host record that was never received; no TN3270E response can be matched to it.");
                 _applying = false;
-                return;
+                return HostRecordResponseRequest.NoResponse;
             }
 
             _current = _pending.Dequeue();
             _applying = true;
             _answered = false;
+
+            // QueueResponse let only the three defined flags through (RFC 2355 8.1.3).
+            switch (_current.ResponseFlag)
+            {
+                case Tn3270EResponseFlag.ErrorResponse: return HostRecordResponseRequest.ErrorResponse;
+                case Tn3270EResponseFlag.AlwaysResponse: return HostRecordResponseRequest.AlwaysResponse;
+                default: return HostRecordResponseRequest.NoResponse;
+            }
         }
 
         /// <summary>
@@ -599,30 +615,36 @@ namespace RetroTerm.Ibm3270
             // goes even when a positive one went ahead of a reply the record produced before the
             // error was found, because the host must hear that the record failed; x3270 does
             // the same (process_eor: tn3270e_nak whenever rv is negative).
+            // The status byte of a NEGATIVE-RESPONSE, RFC 2355 10.4.1. Every outcome named; an
+            // unknown one is a programming error, not an Operation Check to make up.
             byte status = outcome.Value switch
             {
                 HostRecordOutcome.CommandReject => Tn3270EResponseStatus.CommandReject,
                 HostRecordOutcome.InterventionRequired => Tn3270EResponseStatus.InterventionRequired,
-                _ => Tn3270EResponseStatus.OperationCheck,
+                HostRecordOutcome.OperationCheck => Tn3270EResponseStatus.OperationCheck,
+                HostRecordOutcome.ComponentDisconnected => Tn3270EResponseStatus.ComponentDisconnected,
+                _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome.Value, "no TN3270E response status for this outcome"),
             };
             SendResponse(positive: false, status);
-            if (status == Tn3270EResponseStatus.InterventionRequired)
+            if (outcome.Value == HostRecordOutcome.InterventionRequired || outcome.Value == HostRecordOutcome.ComponentDisconnected)
             {
-                // The host has now heard "Printer is not ready"; it "would normally refrain from
-                // sending any further data to the printer" until ERR-COND-CLEARED (10.4.1).
-                _interventionReported = true;
+                // The host has now heard "Printer is not ready" or "Printer is powered off or not
+                // connected"; it "would normally refrain from sending any further data to the
+                // printer" until ERR-COND-CLEARED (10.4.1).
+                _errorConditionReported = true;
             }
         }
 
         /// <summary>
-        /// Gets a value indicating whether an Intervention Required response has gone to the host
-        /// and no ERR-COND-CLEARED has followed it yet.
+        /// Gets a value indicating whether an Intervention Required or Component Disconnected
+        /// response has gone to the host and no ERR-COND-CLEARED has followed it yet.
         /// </summary>
-        public bool InterventionReported => _interventionReported;
+        public bool ErrorConditionReported => _errorConditionReported;
 
         /// <summary>
         /// The printer is ready again: sends REQUEST with ERR-COND-CLEARED (RFC 2355 section
-        /// 10.4.1), when an Intervention Required response went to the host before it.
+        /// 10.4.1), when an Intervention Required or Component Disconnected response went to the
+        /// host before it.
         /// </summary>
         /// <remarks>
         /// "If and when the error condition at the client has been resolved, the client must send
@@ -636,7 +658,7 @@ namespace RetroTerm.Ibm3270
         /// </returns>
         public bool SendErrorConditionCleared()
         {
-            if (!_interventionReported || !ResponsesAgreed)
+            if (!_errorConditionReported || !ResponsesAgreed)
             {
                 return false;
             }
@@ -647,7 +669,7 @@ namespace RetroTerm.Ibm3270
             TelnetEncoder.WriteData(_out, message.Slice(0, length));
             TelnetEncoder.WriteCommand(_out, TelnetCommand.EndOfRecord);
             _write(_out.WrittenMemory);
-            _interventionReported = false;
+            _errorConditionReported = false;
             return true;
         }
 
@@ -1038,7 +1060,7 @@ namespace RetroTerm.Ibm3270
         {
             _agreedFunctions = functions;
             _sendSequence = 0;
-            _interventionReported = false;
+            _errorConditionReported = false;
 
             // x3270 (tn3270e_negotiate, FUNCTIONS IS): "If the host does not support BIND_IMAGE,
             // then we must go straight to 3270 mode"; with it, nothing is bound yet.

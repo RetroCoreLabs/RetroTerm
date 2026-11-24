@@ -13,6 +13,17 @@ B1 and B2 were fixed on 8 October 2026 and are gone from this file:
 - B2, two dead `$y` reply helpers and a `?` where `>` is expected. The helpers are deleted and the
   secondary DA default answers `>`.
 
+B25 was fixed on 24 November 2026 and is gone from this file: a connection saved with CONNSAVE
+opened in Manage Connections as already changed. Three causes, all fixed at the root. The protocol
+has one stored spelling, `ConnectionFactory.ProtocolName` ("Telnet", "SSH", "TN3270", "Serial",
+"Gateway", "OpcomSimulator"), written by CONNSAVE and by the window's radio buttons; a terminal
+name is stored as `EmulatorFactory.CanonicalName` gives it; a file with the old lower-case words
+is read in those spellings by `ConnectionProfileViewModel.LoadFromConfiguration`. Opening a
+connection no longer runs the "port follows the protocol" rule (it rewrote a stored port that
+equalled another protocol's default, so an SSH connection on 3270 opened as 22). And a stored serial
+port that is not plugged in now is kept in the port list instead of being blanked. Tests:
+`ConnSave3270WindowTests` (every protocol, an old file, and IsDirty after each CONNSAVE round trip).
+
 ## B3 - Rectangle functions: what the manual leaves open
 
 `src\RetroTerm.Core\Terminal\Emulators\TDV\TDVEmulatorBase.cs`, `TryReadRectangle` and
@@ -262,15 +273,3 @@ holds for them was not checked.
 - **What would make it green:** an s3270 that does not add the blank, or a decision by Ronny to drop
   this case from the oracle (it is the only binary transfer compared offline; the live round trip in
   `HostStreamRecorderTests` checks the binary file comes back byte for byte).
-
-## B25 - A connection saved with CONNSAVE protocol=tn3270 opens in Manage Connections as already changed
-
-Found 24 November 2026 while writing `ConnSave3270WindowTests.ThePartnerDisplayRoundTripsThroughCommandWindowAndFile`.
-CONNSAVE stores the protocol as typed (`tn3270`). `ConnectionProfileViewModel.LoadFrom` copies it
-(line 613) and snapshots it (line 822); then the window ticks the TN3270 radio button, whose handler
-(`ManageConnectionsWindow.OnProtocolRadioChanged`) writes `TN3270`. `IsDirty` compares with `!=`
-(line 551), so `tn3270` against `TN3270` reads as a change and Save lights up on a connection
-nobody touched. Measured with a field-by-field compare in that test: the only difference was
-`_snapshotProtocol=tn3270 vs TN3270`. Not fixed: either CONNSAVE should store the canonical name or
-the compare should ignore case; which one is the right root has not been decided. Because of this,
-no window test can assert `IsDirty` after opening a CONNSAVE'd connection.

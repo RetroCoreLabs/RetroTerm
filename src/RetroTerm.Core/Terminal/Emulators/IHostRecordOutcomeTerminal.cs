@@ -23,5 +23,16 @@ namespace RetroTerm.Core.Terminal.Emulators
         /// Gets how the record given to the last ProcessData call went.
         /// </summary>
         HostRecordOutcome LastRecordOutcome { get; }
+
+        /// <summary>
+        /// The session tells the emulator, before it hands over the next record, what the host
+        /// asked to hear about that record (its TN3270E RESPONSE-FLAG, RFC 2355 section 8.1.3).
+        /// Called on the pump thread, once per record, just before ProcessData (or, for SCS-DATA,
+        /// Tn3270EHostMessageReceived).
+        /// </summary>
+        /// <param name="request">
+        /// The record's response flag; NoResponse when the host cannot be answered.
+        /// </param>
+        void HostRecordResponseRequested(HostRecordResponseRequest request);
     }
 }

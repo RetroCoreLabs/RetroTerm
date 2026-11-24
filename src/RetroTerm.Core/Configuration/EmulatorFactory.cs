@@ -391,6 +391,38 @@ public static class EmulatorFactory
     }
 
     /// <summary>
+    /// A terminal name in any case written the one way the program spells it: the entry in
+    /// <see cref="AvailableEmulators"/>, or a 3270 name from ConnectionFactory (Ibm3278Models,
+    /// Ibm3287). CONNSAVE stores this and the Manage Connections window reads it, so "vt220" typed
+    /// to a command is the "VT220" the window's terminal box selects (BUGS.md B25).
+    /// </summary>
+    /// <param name="emulatorType">
+    /// The name as typed or stored.
+    /// </param>
+    /// <returns>
+    /// The program's spelling, or the text unchanged when it names no terminal this program knows
+    /// (nothing is invented for a name nobody can build).
+    /// </returns>
+    public static string? CanonicalName(string? emulatorType)
+    {
+        if (emulatorType == null) return null;
+        for (int i = 0; i < AvailableEmulators.Length; i++)
+        {
+            if (string.Equals(AvailableEmulators[i], emulatorType, StringComparison.OrdinalIgnoreCase))
+                return AvailableEmulators[i];
+        }
+        var models = RetroTerm.Core.Protocols.ConnectionFactory.Ibm3278Models;
+        for (int i = 0; i < models.Length; i++)
+        {
+            if (string.Equals(models[i], emulatorType, StringComparison.OrdinalIgnoreCase))
+                return models[i];
+        }
+        if (string.Equals(RetroTerm.Core.Protocols.ConnectionFactory.Ibm3287, emulatorType, StringComparison.OrdinalIgnoreCase))
+            return RetroTerm.Core.Protocols.ConnectionFactory.Ibm3287;
+        return emulatorType;
+    }
+
+    /// <summary>
     /// Creates an emulator whose class lives in an assembly Core cannot reference (a net10.0
     /// project), by its assembly-qualified type name. Fails loudly when the assembly is missing.
     /// </summary>

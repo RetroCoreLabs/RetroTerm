@@ -610,12 +610,15 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _configId = config.Id;
 
         _name = config.Name;
-        _protocol = config.Protocol;
+        // A file written before BUGS.md B25 was fixed may hold the protocol and terminal as a
+        // command was given them ("tn3270", "vt220"). Read in the one spelling the window writes,
+        // so the change check below compares like with like and Save stays dark until an edit.
+        _protocol = ConnectionFactory.CanonicalProtocolName(config.Protocol);
         _host = config.Host;
         _port = config.Port;
         _username = config.Username ?? "";
         _password = config.Password ?? "";
-        _emulatorType = config.EmulatorType ?? "VT100";
+        _emulatorType = EmulatorFactory.CanonicalName(config.EmulatorType) ?? "VT100";
         _size = $"{config.Width}x{config.Height}";
         _portName = config.PortName ?? "";
         _baudRate = config.BaudRate;

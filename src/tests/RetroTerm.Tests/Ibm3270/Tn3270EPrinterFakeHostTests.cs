@@ -130,6 +130,15 @@ namespace RetroTerm.Tests.Ibm3270
             await host.SendAsync(Tn3270EPrinterTests.Bytes("01 00 02 00 01 C1 FF EF"), token);
             await reader.WaitForAsync(Tn3270EPrinterTests.Bytes("02 00 01 00 01 01 FF EF"), token);
 
+            // NO-RESPONSE, SEQ-NUMBER 2, "BO", then PRINT-EOJ: the host will hear nothing about it
+            // (RFC 2355 8.1.3), so it is not refused; it waits as a job behind the first. The
+            // record reaches the session through the socket, so wait for the job to be listed
+            // (with a deadline) rather than flush before the bytes have arrived.
+            await host.SendAsync(Tn3270EPrinterTests.Bytes("01 00 00 00 02 C2 D6 FF EF"), token);
+            await host.SendAsync(Tn3270EPrinterTests.Bytes("08 00 00 00 00 FF EF"), token);
+            await WaitUntilAsync(session, () => printer.Jobs.Count == 2, token);
+            Assert.Equal("waiting: the printer is not ready", printer.Jobs[1].Result);
+
             // The folder works again; the next retry writes the job and the client sends REQUEST
             // ERR-COND-CLEARED: header 06 00 00 00 00, no data portion, IAC EOR.
             output.Fails = false;
@@ -139,9 +148,35 @@ namespace RetroTerm.Tests.Ibm3270
 
             PrintJob job = await output.Written.Task.WaitAsync(Deadline, token);
             Assert.Equal("HI" + "\n", job.ToText("\n"));
+            PrintJob second = await output.SecondWritten.Task.WaitAsync(Deadline, token);
+            Assert.Equal("BO" + "\n", second.ToText("\n"));
             Assert.True(printer.IsReady);
 
             await session.DisconnectAsync();
+        }
+
+        // Asks on the session thread until the condition holds, with a deadline. Each look is a
+        // flush of the pump, so it ends as soon as the record that makes it true has been applied.
+        private static async Task WaitUntilAsync(TerminalSession session, Func<bool> condition, CancellationToken token)
+        {
+            DateTime end = DateTime.UtcNow + Deadline;
+            while (true)
+            {
+                await session.FlushAsync();
+                bool met = await session.RunOnSessionThreadAsync(condition);
+                if (met)
+                {
+                    return;
+                }
+
+                if (DateTime.UtcNow > end)
+                {
+                    throw new TimeoutException("the condition did not hold within " + Deadline);
+                }
+
+                await Task.Yield();
+                token.ThrowIfCancellationRequested();
+            }
         }
 
         // Collects what the client sends and waits, with a deadline, until a byte sequence has
@@ -199,7 +234,7 @@ namespace RetroTerm.Tests.Ibm3270
             }
         }
 
-        // Refuses jobs while Fails is set (a read-only folder), then keeps the first one written.
+        // Refuses jobs while Fails is set (a read-only folder), then keeps the first two written.
         private sealed class FailingThenCapturingOutput : IPrintJobOutput
         {
             public volatile bool Fails = true;
@@ -207,6 +242,8 @@ namespace RetroTerm.Tests.Ibm3270
             public TaskCompletionSource FirstAttempt { get; } = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public TaskCompletionSource<PrintJob> Written { get; } = new TaskCompletionSource<PrintJob>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<PrintJob> SecondWritten { get; } = new TaskCompletionSource<PrintJob>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public string Description => "a test";
 
@@ -218,7 +255,11 @@ namespace RetroTerm.Tests.Ibm3270
                     throw new UnauthorizedAccessException("folder is read-only");
                 }
 
-                Written.TrySetResult(job);
+                if (!Written.TrySetResult(job))
+                {
+                    SecondWritten.TrySetResult(job);
+                }
+
                 return "job " + number;
             }
         }

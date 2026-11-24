@@ -13,8 +13,7 @@ namespace RetroTerm.Core.Protocols;
 /// <para>
 /// The kinds are the ones a TN3270E negative response can carry (RFC 2355 section 10.4.1):
 /// Command Reject and Operation Check for any terminal, and Intervention Required ("Printer is not
-/// ready") for a printer. Component Disconnected ("Printer is powered off or not connected") has
-/// no kind here: a printer that answers the host is connected by definition.
+/// ready") and Component Disconnected ("Printer is powered off or not connected") for a printer.
 /// </para>
 /// <para>
 /// Which error is which comes from GA23-0059-4 Appendix A: "For non-SNA environments, all 3270
@@ -49,6 +48,51 @@ public enum HostRecordOutcome
     /// not ready. The printout is suppressed."
     /// </summary>
     InterventionRequired,
+
+    /// <summary>
+    /// The printer could not be reached at all, so the record was not printed (Component
+    /// Disconnected; RFC 2355 section 10.4.1, status X'03', "Printer is powered off or not
+    /// connected", SNA sense X'08310000'). GA23-0061-2 p. 5-66, sense X'31' LU Component
+    /// Disconnected: "This response is returned if the device attached to the 3274 cannot be
+    /// contacted by a device poll. This is due to device power off, cable detached from the
+    /// controller port, or connecting cable broken."
+    /// </summary>
+    /// <remarks>
+    /// RetroTerm's own 3287 never reports this. The 3274 and the printer there are two boxes and a
+    /// cable; here the TN3270E client IS the printer, so while it can answer the host at all it
+    /// has been "contacted", and every failure it has (a job that cannot be written) is one the
+    /// printer itself took and holds, which is Intervention Required. Implemented on the
+    /// connection side because the RFC defines its bytes and its ERR-COND-CLEARED follow-up.
+    /// </remarks>
+    ComponentDisconnected,
+}
+
+/// <summary>
+/// What the host asked to hear about one 3270-DATA or SCS-DATA record: its TN3270E RESPONSE-FLAG
+/// (RFC 2355 section 8.1.3).
+/// </summary>
+/// <remarks>
+/// A record that cannot be answered is <see cref="NoResponse"/>: a plain TN3270 record, a flag
+/// asked for while RESPONSES was not agreed, or a flag the RFC does not define. The connection
+/// says why in each of those cases.
+/// </remarks>
+public enum HostRecordResponseRequest
+{
+    /// <summary>
+    /// NO-RESPONSE (X'00'): "The receiver must therefore not send any response to this
+    /// data-message." The host will never hear how this record went.
+    /// </summary>
+    NoResponse,
+
+    /// <summary>
+    /// ERROR-RESPONSE (X'01'): a negative response only if the record failed.
+    /// </summary>
+    ErrorResponse,
+
+    /// <summary>
+    /// ALWAYS-RESPONSE (X'02'): a negative response on an error, a positive one otherwise.
+    /// </summary>
+    AlwaysResponse,
 }
 
 /// <summary>
@@ -74,7 +118,12 @@ public interface IHostRecordResponseConnection
     /// <summary>
     /// The session is about to apply the next host record.
     /// </summary>
-    void HostRecordStarting();
+    /// <returns>
+    /// What the host asked to hear about this record. The session hands it to the emulator before
+    /// the record, because what a not-ready printer should do with a record depends on whether
+    /// the host can be told (Core.Terminal.Emulators.IHostRecordOutcomeTerminal).
+    /// </returns>
+    HostRecordResponseRequest HostRecordStarting();
 
     /// <summary>
     /// The session has applied the record that <see cref="HostRecordStarting"/> began.

@@ -307,6 +307,47 @@ public static class ConnectionFactory
         new[] { "telnet", "ssh", "tn3270", "serial", "opcomsimulator" };
 
     /// <summary>
+    /// The one spelling a stored connection carries for a protocol: "Telnet", "SSH", "TN3270",
+    /// "Serial", "Gateway" or "OpcomSimulator". CONNSAVE, the Manage Connections radio buttons and
+    /// the stored file all write this, so a connection saved by a command opens in the window as
+    /// unchanged (BUGS.md B25: CONNSAVE stored "tn3270", the window wrote "TN3270", and the
+    /// window's change check read the difference in case as an edit).
+    /// </summary>
+    /// <param name="protocol">
+    /// The protocol.
+    /// </param>
+    /// <returns>
+    /// Its stored name. These are the spellings every build before B25 wrote from the window, so
+    /// a file the window saved needs no change.
+    /// </returns>
+    public static string ProtocolName(ProtocolType protocol)
+    {
+        switch (protocol)
+        {
+            case ProtocolType.SSH: return "SSH";
+            case ProtocolType.TN3270: return "TN3270";
+            case ProtocolType.Serial: return "Serial";
+            case ProtocolType.Gateway: return "Gateway";
+            case ProtocolType.OpcomSimulator: return "OpcomSimulator";
+            default: return "Telnet";
+        }
+    }
+
+    /// <summary>
+    /// A protocol word in any case (one of <see cref="ProtocolNames"/>, or a stored name) written
+    /// the one way <see cref="ProtocolName"/> spells it. A file written before B25 was fixed may
+    /// hold "tn3270"; it reads as the same connection through this.
+    /// </summary>
+    /// <param name="protocol">
+    /// The word as typed or stored; null or unknown is Telnet, as <see cref="ParseProtocolType"/> reads it.
+    /// </param>
+    /// <returns>
+    /// The stored name.
+    /// </returns>
+    public static string CanonicalProtocolName(string? protocol)
+        => ProtocolName(ParseProtocolType(protocol ?? string.Empty));
+
+    /// <summary>
     /// Parses a protocol string (from HostConfiguration) to ProtocolType enum.
     /// Single source of truth for protocol name → enum mapping.
     /// </summary>

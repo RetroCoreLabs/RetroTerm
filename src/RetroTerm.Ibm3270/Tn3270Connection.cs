@@ -313,7 +313,7 @@ namespace RetroTerm.Ibm3270
 
         /// <summary>
         /// Sends REQUEST ERR-COND-CLEARED (RFC 2355 10.4.1), when the host was told Intervention
-        /// Required before.
+        /// Required or Component Disconnected before.
         /// </summary>
         public void SendErrorConditionCleared()
         {
@@ -325,17 +325,20 @@ namespace RetroTerm.Ibm3270
 
             ApplicationLogger.Log(LogCategory.Network, LogLevel.Info, "Tn3270Connection", sent
                 ? "Printer ready again: TN3270E REQUEST ERR-COND-CLEARED sent (RFC 2355 section 10.4.1)"
-                : "Printer ready again, but no ERR-COND-CLEARED sent: the host was never told Intervention Required (RFC 2355 section 10.4.1)");
+                : "Printer ready again, but no ERR-COND-CLEARED sent: the host was never told Intervention Required or Component Disconnected (RFC 2355 section 10.4.1)");
         }
 
         /// <summary>
         /// The session starts applying the next host record (TN3270E RESPONSES).
         /// </summary>
-        public void HostRecordStarting()
+        /// <returns>
+        /// What the host asked to hear about the record (its RESPONSE-FLAG).
+        /// </returns>
+        public HostRecordResponseRequest HostRecordStarting()
         {
             lock (_gate)
             {
-                _protocol.HostRecordStarting();
+                return _protocol.HostRecordStarting();
             }
         }
 

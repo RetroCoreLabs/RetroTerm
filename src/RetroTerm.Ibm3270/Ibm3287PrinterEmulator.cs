@@ -77,18 +77,31 @@ namespace RetroTerm.Ibm3270
     /// written: the output folder is not writable, the disk is full, the print command fails.
     /// So a failed write makes the printer not ready. The job is kept, not lost, and written
     /// again every <see cref="NotReadyRetrySeconds"/> seconds; jobs that end meanwhile wait behind
-    /// it in order. While it is not ready and the host can hear about it (TN3270E with the
-    /// RESPONSES function), each record is refused without printing it and answered Intervention
-    /// Required: "A command attemped to start a printer but found it not ready. The printout is
-    /// suppressed." (GA23-0061-2 p. 4-26). When every waiting job is written the printer is ready,
-    /// and the connection sends REQUEST ERR-COND-CLEARED (RFC 2355 section 10.4.1) if the host
-    /// was told. Without RESPONSES the host cannot be told, so records are still taken and wait
-    /// as jobs: refusing them there would lose them with nobody knowing.
+    /// it in order. While it is not ready and the host will hear about it (TN3270E with the
+    /// RESPONSES function, and a record whose RESPONSE-FLAG is ERROR-RESPONSE or ALWAYS-RESPONSE),
+    /// each such record is refused without printing it and answered Intervention Required: "A
+    /// command attemped to start a printer but found it not ready. The printout is suppressed."
+    /// (GA23-0061-2 p. 4-26). When every waiting job is written the printer is ready, and the
+    /// connection sends REQUEST ERR-COND-CLEARED (RFC 2355 section 10.4.1) if the host was told.
     /// </para>
     /// <para>
-    /// A record the host sent with NO-RESPONSE while the printer is not ready is refused too, and
-    /// the host does not hear of it: the printer cannot see a record's RESPONSE-FLAG. The status
-    /// screen's Problem line says so. No real TN3270E host has been measured doing that.
+    /// When the host cannot be told, records are still taken and wait as jobs: refusing them would
+    /// lose them with nobody knowing. That is the case without RESPONSES, and also for a record
+    /// sent with NO-RESPONSE: "The receiver must therefore not send any response to this
+    /// data-message" (RFC 2355 8.1.3), and 10.4.1 says the receiver "must attempt to process the
+    /// data". The session hands the printer each record's flag before the record
+    /// (<see cref="HostRecordResponseRequested"/>). Keeping such a record as a waiting job is our
+    /// reading of those two sentences; the RFC does not say what a not-ready printer does with
+    /// it, and no real TN3270E host has been measured sending one.
+    /// </para>
+    /// <para>
+    /// <b>Component Disconnected</b> (RFC 2355 10.4.1 status X'03', "Printer is powered off or
+    /// not connected") is never reported by this printer. GA23-0061-2 p. 5-66 gives it for a
+    /// device the 3274 "cannot be contacted by a device poll", from power off or a cable; here
+    /// the TN3270E client and the printer are one program, so a printer that can answer the host
+    /// has been contacted, and every failure it has is a job it took and holds (Intervention
+    /// Required). The connection still sends the status correctly if an outcome says so
+    /// (Core.Protocols.HostRecordOutcome.ComponentDisconnected).
     /// </para>
     /// </remarks>
     public sealed class Ibm3287PrinterEmulator : TerminalEmulatorBase, IConnectionStatusAware, IPrintJobEndAware, ITn3270EAware, IHostRecordOutcomeTerminal
@@ -148,6 +161,10 @@ namespace RetroTerm.Ibm3270
 
         // True when the record being applied was refused because the printer is not ready.
         private bool _refusedNotReady;
+
+        // What the host asked to hear about the record about to be applied (its RESPONSE-FLAG),
+        // from the session just before the record; back to NoResponse after each record.
+        private HostRecordResponseRequest _request = HostRecordResponseRequest.NoResponse;
 
         /// <summary>
         /// Creates a printer on the system clock.
@@ -256,6 +273,18 @@ namespace RetroTerm.Ibm3270
         public HostRecordOutcome LastRecordOutcome => _refusedNotReady ? HostRecordOutcome.InterventionRequired : _printer.LastOutcome;
 
         /// <summary>
+        /// What the host asked to hear about the next record (RFC 2355 8.1.3). A not-ready printer
+        /// refuses a record only when the host will hear about it (see the class remarks).
+        /// </summary>
+        /// <param name="request">
+        /// The record's response flag.
+        /// </param>
+        public void HostRecordResponseRequested(HostRecordResponseRequest request)
+        {
+            _request = request;
+        }
+
+        /// <summary>
         /// Gets a value indicating whether the printer is ready: no job is waiting to be written.
         /// </summary>
         public bool IsReady => _held.Count == 0;
@@ -266,18 +295,21 @@ namespace RetroTerm.Ibm3270
         public string? NotReadyReason => _notReadyReason;
 
         // Called first for every record: refuses it, unprinted, when the printer is not ready and
-        // the host can be told (see the class remarks). True when refused.
+        // the host will be told (see the class remarks). True when refused. The record's flag is
+        // used once: the next record brings its own.
         private bool RefuseWhileNotReady(int length)
         {
+            HostRecordResponseRequest request = _request;
+            _request = HostRecordResponseRequest.NoResponse;
             _refusedNotReady = false;
-            if (_held.Count == 0 || !_inTn3270E || !_responses)
+            if (_held.Count == 0 || !_inTn3270E || !_responses || request == HostRecordResponseRequest.NoResponse)
             {
                 return false;
             }
 
             _refusedNotReady = true;
             OnProtocolError("a record of " + length.ToString(CultureInfo.InvariantCulture)
-                + " bytes was refused, not printed: the printer is not ready (answered Intervention Required if the host asked for a response)");
+                + " bytes was refused, not printed: the printer is not ready (answered Intervention Required)");
             Repaint();
             return true;
         }

@@ -675,7 +675,8 @@ public sealed class ConnSaveCommand : ISessionCommand
             // used to get 24 rows, the literal here, and lose its 25th line. A TN3270 connection
             // gets the terminal the protocol allows (ConnectionFactory.EmulatorTypeFor, the rule
             // the window and the connect paths use), so the stored type is the model it opens.
-            var newEmulator = modelGiven ? terminal3270! : args.GetString("emulator", "VT100")!;
+            // Stored in the program's own spelling, as the window writes it (BUGS.md B25).
+            var newEmulator = modelGiven ? terminal3270! : EmulatorFactory.CanonicalName(args.GetString("emulator", "VT100"))!;
             if (effectiveProtocol == ConnectionFactory.ProtocolType.TN3270)
             {
                 newEmulator = ConnectionFactory.EmulatorTypeFor(effectiveProtocol, newEmulator);
@@ -684,7 +685,9 @@ public sealed class ConnSaveCommand : ISessionCommand
             var config = new HostConfiguration
             {
                 Name = name,
-                Protocol = args.GetString("protocol", "Telnet")!,
+                // The one stored spelling (ConnectionFactory.ProtocolName), never the word as
+                // typed: "tn3270" stored here opened in the window as already changed (BUGS.md B25).
+                Protocol = ConnectionFactory.ProtocolName(effectiveProtocol),
                 EmulatorType = newEmulator,
                 Username = args.GetString("username"),
                 Width = args.GetInt("width", newWidth),
@@ -738,10 +741,10 @@ public sealed class ConnSaveCommand : ISessionCommand
         // Update: only the values that were actually given change.
         if (args.Contains("host")) existing.Host = args.GetString("host")!;
         if (args.Contains("port")) existing.Port = args.GetInt("port", existing.Port);
-        if (args.Contains("protocol")) existing.Protocol = args.GetString("protocol", existing.Protocol)!;
+        if (args.Contains("protocol")) existing.Protocol = ConnectionFactory.ProtocolName(effectiveProtocol);
         if (args.Contains("emulator"))
         {
-            existing.EmulatorType = args.GetString("emulator", existing.EmulatorType)!;
+            existing.EmulatorType = EmulatorFactory.CanonicalName(args.GetString("emulator", existing.EmulatorType))!;
             // Changing the terminal changes its screen: the new type's own size, unless width or
             // height are given in the same command, which then win below.
             (existing.Width, existing.Height) = EmulatorFactory.GetRecommendedSize(existing.EmulatorType);

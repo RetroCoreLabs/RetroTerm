@@ -288,12 +288,14 @@ public partial class ManageConnectionsWindow : Window
             _nameBox.TextChanged += (_, _) => _viewModel.CurrentProfile.Name = _nameBox.Text ?? "";
         }
 
-        _telnetRadio.IsCheckedChanged += (_, _) => { if (_telnetRadio.IsChecked == true) OnProtocolRadioChanged("Telnet"); };
-        _sshRadio.IsCheckedChanged += (_, _) => { if (_sshRadio.IsChecked == true) OnProtocolRadioChanged("SSH"); };
-        _serialRadio.IsCheckedChanged += (_, _) => { if (_serialRadio.IsChecked == true) OnProtocolRadioChanged("Serial"); };
-        _gatewayRadio.IsCheckedChanged += (_, _) => { if (_gatewayRadio.IsChecked == true) OnProtocolRadioChanged("Gateway"); };
-        _opcomSimRadio.IsCheckedChanged += (_, _) => { if (_opcomSimRadio.IsChecked == true) OnProtocolRadioChanged("OpcomSimulator"); };
-        _tn3270Radio.IsCheckedChanged += (_, _) => { if (_tn3270Radio.IsChecked == true) OnProtocolRadioChanged("TN3270"); };
+        // Each radio button writes the protocol's one stored spelling, the same one CONNSAVE
+        // stores (ConnectionFactory.ProtocolName, BUGS.md B25).
+        _telnetRadio.IsCheckedChanged += (_, _) => { if (_telnetRadio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.Telnet)); };
+        _sshRadio.IsCheckedChanged += (_, _) => { if (_sshRadio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.SSH)); };
+        _serialRadio.IsCheckedChanged += (_, _) => { if (_serialRadio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.Serial)); };
+        _gatewayRadio.IsCheckedChanged += (_, _) => { if (_gatewayRadio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.Gateway)); };
+        _opcomSimRadio.IsCheckedChanged += (_, _) => { if (_opcomSimRadio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.OpcomSimulator)); };
+        _tn3270Radio.IsCheckedChanged += (_, _) => { if (_tn3270Radio.IsChecked == true) OnProtocolRadioChanged(ConnectionFactory.ProtocolName(ConnectionFactory.ProtocolType.TN3270)); };
 
         // Protocol tab
         _protocolPanel = new StackPanel { Spacing = 16 };
@@ -1658,6 +1660,10 @@ public partial class ManageConnectionsWindow : Window
 
     #region Form Loading / Extracting
 
+    // True while LoadProfileIntoForm sets the radio buttons from a stored connection, so the
+    // protocol-change rules that only make sense for a person's click do not rewrite it.
+    private bool _loadingProfile;
+
     private void LoadProfileIntoForm()
     {
         var profile = _viewModel.CurrentProfile;
@@ -1669,8 +1675,20 @@ public partial class ManageConnectionsWindow : Window
         // the profile. Read afterwards, a saved IBM-3278-5 came back as IBM-3278-2.
         string savedTerminal = profile.EmulatorType;
 
-        // Set the correct protocol radio button
-        SetProtocolRadio(profile.Protocol);
+        // Set the correct protocol radio button. Opening a connection is not changing its
+        // protocol, so the port-follows-the-protocol rule (AutoUpdatePort) must not run: it read
+        // the port box still holding the previous form's port and wrote a default over the stored
+        // port whenever that port was one of the defaults, so an SSH connection saved on port
+        // 3270 opened as port 22 and as already changed (found with BUGS.md B25).
+        _loadingProfile = true;
+        try
+        {
+            SetProtocolRadio(profile.Protocol);
+        }
+        finally
+        {
+            _loadingProfile = false;
+        }
 
         // The terminal box follows the protocol through SetProtocolRadio above (its change event
         // applies ApplyTerminalRuleForProtocol), so a saved TN3270 connection shows the 3278 models.
@@ -1732,8 +1750,9 @@ public partial class ManageConnectionsWindow : Window
         // Serial-specific
         if (string.Equals(profile.Protocol, "Serial", StringComparison.OrdinalIgnoreCase))
         {
+            // Through the refresh, which puts the stored port in the list when it is not plugged in.
             if (_serialPortCombo != null && !string.IsNullOrEmpty(profile.PortName))
-                _serialPortCombo.SelectedItem = profile.PortName;
+                RefreshSerialPorts();
             if (_baudRateCombo != null) _baudRateCombo.SelectedItem = profile.BaudRate.ToString();
             if (_dataBitsCombo != null) _dataBitsCombo.SelectedItem = profile.DataBits.ToString();
             if (_stopBitsCombo != null)
@@ -1777,7 +1796,10 @@ public partial class ManageConnectionsWindow : Window
     {
         _viewModel.CurrentProfile.Protocol = protocol;
         UpdateProtocolPanel();
-        AutoUpdatePort(protocol);
+        if (!_loadingProfile)
+        {
+            AutoUpdatePort(protocol);
+        }
         ApplyTerminalRuleForProtocol(protocol);
     }
 
@@ -2040,19 +2062,29 @@ public partial class ManageConnectionsWindow : Window
                 ports = Array.Empty<string>();
             }
 
-            var previousSelection = _serialPortCombo.SelectedItem?.ToString();
+            // The connection's own port is the one to show, even when it is not plugged in now: a
+            // list of only the ports present could not select a stored COM11 on a PC without one,
+            // and the box then wrote an empty port (or the first port present) into the
+            // connection just by opening it (found with BUGS.md B25). So the stored port is
+            // added to the list when the system does not report it.
+            string? wanted = _viewModel.CurrentProfile.PortName;
+            if (string.IsNullOrEmpty(wanted))
+            {
+                wanted = _serialPortCombo.SelectedItem?.ToString();
+            }
+            if (!string.IsNullOrEmpty(wanted) && System.Array.IndexOf(ports, wanted) < 0)
+            {
+                var withStored = new string[ports.Length + 1];
+                System.Array.Copy(ports, withStored, ports.Length);
+                withStored[ports.Length] = wanted!;
+                ports = withStored;
+            }
             _serialPortCombo.ItemsSource = ports;
 
-            if (previousSelection != null && ports.Length > 0)
+            if (!string.IsNullOrEmpty(wanted))
             {
-                for (int i = 0; i < ports.Length; i++)
-                {
-                    if (ports[i] == previousSelection)
-                    {
-                        _serialPortCombo.SelectedIndex = i;
-                        return;
-                    }
-                }
+                _serialPortCombo.SelectedIndex = System.Array.IndexOf(ports, wanted);
+                return;
             }
 
             if (ports.Length > 0) _serialPortCombo.SelectedIndex = 0;

@@ -198,6 +198,8 @@ namespace RetroTerm.Tests.Ibm3270
         [InlineData(HostRecordOutcome.Applied)]
         [InlineData(HostRecordOutcome.CommandReject)]
         [InlineData(HostRecordOutcome.OperationCheck)]
+        [InlineData(HostRecordOutcome.InterventionRequired)]
+        [InlineData(HostRecordOutcome.ComponentDisconnected)]
         public void NoResponseIsNeverAnswered(HostRecordOutcome outcome)
         {
             var (p, wire, records, errors) = CreateWithResponses();
@@ -225,6 +227,8 @@ namespace RetroTerm.Tests.Ibm3270
         [Theory]
         [InlineData(HostRecordOutcome.CommandReject, "00")]
         [InlineData(HostRecordOutcome.OperationCheck, "02")]
+        [InlineData(HostRecordOutcome.InterventionRequired, "01")]
+        [InlineData(HostRecordOutcome.ComponentDisconnected, "03")]
         public void ErrorResponseGetsANegativeResponseWhenTheRecordFailed(HostRecordOutcome outcome, string status)
         {
             var (p, wire, _, _) = CreateWithResponses();
@@ -249,6 +253,8 @@ namespace RetroTerm.Tests.Ibm3270
         [Theory]
         [InlineData(HostRecordOutcome.CommandReject, "00")]
         [InlineData(HostRecordOutcome.OperationCheck, "02")]
+        [InlineData(HostRecordOutcome.InterventionRequired, "01")]
+        [InlineData(HostRecordOutcome.ComponentDisconnected, "03")]
         public void AlwaysResponseGetsANegativeResponseWhenTheRecordFailed(HostRecordOutcome outcome, string status)
         {
             var (p, wire, _, _) = CreateWithResponses();
@@ -477,14 +483,14 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(HostRecord("01", "00 05"));
             Apply(p, HostRecordOutcome.InterventionRequired);
             Assert.Equal(Bytes("02 00 01 00 05 01 FF EF"), wire.ToArray());
-            Assert.True(p.InterventionReported);
+            Assert.True(p.ErrorConditionReported);
 
             // Ready again: DATA-TYPE REQUEST (X'06'), REQUEST-FLAG ERR-COND-CLEARED (X'00'), no
             // data portion, then IAC EOR. Once only.
             wire.Clear();
             Assert.True(p.SendErrorConditionCleared());
             Assert.Equal(Bytes("06 00 00 00 00 FF EF"), wire.ToArray());
-            Assert.False(p.InterventionReported);
+            Assert.False(p.ErrorConditionReported);
             wire.Clear();
             Assert.False(p.SendErrorConditionCleared());
             Assert.Empty(wire);
@@ -502,6 +508,59 @@ namespace RetroTerm.Tests.Ibm3270
             Assert.Empty(wire);
             Assert.False(p.SendErrorConditionCleared());
             Assert.Empty(wire);
+        }
+
+        [Fact]
+        public void ComponentDisconnectedIsStatusThreeAndErrCondClearedFollowsIt()
+        {
+            var (p, wire, _, errors) = CreateWithResponses();
+
+            // ALWAYS-RESPONSE, SEQ-NUMBER 9: NEGATIVE-RESPONSE with status X'03', "Printer is
+            // powered off or not connected (equivalent to 'Component Disconnected')" (RFC 2355
+            // 10.4.1).
+            p.Feed(HostRecord("02", "00 09"));
+            Apply(p, HostRecordOutcome.ComponentDisconnected);
+            Assert.Equal(Bytes("02 00 01 00 09 03 FF EF"), wire.ToArray());
+            Assert.True(p.ErrorConditionReported);
+
+            // "In the case of Intervention Required or Component Disconnected being passed by the
+            // server to the host application ... the client must send ... ERR-COND-CLEARED."
+            wire.Clear();
+            Assert.True(p.SendErrorConditionCleared());
+            Assert.Equal(Bytes("06 00 00 00 00 FF EF"), wire.ToArray());
+            Assert.False(p.ErrorConditionReported);
+            Assert.Empty(errors);
+        }
+
+        [Theory]
+        [InlineData("00", HostRecordResponseRequest.NoResponse)]
+        [InlineData("01", HostRecordResponseRequest.ErrorResponse)]
+        [InlineData("02", HostRecordResponseRequest.AlwaysResponse)]
+        public void StartingARecordSaysWhatTheHostAskedToHear(string flag, HostRecordResponseRequest expected)
+        {
+            // The RESPONSE-FLAG of the record (RFC 2355 8.1.3), handed to the session so the
+            // emulator can see it.
+            var (p, _, _, _) = CreateWithResponses();
+            p.Feed(HostRecord(flag, "00 04"));
+
+            Assert.Equal(expected, p.HostRecordStarting());
+            p.HostRecordProcessed(HostRecordOutcome.Applied);
+        }
+
+        [Fact]
+        public void AnAskWithoutResponsesAgreedStartsAsNoResponse()
+        {
+            // The flag the connection cannot honour is NO-RESPONSE to the emulator as well: the
+            // host will hear nothing, so a not-ready printer must not refuse the record.
+            var (p, _, _, _) = Create();
+            p.Feed(DoTn3270E);
+            p.Feed(SendDeviceType);
+            p.Feed(DeviceTypeIs);
+            p.Feed(Bytes("FF FA 28 03 04 FF F0"));
+            p.Feed(HostRecord("02", "00 01"));
+
+            Assert.Equal(HostRecordResponseRequest.NoResponse, p.HostRecordStarting());
+            p.HostRecordProcessed(HostRecordOutcome.Applied);
         }
 
         private static int Count(byte[] haystack, byte[] needle)
@@ -592,11 +651,11 @@ namespace RetroTerm.Tests.Ibm3270
                 return Task.CompletedTask;
             }
 
-            public void HostRecordStarting()
+            public HostRecordResponseRequest HostRecordStarting()
             {
                 lock (_gate)
                 {
-                    Protocol.HostRecordStarting();
+                    return Protocol.HostRecordStarting();
                 }
             }
 
