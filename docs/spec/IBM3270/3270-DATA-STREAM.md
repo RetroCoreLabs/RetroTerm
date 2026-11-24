@@ -1518,19 +1518,116 @@ The sense codes for a rejected Create Partition are in section 9.14a (Table B-1,
 "H.HV" / "W.WV" rows were looked at again in a 130 dpi image of p. 5-12 on 24 November 2026: the
 scan shows only a dot between the letters, so the symbol is still not known.
 
-**What RetroIO and RetroTerm do today** (read in the code, 24 November 2026): Create Partition is
-NOT built. RetroIO handles only Read Partition, Erase/Reset, Set Reply Mode, Outbound 3270DS and the
-X'D0' file transfer field; any other structured field, X'0C' included, is refused out loud through
-`ProtocolError` ("Structured field X'0C' is not built"). Only implicit partition 0 exists; a Read
-Partition, Set Reply Mode or Outbound 3270DS naming another partition is refused. So there is no
-16-bit addressing and a screen stays at most 16 383 cells. The Usable Area reply's flags byte is X'01'
-(12/14-bit addressing only). RetroTerm has nothing of its own for partitions.
+Erase/Reset (p. 5-15) was re-read against Appendix C on 24 November 2026: the page says it
+destroys every partition and makes implicit partition 0 "with default partition characteristics"
+at the default size (IPZ B'0') or the alternate size (IPZ B'1'). Table C-1 has no Erase/Reset row.
+The reply mode is one of those characteristics: Reset Partition lists "Inbound Reply mode - Field"
+as the default (p. 5-51). RetroIO puts the reply mode back to field mode on Erase/Reset.
 
-Erase/Reset (p. 5-15) was re-read against Appendix C on 24 November 2026: the page only says it
-destroys every partition and makes implicit partition 0 at the default size (IPZ B'0') or the
-alternate size (IPZ B'1'). It says nothing about the reply mode, and Table C-1 has no Erase/Reset
-row. RetroIO also puts the reply mode back to field mode on Erase/Reset; that is not from p. 5-15
-(the code cites p. 5-15 for the size only).
+### 13.1 The other partition structured fields (read 24 November 2026 from the text of GA23-0059-4)
+
+**Destroy Partition, X'0D'** (p. 5-14). `X'0004' X'0D' PID`. Destroy means: the PID is no longer
+reachable, its buffer is not shown again, its viewport is cleared or overwritten. A PID that does not
+exist: no effect. The only existing partition: destroyed, back to implicit partition state with the
+default implicit partition 0, every input inhibit condition reset, INOP Read Modified and INPID 0.
+Not the only one: if it was active, the next partition with a non-zero window is made active (the
+cursor shows at its cursor position, its saved PWAIT or SYSTEM LOCK shows again); if its PID was
+INPID, INPID becomes 0 and INOP Read Modified. Table B-1: PID above the maximum is 1005/1001.
+
+**Activate Partition, X'0E'** (p. 5-8). `X'0004' X'0E' PID`. Rejected if the partition does not
+exist or its window is of zero size. Otherwise it is made active, the cursor shows at its cursor
+position, its saved input inhibit conditions are raised, and System Lock and PWAIT of the partition
+that was active are saved and their indicators taken down.
+
+**Reset Partition, X'00'** (p. 5-51). `X'0004' X'00' PID`. Resets the partition's inbound reply
+mode to Field, its format group selection to none, its Set Partition Characteristics to none. No
+effect on a text partition.
+
+**The jump rule** (p. 2-5): the jump-partition key makes active the partition with the smallest PID
+greater than the active one, or the lowest PID if there is none. Destroy Partition uses the same
+"next".
+
+### 13.2 What the commands and the read fields mean per partition
+
+- A command as the first byte goes to partition 0 (p. 3-5: "used for write operations in partition
+  0. They must be encoded in a structured field if used for partitions with nonzero IDs").
+  Table 3-3 (p. 3-4), explicit partitioned state: EW or EWA with WCC reset resets the display to
+  implicit partition state, then runs; EW, EWA or Write without reset runs against explicit
+  partition 0, and is rejected when there is none. EAU needs partition 0 too (p. 3-20). A read
+  command (RB, RM, RMA) is rejected when partition 0 does not exist (p. 3-18 note 1).
+- Erase/Write sets the implicit partition's size only "If in implicit partition state" (p. 3-6
+  step 1). In an Outbound 3270DS, EW and EWA "do not change the screen size" (p. 5-40). A WCC reset
+  in an Outbound 3270DS resets only the named partition (p. 5-41, Table 3-3 row 3a).
+- SBA, RA and EUA addresses are relative to the partition's own origin (p. 4-3, 4-8, 4-9); a
+  partition's addresses run 0 to W x H - 1 (p. 2-2) and wrap at its presentation space (p. 2-7).
+- Read Partition RB, RM or RMA (p. 5-48, 5-49): the PID must exist; INPID is set to it, INOP to the
+  operation, the AID to X'61', and the device goes to retry-read state. A nonzero PID answers in an
+  Inbound 3270DS (`X'88'`, then `L X'80' PID X'61' cursor data`, p. 6-7, 3-16); partition 0 answers
+  in plain 3270 format (p. 6-7).
+- An operator Enter from a nonzero active partition also answers in an Inbound 3270DS, with the
+  key's AID (p. 6-7 case 3; p. 3-9 note 1: "It contains an AID of X'7D' if sent inbound as a result
+  of the ENTER key"). INPID becomes the active partition's PID (p. 3-21 step 6).
+- Set Reply Mode names a partition (p. 5-61): each partition has its own reply mode.
+- The CLEAR key, BIND, UNBIND and Erase/Reset go back to implicit partition 0 (p. 3-16, 5-13 note 2,
+  5-15; Figure 2-4 p. 2-8).
+
+### 13.3 What RetroIO builds (24 November 2026)
+
+Built in `RetroIO.Protocols.Tn3270` (`Display3270`, with each partition a `Partition3270`), with the
+tests in `PartitionTests.cs` (31 cases, each citing its page):
+
+- **Create Partition** with UOM B'0000' (cells) and A-MODE B'0000' (12/14-bit) or B'0001' (16-bit),
+  all its omitted-parameter defaults, and the checks of p. 5-10: zero viewport, viewport outside the
+  usable area, overlap with another viewport, PID above the maximum, storage above M. The usable
+  area is the Usable Area reply's base area; when the default and alternate sizes do not nest, the
+  alternate area is tried for a single partition (p. 6-93). The first Create destroys implicit
+  partition 0 and makes the new one active; a later new one is active only when it is the only one;
+  a replaced one that was active stays active (the manual names no other to activate).
+- **Destroy Partition**, **Activate Partition**, **Reset Partition** as in 13.1.
+- **16-bit addressing**: in an A-MODE B'0001' partition every outbound address is all 16 bits and
+  every inbound address is sent as 16-bit binary (p. 4-4, D-1). A 12/14-bit partition above 16 384
+  cells is refused (the manual has no rule for it; 14 bits cannot reach it).
+- **Per partition**: the commands of 13.2, Outbound 3270DS and Set Reply Mode to any existing PID,
+  Read Partition of any existing PID in the right format, Enter from a nonzero partition in an
+  Inbound 3270DS, INPID. A Read Partition read now keeps its reply for a retry: a following Read
+  Modified command sends it again (p. 3-17, 3-18). CLEAR, BIND, UNBIND, an SSCP message and NVT mode
+  go back to implicit partition 0.
+- **Query replies**: Usable Area ADDR X'3' and BUFFSZ 0 (p. 6-88, 6-90: "If the device supports
+  partitions ... the BUFFSZ parameter will be set to zero"); Alphanumeric Partitions X'84' with
+  NA 16, M = the larger implicit size in cells, flags 0 (section 9.11).
+- For a renderer: `ExplicitPartitioned`, `ActivePartitionId`, `ScreenRows`/`ScreenColumns` (the
+  usable area), `GetPartition(pid)`, `TryGetScreenPosition(row, column, ...)`; each `Partition3270`
+  has the same getters as the display. `GetByte` and the other display getters read the active
+  partition.
+
+Refused out loud (`ProtocolError`), because the replies say they are not supported: a presentation
+space larger or smaller than its viewport (scrolling, SCROLL 0), a window origin other than (0, 0),
+RS or CS X'0002' to X'FFFE', UOM other than B'0000' (CELLUNITS 0), A-MODE text (no Text Partitions
+reply), reserved A-MODE values, PROT and COPY (flags 0), BASE other than 0 (one base set), a cell size
+other than AW x AH (VCP 0). Set Window Origin X'0B' and Modify Partition X'0F0A' stay refused as
+unbuilt structured fields.
+
+Not built and NOT loud, because they are operator-side conditions, not host data: the
+jump-partition key; PWAIT, System Lock and Enter Inhibit per partition (RetroIO's keyboard lock is
+one for the whole display, so Activate and Destroy have no per-partition conditions to save and
+raise); an enter action rejected in retry-read state (p. 3-17). All three are in the plan.
+
+Choices made here that the manual does not settle, said plainly:
+
+- NA = 16 is this display's own choice; the manual allows up to 127 PIDs and gives no count.
+- A Create that replaces the active partition leaves the new one active.
+- A short read (PA key) from a nonzero active partition is sent as an Inbound 3270DS holding only
+  the PID and the AID, no cursor: p. 6-7 lists the cursor as part of the field, p. 3-13 says a short
+  read is the AID alone, and no page covers both at once (Open question 9).
+- An SSCP-LU message destroys explicit partitions: its text takes the whole screen. p. 5-13 note 2
+  does not list it.
+- Bytes 24-25 of Create Partition: reserved in the format table, CS in the defaults table and in
+  Table B-1. RetroIO rejects X'0002' to X'FFFE' there, which both readings reject.
+
+RetroTerm draws only the active partition today (it reads the display getters) and has no
+partition-aware layout; that is a RetroTerm plan item. A screen above 16 383 cells is still refused:
+16-bit addressing works inside an explicit partition, but implicit partition 0 at the alternate size
+is always 12/14-bit (p. 4-4), so the model's own sizes must stay within 16 383 cells.
 
 ---
 
