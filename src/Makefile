@@ -18,7 +18,7 @@
 #
 # WHAT GETS INSTALLED (PREFIX is ~/.local, or /usr/local when run as root; override it with
 # `make install PREFIX=/some/where`; DESTDIR is honoured for packaging)
-#   $(PREFIX)/lib/retroterm/RetroTerm.Desktop            the program
+#   $(PREFIX)/lib/retroterm/RetroTerm                    the program
 #   $(PREFIX)/bin/retroterm                              command on your PATH, runs the program
 #   $(PREFIX)/share/applications/retroterm.desktop       the application-menu entry
 #   $(PREFIX)/share/icons/hicolor/{scalable,512x512}/apps/retroterm.{svg,png}   the icon
@@ -44,7 +44,7 @@ CONFIG      ?= Release
 RID         ?= linux-x64
 PROJECT     := RetroTerm.Desktop/RetroTerm.Desktop.csproj
 PUBLISH_DIR := RetroTerm.Desktop/bin/$(CONFIG)/net10.0/$(RID)/publish
-APP_BIN     := RetroTerm.Desktop
+APP_BIN     := RetroTerm
 
 DOTNET      ?= dotnet
 INSTALL     ?= install
