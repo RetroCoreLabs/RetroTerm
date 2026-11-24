@@ -141,6 +141,49 @@ public sealed class Ibm3270TabAndPrinterChoiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ConnSaveStoresThePartnerPrinterDisplayAndTheConnectionAsksForIt()
+    {
+        // printer_associate: the display LU whose partner printer TN3270E asks for (RFC 2355
+        // 7.1.3, ASSOCIATE).
+        var (registry, manager, _) = Commands();
+        using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+
+        var created = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "prt").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+            .Set("emulator", "IBM-3287-1").Set("printer_associate", " TERM0001 "), TestContext.Current.CancellationToken);
+        Assert.True(created.Success, created.Error);
+        var saved = ConnectionCommands.FindByName(manager, "prt")!;
+        Assert.Equal("TERM0001", saved.PrinterAssociate);
+
+        var shown = await registry.ExecuteAsync("CONNSHOW", session, new CommandArgs().Set("name", "prt"), TestContext.Current.CancellationToken);
+        Assert.Contains("TN3270E partner printer of display: TERM0001\n", shown.Output, StringComparison.Ordinal);
+
+        // The connection built from it asks for that display's partner.
+        using IConnection connection = ConnectionFactory.CreateConnection(saved.ToConnectionParameters());
+        Assert.Equal("TERM0001", Assert.IsType<Tn3270Connection>(connection).AssociateLu);
+
+        // More than 8 characters (RFC 2355 7.1.1), a space, and a display are refused by name.
+        var tooLong = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "prt").Set("printer_associate", "TERM00001"), TestContext.Current.CancellationToken);
+        Assert.False(tooLong.Success);
+        Assert.Contains("printer_associate", tooLong.Error, StringComparison.Ordinal);
+        var space = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "prt").Set("printer_associate", "A B"), TestContext.Current.CancellationToken);
+        Assert.False(space.Success);
+        var display = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "disp").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+            .Set("emulator", "IBM-3278-2").Set("printer_associate", "TERM0001"), TestContext.Current.CancellationToken);
+        Assert.False(display.Success);
+        Assert.Equal("TERM0001", saved.PrinterAssociate);
+
+        // Empty clears it.
+        var cleared = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "prt").Set("printer_associate", ""), TestContext.Current.CancellationToken);
+        Assert.True(cleared.Success, cleared.Error);
+        Assert.Null(saved.PrinterAssociate);
+    }
+
+    [Fact]
     public async Task ConnSaveStoresEveryPrinterSettingAsTheWindowDoesAndConnShowPrintsThem()
     {
         var (registry, manager, _) = Commands();

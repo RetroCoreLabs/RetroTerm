@@ -51,6 +51,15 @@ namespace RetroTerm.Ibm3270
     /// an error.
     /// </para>
     /// <para>
+    /// A printer (device type IBM-3287-1) asks for SCS-CTL-CODES, DATA-STREAM-CTL and RESPONSES
+    /// instead (RFC 2355 sections 10.1, 10.2, 10.4), may ask for the partner printer of a display
+    /// with ASSOCIATE (7.1.3), takes SCS-DATA (raised through HostMessageReceived as ScsData and
+    /// answered like 3270-DATA, 10.4.1) and PRINT-EOJ (PrintEndOfJobReceived), and gives up
+    /// TN3270E with WONT when neither printer function is left (7.2.1). Built 24 November 2026
+    /// from the RFC alone and tested against an in-process host that follows it; no real TN3270E
+    /// host has seen it.
+    /// </para>
+    /// <para>
     /// 3270 mode starts when BINARY and EOR are on in both directions (RFC 1576 section 3). From then
     /// on every record that ends with IAC EOR is raised as <see cref="RecordReceived"/>. Host data
     /// that arrives outside 3270 mode (NVT text) is not shown anywhere yet, so it is reported through
@@ -71,6 +80,18 @@ namespace RetroTerm.Ibm3270
         private readonly byte[] _deviceType;
         private readonly byte[]? _luName;
 
+        // The display LU whose partner printer this printer session asks for with ASSOCIATE
+        // (RFC 2355 7.1.3), or null. Only for a printer device type.
+        private readonly byte[]? _associateLu;
+
+        // True when the device type is the printer, IBM-3287-1 (RFC 2355 7.1): the functions asked
+        // for and the data types accepted are the printer's.
+        private readonly bool _isPrinter;
+
+        // The functions this terminal asks for: FunctionsWeAskFor for a display,
+        // PrinterFunctionsWeAskFor for a printer.
+        private readonly int _functionsWeAskFor;
+
         // True once FUNCTIONS IS has settled the function list: TN3270E is in force.
         private bool _tn3270eNegotiated;
 
@@ -78,7 +99,7 @@ namespace RetroTerm.Ibm3270
         // Starts as RESPONSES alone and only ever shrinks during one negotiation, which is the
         // RFC 2355 7.2.1 rule against loops: never add back a function the other side removed
         // (x3270 tn3270e_negotiate narrows e_funcs the same way).
-        private int _wantedFunctions = FunctionsWeAskFor;
+        private int _wantedFunctions;
 
         // The functions agreed by FUNCTIONS IS; only meaningful while _tn3270eNegotiated.
         private int _agreedFunctions;
@@ -100,6 +121,7 @@ namespace RetroTerm.Ibm3270
         private bool _answered;
 
         // The TN3270E subnegotiation command codes (RFC 2355 section 3; x3270 include\tn3270e.h).
+        private const byte OpAssociate = 0x00;
         private const byte OpConnect = 0x01;
         private const byte OpDeviceType = 0x02;
         private const byte OpFunctions = 0x03;
@@ -109,15 +131,32 @@ namespace RetroTerm.Ibm3270
         private const byte OpRequest = 0x07;
         private const byte OpSend = 0x08;
 
-        // TN3270E function codes (RFC 2355 section 3).
-        private const byte FunctionBindImage = 0x00;
-        private const byte FunctionResponses = 0x02;
-        private const byte FunctionSysReq = 0x04;
+        // TN3270E function codes (RFC 2355 section 3; RetroIO Tn3270EFunction).
+        private const byte FunctionBindImage = Tn3270EFunction.BindImage;
+        private const byte FunctionDataStreamControl = Tn3270EFunction.DataStreamControl;
+        private const byte FunctionResponses = Tn3270EFunction.Responses;
+        private const byte FunctionScsControlCodes = Tn3270EFunction.ScsControlCodes;
+        private const byte FunctionSysReq = Tn3270EFunction.SysReq;
 
-        // What this terminal asks for: BIND-IMAGE, RESPONSES and SYSREQ, as x3270 does for a
-        // display. The printer functions (DATA-STREAM-CTL, SCS-CTL-CODES) are not built
-        // (docs PLAN.md, the 3287 over TN3270E).
+        // What a display asks for: BIND-IMAGE, RESPONSES and SYSREQ, as x3270 does for a
+        // display.
         private const int FunctionsWeAskFor = (1 << FunctionBindImage) | (1 << FunctionResponses) | (1 << FunctionSysReq);
+
+        // What a printer asks for: SCS-CTL-CODES and DATA-STREAM-CTL, "either ... or both, must
+        // be negotiated" for a printer (RFC 2355 10.1, 10.2), both so the server may bind it to an
+        // application of either kind, and RESPONSES, as the RFC's own printer examples ask
+        // (section 13.4, "FUNCTIONS REQUEST SCS-CTL-CODES RESPONSES"). Not BIND-IMAGE: nothing in
+        // a printout depends on the BIND, and with it agreed no data may come before a BIND-IMAGE
+        // (10.3). Not SYSREQ: it is a key, and a printer has no keyboard (10.5).
+        private const int PrinterFunctionsWeAskFor = (1 << FunctionScsControlCodes) | (1 << FunctionDataStreamControl) | (1 << FunctionResponses);
+
+        // A printer session needs one of these two (RFC 2355 7.2.1, the impasse rule).
+        private const int PrinterDataFunctions = (1 << FunctionScsControlCodes) | (1 << FunctionDataStreamControl);
+
+        /// <summary>
+        /// The TN3270E device type of a printer (RFC 2355 7.1).
+        /// </summary>
+        public const string PrinterDeviceType = "IBM-3287-1";
 
         // Which data the connection carries now (RFC 2355 sections 9.1, 10.3, 10.5; x3270 keeps
         // the same four states, Common\telnet.c tn3270e_submode).
@@ -150,6 +189,31 @@ namespace RetroTerm.Ibm3270
         /// The TERMINAL-TYPE name, e.g. "IBM-3278-2-E". TK5 also takes a device suffix such as "@00C2" to pick a terminal.
         /// </param>
         public Tn3270Protocol(Action<ReadOnlyMemory<byte>> write, string terminalType = DefaultTerminalType)
+            : this(write, terminalType, associateLu: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates the protocol for a printer that asks TN3270E for the partner printer of a
+        /// display LU (RFC 2355 7.1.3, ASSOCIATE).
+        /// </summary>
+        /// <param name="write">
+        /// Called with bytes to put on the wire. The memory is only valid during the call.
+        /// </param>
+        /// <param name="terminalType">
+        /// The TERMINAL-TYPE name; must be the printer, IBM-3287-1, when <paramref name="associateLu"/> is given.
+        /// </param>
+        /// <param name="associateLu">
+        /// The display's LU name, as the server gave it to that display in DEVICE-TYPE IS ...
+        /// CONNECT, or null to ask for any printer.
+        /// </param>
+        /// <exception cref="ArgumentException">
+        /// Thrown when an LU is given for a device type that is not a printer ("ASSOCIATE can be
+        /// used by the client only when requesting a DEVICE-TYPE that represents a printer", RFC
+        /// 2355 7.1.3), or together with an "@" CONNECT name: a request carries CONNECT or
+        /// ASSOCIATE, not both (7.1.1, "either the CONNECT or the ASSOCIATE command").
+        /// </exception>
+        public Tn3270Protocol(Action<ReadOnlyMemory<byte>> write, string terminalType, string? associateLu)
         {
             ArgumentNullException.ThrowIfNull(write);
             ArgumentException.ThrowIfNullOrEmpty(terminalType);
@@ -162,6 +226,24 @@ namespace RetroTerm.Ibm3270
             int at = terminalType.IndexOf('@');
             _deviceType = Encoding.ASCII.GetBytes(at < 0 ? terminalType : terminalType.Substring(0, at));
             _luName = at < 0 || at == terminalType.Length - 1 ? null : Encoding.ASCII.GetBytes(terminalType.Substring(at + 1));
+            _isPrinter = string.Equals(Encoding.ASCII.GetString(_deviceType), PrinterDeviceType, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(associateLu))
+            {
+                if (!_isPrinter)
+                {
+                    throw new ArgumentException("ASSOCIATE asks for a printer; the device type " + terminalType + " is not one (RFC 2355 section 7.1.3).", nameof(associateLu));
+                }
+
+                if (_luName != null)
+                {
+                    throw new ArgumentException("A TN3270E request names a device with CONNECT or ASSOCIATE, not both (RFC 2355 section 7.1.1).", nameof(associateLu));
+                }
+
+                _associateLu = Encoding.ASCII.GetBytes(associateLu);
+            }
+
+            _functionsWeAskFor = _isPrinter ? PrinterFunctionsWeAskFor : FunctionsWeAskFor;
+            _wantedFunctions = _functionsWeAskFor;
 
             _reader = new TelnetReader(this);
             _negotiator = new TelnetOptionNegotiator(this, SendNegotiation);
@@ -262,6 +344,30 @@ namespace RetroTerm.Ibm3270
         /// The memory is the data part, without the header, and is only valid during the call.
         /// </summary>
         public event Action<Tn3270EHostMessage, ReadOnlyMemory<byte>>? HostMessageReceived;
+
+        /// <summary>
+        /// Raised when the server sends PRINT-EOJ on a printer session: the print job has ended
+        /// (RFC 2355 10.1 and 10.2, "it may now take whatever action is appropriate for its
+        /// environment (e.g., close a disk or spool file, etc.)").
+        /// </summary>
+        public event Action? PrintEndOfJobReceived;
+
+        /// <summary>
+        /// Gets a value indicating whether this connection asks for a printer (IBM-3287-1).
+        /// </summary>
+        public bool IsPrinter => _isPrinter;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E is in force with SCS-CTL-CODES: the server may
+        /// send SCS-DATA (RFC 2355 10.1).
+        /// </summary>
+        public bool ScsControlCodesAgreed => InTn3270E && (_agreedFunctions & (1 << FunctionScsControlCodes)) != 0;
+
+        /// <summary>
+        /// Gets a value indicating whether TN3270E is in force with DATA-STREAM-CTL: the server
+        /// may send 3270-DATA to the printer (RFC 2355 10.2).
+        /// </summary>
+        public bool DataStreamControlAgreed => InTn3270E && (_agreedFunctions & (1 << FunctionDataStreamControl)) != 0;
 
         /// <summary>
         /// Bytes received from the host, any amount, split anywhere.
@@ -610,9 +716,24 @@ namespace RetroTerm.Ibm3270
                 return;
             }
 
+            if (header.DataType == Tn3270EDataType.ScsData)
+            {
+                ReceiveScsData(header, record.Length - Tn3270EHeader.Length);
+                return;
+            }
+
             if (header.DataType != Tn3270EDataType.Data3270)
             {
                 ReceiveOtherDataType(header.DataType, record.Length - Tn3270EHeader.Length);
+                return;
+            }
+
+            if (_isPrinter && (_agreedFunctions & (1 << FunctionDataStreamControl)) == 0)
+            {
+                // RFC 2355 10.2: 3270-DATA to a printer belongs to DATA-STREAM-CTL, and section 10
+                // calls using a header value of a function not agreed "non-conforming". Said, and
+                // not printed.
+                ProtocolError?.Invoke("A 3270-DATA record came to the printer although DATA-STREAM-CTL was not agreed (RFC 2355 section 10.2); it was not printed.");
                 return;
             }
 
@@ -626,7 +747,33 @@ namespace RetroTerm.Ibm3270
             }
 
             _submode = Tn3270ESubmode.Data3270;
+            QueueResponse(header, "3270-DATA");
+            ReadOnlySpan<byte> data = record.Slice(Tn3270EHeader.Length);
+            RecordReceived?.Invoke(_record.WrittenMemory.Slice(Tn3270EHeader.Length, data.Length));
+        }
 
+        // SCS-DATA (RFC 2355 8.1.1, 10.1): only on a printer session with SCS-CTL-CODES. It is
+        // answered like 3270-DATA (10.4.1, "Whenever a data message with a DATA-TYPE of either
+        // SCS-DATA or 3270-DATA is received"), and "For the purposes of NVT mode versus 3270
+        // mode, SCS-DATA must be treated exactly like 3270-DATA" (10.1).
+        private void ReceiveScsData(Tn3270EHeader header, int dataLength)
+        {
+            if (!_isPrinter || (_agreedFunctions & (1 << FunctionScsControlCodes)) == 0)
+            {
+                ProtocolError?.Invoke("An SCS-DATA record came although SCS-CTL-CODES was not agreed on a printer session (RFC 2355 section 10.1); it was not printed.");
+                return;
+            }
+
+            _submode = Tn3270ESubmode.Data3270;
+            QueueResponse(header, "SCS-DATA");
+            HostMessageReceived?.Invoke(Tn3270EHostMessage.ScsData, _record.WrittenMemory.Slice(Tn3270EHeader.Length, dataLength));
+        }
+
+        // Keeps the RESPONSE-FLAG and SEQ-NUMBER of a 3270-DATA or SCS-DATA record until the
+        // session has applied it (HostRecordStarting / HostRecordProcessed). A flag that cannot
+        // be honoured is said and replaced by NO-RESPONSE; the record still goes on.
+        private void QueueResponse(Tn3270EHeader header, string dataTypeName)
+        {
             byte responseFlag = header.ResponseFlag;
             if (responseFlag != Tn3270EResponseFlag.NoResponse && !ResponsesAgreed)
             {
@@ -639,15 +786,13 @@ namespace RetroTerm.Ibm3270
             {
                 // RFC 2355 8.1.3 defines 0, 1 and 2 for 3270-DATA. Anything else is not answered,
                 // and said.
-                ProtocolError?.Invoke("TN3270E response flag " + responseFlag + " is not defined for 3270-DATA (RFC 2355 section 8.1.3); no response will be sent.");
+                ProtocolError?.Invoke("TN3270E response flag " + responseFlag + " is not defined for " + dataTypeName + " (RFC 2355 section 8.1.3); no response will be sent.");
                 responseFlag = Tn3270EResponseFlag.NoResponse;
             }
 
             // The header is kept until the session has applied the record and says how it went
             // (HostRecordStarting / HostRecordProcessed).
             _pending.Enqueue(new PendingRecord(responseFlag, header.SequenceNumber));
-            ReadOnlySpan<byte> data = record.Slice(Tn3270EHeader.Length);
-            RecordReceived?.Invoke(_record.WrittenMemory.Slice(Tn3270EHeader.Length, data.Length));
         }
 
         // A TN3270E message that is not 3270-DATA (RFC 2355 8.1.1). The RESPONSE-FLAG of these is
@@ -707,8 +852,20 @@ namespace RetroTerm.Ibm3270
                     kind = Tn3270EHostMessage.NvtData;
                     break;
 
+                case Tn3270EDataType.PrintEndOfJob:
+                    // RFC 2355 8.1.1: "sent only by the server, and only on a printer session";
+                    // part of SCS-CTL-CODES and of DATA-STREAM-CTL (10.1, 10.2). It has no data.
+                    if (!_isPrinter || (_agreedFunctions & PrinterDataFunctions) == 0)
+                    {
+                        ProtocolError?.Invoke("A PRINT-EOJ message came although this is not a printer session with SCS-CTL-CODES or DATA-STREAM-CTL (RFC 2355 sections 8.1.1, 10.1, 10.2); it was not used.");
+                        return;
+                    }
+
+                    PrintEndOfJobReceived?.Invoke();
+                    return;
+
                 default:
-                    ProtocolError?.Invoke("TN3270E data type " + dataType + " is not handled on a display; the record was not shown.");
+                    ProtocolError?.Invoke("TN3270E data type " + dataType + " is not handled" + (_isPrinter ? " on a printer" : " on a display") + "; the record was not used.");
                     return;
             }
 
@@ -722,15 +879,21 @@ namespace RetroTerm.Ibm3270
             {
                 // DEVICE-TYPE REQUEST type [CONNECT lu] (RFC 2355 7.1.2). A new negotiation
                 // starts with the full wish list again.
-                _wantedFunctions = FunctionsWeAskFor;
-                byte[] request = new byte[2 + _deviceType.Length + (_luName == null ? 0 : 1 + _luName.Length)];
+                _wantedFunctions = _functionsWeAskFor;
+
+                // CONNECT asks for a named device or pool, ASSOCIATE for the partner printer of a
+                // display (RFC 2355 7.1.2, 7.1.3; the last two examples of 13.4 send
+                // "DEVICE-TYPE REQUEST IBM-3287-1 ASSOCIATE termxyz").
+                byte[]? name = _luName ?? _associateLu;
+                byte nameCommand = _luName != null ? OpConnect : OpAssociate;
+                byte[] request = new byte[2 + _deviceType.Length + (name == null ? 0 : 1 + name.Length)];
                 request[0] = OpDeviceType;
                 request[1] = OpRequest;
                 _deviceType.CopyTo(request, 2);
-                if (_luName != null)
+                if (name != null)
                 {
-                    request[2 + _deviceType.Length] = OpConnect;
-                    _luName.CopyTo(request, 3 + _deviceType.Length);
+                    request[2 + _deviceType.Length] = nameCommand;
+                    name.CopyTo(request, 3 + _deviceType.Length);
                 }
 
                 SendTn3270E(request);
@@ -765,6 +928,15 @@ namespace RetroTerm.Ibm3270
                 // answered with FUNCTIONS REQUEST of what both want (x3270: b8_none_added, then
                 // b8_and).
                 int received = FunctionMask(sb.Slice(2), out bool onlyWanted);
+                if (_isPrinter && (received & PrinterDataFunctions) == 0)
+                {
+                    // Neither SCS-CTL-CODES nor DATA-STREAM-CTL is left that both sides want: the
+                    // impasse RFC 2355 7.2.1 names, "the 'offended' party should terminate the
+                    // negotiation by sending an IAC DON'T (or WON'T) TN3270E".
+                    BackOff("the host's function list keeps neither SCS-CTL-CODES nor DATA-STREAM-CTL, which a printer needs (RFC 2355 section 7.2.1)");
+                    return;
+                }
+
                 if (onlyWanted)
                 {
                     _wantedFunctions = received;
@@ -785,6 +957,12 @@ namespace RetroTerm.Ibm3270
             if (sb.Length >= 2 && sb[0] == OpFunctions && sb[1] == OpIs)
             {
                 int agreed = FunctionMask(sb.Slice(2), out bool onlyWanted);
+                if (onlyWanted && _isPrinter && (agreed & PrinterDataFunctions) == 0)
+                {
+                    BackOff("the host agreed to neither SCS-CTL-CODES nor DATA-STREAM-CTL, which a printer needs (RFC 2355 sections 7.2.1, 10.1)");
+                    return;
+                }
+
                 if (onlyWanted)
                 {
                     // What we asked for, or less (RFC 2355 7.2.1; x3270 takes a subset too).

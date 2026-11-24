@@ -67,6 +67,10 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private bool? _printerTractorPaper;
     private string? _snapshotPrinterTractorColour;
     private string? _printerTractorColour;
+
+    // The TN3270E ASSOCIATE display LU (CONNSAVE printer_associate). The window has no box for
+    // it yet; it is carried here so saving the connection in the window does not drop it.
+    private string? _printerAssociate;
     private bool _snapshotDeleteSendsDel;
     private string _snapshotNewLineReceive = ConnectionFactory.NewLineModes.Auto;
     private string _snapshotNewLineTransmit = ConnectionFactory.NewLineModes.Cr;
@@ -628,6 +632,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _printerLinesPerPage = config.PrinterLinesPerPage;
         _printerTractorPaper = config.PrinterTractorPaper;
         _printerTractorColour = config.PrinterTractorColour;
+        _printerAssociate = config.PrinterAssociate;
         _deleteSendsDel = config.DeleteSendsDel;
         // A file written before these existed has null here, and the fallbacks are the
         // behaviour that build had - so an old connection opens behaving exactly as it did.
@@ -720,6 +725,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             PrinterLinesPerPage = _printerLinesPerPage,
             PrinterTractorPaper = _printerTractorPaper,
             PrinterTractorColour = _printerTractorColour,
+            PrinterAssociate = _printerAssociate,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,
@@ -774,6 +780,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             PrinterLinesPerPage = _printerLinesPerPage,
             PrinterTractorPaper = _printerTractorPaper,
             PrinterTractorColour = _printerTractorColour,
+            PrinterAssociate = _printerAssociate,
             DeleteSendsDel = _deleteSendsDel,
             NewLineReceive = _newLineReceive,
             NewLineTransmit = _newLineTransmit,

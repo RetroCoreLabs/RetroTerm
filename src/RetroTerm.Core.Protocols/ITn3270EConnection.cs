@@ -105,4 +105,11 @@ public enum Tn3270EHostMessage
     /// NVT-DATA (X'05'): plain line-mode text (RFC 2355 section 9.1).
     /// </summary>
     NvtData,
+
+    /// <summary>
+    /// SCS-DATA (X'01'): SNA character string for a printer, with the SCS-CTL-CODES function (RFC
+    /// 2355 section 10.1). Answered like a 3270 record: the session tells a connection that
+    /// answers the host when it starts and how it went (IHostRecordResponseConnection).
+    /// </summary>
+    ScsData,
 }

@@ -211,10 +211,11 @@ namespace RetroTerm.Tests.Ibm3270
             p.Feed(Bytes("FF FA 28 03 04 FF F0"));
             wire.Clear();
 
-            // SCS-DATA (X'01') is printer data, not handled on a display.
+            // SCS-DATA (X'01') is printer data, not handled on a display: it belongs to the
+            // SCS-CTL-CODES function of a printer session (RFC 2355 10.1), and the message says so.
             p.Feed(Bytes("01 00 00 00 00 41 42 FF EF"));
             Assert.Empty(records);
-            Assert.Contains("data type 1", errors[0]);
+            Assert.Contains("SCS-DATA", errors[0]);
 
             p.Feed(Bytes("00 00 02 00 01 F5 42 FF EF"));
             Assert.Single(records);

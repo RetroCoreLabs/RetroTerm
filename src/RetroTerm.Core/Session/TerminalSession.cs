@@ -356,6 +356,15 @@ public partial class TerminalSession : IDisposable
     /// </param>
     private void OnConnectionTn3270EHostMessage(Tn3270EHostMessage kind, ReadOnlyMemory<byte> data)
     {
+        // SCS-DATA is printer data that the host may want answered, exactly like a 3270 record
+        // (RFC 2355 section 10.4.1), so the connection is told when it starts and how it went, in
+        // the same order as the records (the connection keeps one queue for both).
+        if (kind == Tn3270EHostMessage.ScsData && _connection is IHostRecordResponseConnection responder)
+        {
+            _ = _pump.RunAsync(() => ProcessScsRecord(responder, data.Span));
+            return;
+        }
+
         if (Emulator is ITn3270EAware aware)
         {
             _ = _pump.RunAsync(() => aware.Tn3270EHostMessageReceived(kind, data.Span));
@@ -977,6 +986,45 @@ public partial class TerminalSession : IDisposable
         {
             // Null when the emulator cannot say or threw: the connection sends no response and
             // says so, rather than answer for a record nobody checked.
+            responder.HostRecordProcessed(outcome);
+        }
+    }
+
+    /// <summary>
+    /// Applies one TN3270E SCS-DATA record on the pump thread and gives its outcome to the
+    /// connection, as <see cref="ProcessHostRecord"/> does for a 3270 record.
+    /// </summary>
+    /// <param name="responder">
+    /// The connection that answers the host.
+    /// </param>
+    /// <param name="record">
+    /// The SCS data, without the TN3270E header.
+    /// </param>
+    private void ProcessScsRecord(IHostRecordResponseConnection responder, ReadOnlySpan<byte> record)
+    {
+        ProtocolTracer.TraceIncoming(record);
+        responder.HostRecordStarting();
+        HostRecordOutcome? outcome = null;
+        try
+        {
+            if (Emulator is ITn3270EAware aware)
+            {
+                aware.Tn3270EHostMessageReceived(Tn3270EHostMessage.ScsData, record);
+                if (Emulator is IHostRecordOutcomeTerminal reporter)
+                {
+                    outcome = reporter.LastRecordOutcome;
+                }
+            }
+            else
+            {
+                // Nobody can print it. Said; the null outcome makes the connection send no
+                // response and say that too, rather than answer for data nobody looked at.
+                ApplicationLogger.Log(LogCategory.Session, LogLevel.Warn, "TerminalSession",
+                    "TN3270E SCS-DATA dropped: the emulator does not take TN3270E messages");
+            }
+        }
+        finally
+        {
             responder.HostRecordProcessed(outcome);
         }
     }

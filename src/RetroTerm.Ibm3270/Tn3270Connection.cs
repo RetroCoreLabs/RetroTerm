@@ -72,6 +72,27 @@ namespace RetroTerm.Ibm3270
         /// The TERMINAL-TYPE name sent to the host.
         /// </param>
         public Tn3270Connection(string host, int port = 23, string terminalType = Tn3270Protocol.DefaultTerminalType)
+            : this(host, port, terminalType, associateLu: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a printer connection that asks TN3270E for the partner printer of a display LU
+        /// (RFC 2355 section 7.1.3, ASSOCIATE); nothing happens until <see cref="ConnectAsync"/>.
+        /// </summary>
+        /// <param name="host">
+        /// Host name or address.
+        /// </param>
+        /// <param name="port">
+        /// TCP port.
+        /// </param>
+        /// <param name="terminalType">
+        /// The TERMINAL-TYPE name; IBM-3287-1 when <paramref name="associateLu"/> is given.
+        /// </param>
+        /// <param name="associateLu">
+        /// The display's LU name, or null for any printer.
+        /// </param>
+        public Tn3270Connection(string host, int port, string terminalType, string? associateLu)
         {
             if (string.IsNullOrWhiteSpace(host))
             {
@@ -87,21 +108,18 @@ namespace RetroTerm.Ibm3270
             _port = port;
             Description = host + ":" + port;
             TerminalType = terminalType;
-            _protocol = new Tn3270Protocol(WriteToSocket, terminalType);
-            _protocol.RecordReceived += record =>
-            {
-                byte[] copy = record.ToArray();
-                _raiseAfterFeed.Add(() => DataReceived?.Invoke(copy));
-            };
-            _protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
-            _protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
-            _protocol.HostMessageReceived += OnProtocolHostMessage;
-            _protocol.ProtocolError += message =>
-            {
-                ApplicationLogger.Log(LogCategory.Network, LogLevel.Error, "Tn3270Connection", message);
-                ErrorOccurred?.Invoke(new InvalidOperationException(message));
-            };
+            AssociateLu = string.IsNullOrWhiteSpace(associateLu) ? null : associateLu.Trim();
+
+            // Built here as well as on every connect, so a bad ASSOCIATE (a display device type,
+            // or with an "@" name) is refused when the connection is made, not at the first connect.
+            _protocol = CreateProtocol();
         }
+
+        /// <summary>
+        /// Gets the display LU whose partner printer this connection asks for (TN3270E ASSOCIATE),
+        /// or null.
+        /// </summary>
+        public string? AssociateLu { get; }
 
         /// <summary>
         /// Raised when the connection status changes.
@@ -114,8 +132,9 @@ namespace RetroTerm.Ibm3270
         public event Action<bool>? Tn3270EChanged;
 
         /// <summary>
-        /// Raised when the host sends telnet Abort Output in plain TN3270, which ends a 3287 print
-        /// job (see <see cref="Tn3270Protocol.AbortOutputReceived"/>). On the receive thread.
+        /// Raised when the host ends a 3287 print job: telnet Abort Output in plain TN3270 (see
+        /// <see cref="Tn3270Protocol.AbortOutputReceived"/>), or a TN3270E PRINT-EOJ message (RFC
+        /// 2355 sections 10.1, 10.2). On the receive thread.
         /// </summary>
         public event Action? EndOfJobReceived;
 
@@ -379,7 +398,7 @@ namespace RetroTerm.Ibm3270
         // One protocol object, wired to this connection's events, for one connection.
         private Tn3270Protocol CreateProtocol()
         {
-            var protocol = new Tn3270Protocol(WriteToSocket, TerminalType);
+            var protocol = new Tn3270Protocol(WriteToSocket, TerminalType, AssociateLu);
             protocol.RecordReceived += record =>
             {
                 byte[] copy = record.ToArray();
@@ -387,6 +406,7 @@ namespace RetroTerm.Ibm3270
             };
             protocol.Tn3270EChanged += on => _raiseAfterFeed.Add(() => Tn3270EChanged?.Invoke(on));
             protocol.AbortOutputReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
+            protocol.PrintEndOfJobReceived += () => _raiseAfterFeed.Add(() => EndOfJobReceived?.Invoke());
             protocol.HostMessageReceived += OnProtocolHostMessage;
             protocol.ProtocolError += message =>
             {

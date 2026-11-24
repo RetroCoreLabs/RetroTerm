@@ -2223,6 +2223,19 @@ public abstract class TerminalEmulatorBase : ITerminalEmulator
     public const byte EdgeBarCharacterSet = 4;
 
     /// <summary>
+    /// The character-set number that means "draw the 3270 System Operator symbol here, not the
+    /// font glyph": a stick figure in an outlined box.
+    /// </summary>
+    /// <remarks>
+    /// The 3270's line 25 shows it while the SSCP-LU session owns the screen (GA23-0061-2
+    /// p. 5-35; the shape is drawn in Appendix B p. B-2). No character set held gives it a code
+    /// and Unicode has no such character, so the renderer draws the shape. The cell keeps
+    /// U+25A1 (a white square, RetroIO StatusLine3270.SystemOperatorSymbol) so a copy of the line
+    /// still shows a box.
+    /// </remarks>
+    public const byte SystemOperatorSymbolCharacterSet = 5;
+
+    /// <summary>
     /// Which G set a single shift has armed for the next character: 2 for SS2, 3 for SS3, 0 for
     /// none.
     /// </summary>

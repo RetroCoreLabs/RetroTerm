@@ -227,6 +227,12 @@ public static class ConnectionFactory
         public string? PrinterTractorColour { get; set; }
 
         /// <summary>
+        /// 3287 only: the display LU whose partner printer TN3270E asks for (RFC 2355 section
+        /// 7.1.3, ASSOCIATE), or null to ask for any printer.
+        /// </summary>
+        public string? PrinterAssociate { get; set; }
+
+        /// <summary>
         /// Whether the Delete key sends DEL (0x7F) rather than its terminal's own sequence.
         /// </summary>
         public bool DeleteSendsDel { get; set; }
@@ -664,7 +670,7 @@ public static class ConnectionFactory
         {
             ProtocolType.Telnet => CreateTelnetConnection(parameters.Host, parameters.Port, parameters.EmulatorType),
             ProtocolType.SSH => CreateSSHConnection(parameters.Host, parameters.Port, parameters.Username, parameters.Password, parameters.EmulatorType),
-            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port, EmulatorTypeFor(ProtocolType.TN3270, parameters.EmulatorType), parameters.Ibm3270ScreenSize),
+            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port, EmulatorTypeFor(ProtocolType.TN3270, parameters.EmulatorType), parameters.Ibm3270ScreenSize, parameters.PrinterAssociate),
             ProtocolType.Serial => CreateSerialConnection(parameters),
             ProtocolType.Gateway => throw new InvalidOperationException("Gateway connections are created directly via GatewayConnection, not through the factory."),
             ProtocolType.OpcomSimulator => CreateOpcomSimulatorConnection(),
@@ -866,7 +872,7 @@ public static class ConnectionFactory
     /// the RetroIO 3270 packages) and this layer must not depend on them. Pair it with the emulator
     /// of the same model, which expects one whole 3270 record per DataReceived.
     /// </summary>
-    private static IConnection CreateTn3270Connection(string host, int port, string emulatorType, string? screenSize)
+    private static IConnection CreateTn3270Connection(string host, int port, string emulatorType, string? screenSize, string? printerAssociate)
     {
         var type = Type.GetType("RetroTerm.Ibm3270.Tn3270Connection, RetroTerm.Ibm3270");
         var emulator = Type.GetType("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270");
@@ -875,10 +881,11 @@ public static class ConnectionFactory
             throw new InvalidOperationException("Tn3270Connection type not found. Ensure RetroTerm.Ibm3270 is loaded.");
         }
 
-        // The printer sends its own name; it has no model number.
+        // The printer sends its own name; it has no model number. With a display LU named, it
+        // asks TN3270E for that display's partner printer (ASSOCIATE, RFC 2355 7.1.3).
         if (string.Equals(emulatorType, Ibm3287, StringComparison.Ordinal))
         {
-            return Activator.CreateInstance(type, host, port, Ibm3287) as IConnection
+            return Activator.CreateInstance(type, host, port, Ibm3287, printerAssociate) as IConnection
                 ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
         }
 

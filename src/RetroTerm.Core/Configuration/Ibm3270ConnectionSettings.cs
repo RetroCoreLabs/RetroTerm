@@ -365,6 +365,15 @@ namespace RetroTerm.Core.Configuration
         /// </summary>
         public const string PrinterBandColourArgument = "printer_band_colour";
 
+        /// <summary>
+        /// The name of the argument naming the display LU whose partner printer TN3270E asks for.
+        /// </summary>
+        public const string PrinterAssociateArgument = "printer_associate";
+
+        // RFC 2355 7.1.1: "The length of device-names and resource-names should not exceed 8
+        // bytes", NVT ASCII.
+        private const int LuNameLength = 8;
+
         // The highest TCP port; the window's card reader port box takes 1 to this.
         private const int HighestPort = 65535;
 
@@ -422,7 +431,11 @@ namespace RetroTerm.Core.Configuration
                     + "false is plain paper (the default)"),
                 new CommandParameter(PrinterBandColourArgument, CommandParameterType.String, required: false, defaultValue: null,
                     "IBM-3287-1 printer only, PDF with printer_tractor: the colour of the bands - Blue (the default) or Green",
-                    allowedValues: ConnectionFactory.TractorPaperColours.Choices)
+                    allowedValues: ConnectionFactory.TractorPaperColours.Choices),
+                new CommandParameter(PrinterAssociateArgument, CommandParameterType.String, required: false, defaultValue: null,
+                    "IBM-3287-1 printer only, TN3270E: the LU name of a display (the name the server gave that display, "
+                    + "shown on its line 25); the printer asks for that display's partner printer (RFC 2355 ASSOCIATE). "
+                    + "1 to 8 letters or digits; empty asks for any printer (the default). Plain TN3270 hosts ignore it")
             };
         }
 
@@ -436,7 +449,7 @@ namespace RetroTerm.Core.Configuration
         public static readonly string[] PrinterArgumentNames =
         {
             PrinterOutputArgument, PrinterFolderArgument, PrinterDeletePdfArgument, PrinterQuietSecondsArgument,
-            PrinterLinesPerPageArgument, PrinterTractorArgument, PrinterBandColourArgument
+            PrinterLinesPerPageArgument, PrinterTractorArgument, PrinterBandColourArgument, PrinterAssociateArgument
         };
 
         /// <summary>
@@ -626,6 +639,36 @@ namespace RetroTerm.Core.Configuration
                 choices.PrinterTractorColour = colour == ConnectionFactory.TractorPaperColours.Blue ? null : colour;
             }
 
+            if (args.Contains(PrinterAssociateArgument))
+            {
+                string? lu = args.GetString(PrinterAssociateArgument);
+                lu = string.IsNullOrWhiteSpace(lu) ? null : lu!.Trim();
+                if (lu != null)
+                {
+                    if (lu.Length > LuNameLength)
+                    {
+                        return "'" + PrinterAssociateArgument + "' is an LU name of at most 8 characters (RFC 2355 section 7.1.1), got " + lu;
+                    }
+
+                    for (int i = 0; i < lu.Length; i++)
+                    {
+                        char c = lu[i];
+                        bool letterOrDigit = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+                        if (!letterOrDigit && c != '@' && c != '#' && c != '$')
+                        {
+                            // Letters, digits and the three national characters: what an SNA
+                            // network name is made of (GA23-0061-2 does not hold the rule; the
+                            // RFC says only "NVT ASCII"). A space or a control byte would end or
+                            // break the subnegotiation.
+                            return "'" + PrinterAssociateArgument + "' may hold letters, digits, @, # and $ only, got " + lu;
+                        }
+                    }
+                }
+
+                choices.PrinterAssociateGiven = true;
+                choices.PrinterAssociate = lu;
+            }
+
             return null;
         }
 
@@ -719,6 +762,7 @@ namespace RetroTerm.Core.Configuration
                   .Append(config.PrinterLinesPerPage?.ToString(CultureInfo.InvariantCulture) ?? "none (a new sheet only on a form feed)").Append('\n');
                 sb.Append("tractor paper: ").Append(config.PrinterTractorPaper == true ? "yes" : "no").Append('\n');
                 sb.Append("band colour: ").Append(ConnectionFactory.TractorPaperColours.Normalise(config.PrinterTractorColour)).Append('\n');
+                sb.Append("TN3270E partner printer of display: ").Append(config.PrinterAssociate ?? "none (any printer)").Append('\n');
             }
         }
     }
@@ -832,6 +876,16 @@ namespace RetroTerm.Core.Configuration
         public string? PrinterTractorColour { get; set; }
 
         /// <summary>
+        /// Whether printer_associate was given.
+        /// </summary>
+        public bool PrinterAssociateGiven { get; set; }
+
+        /// <summary>
+        /// The display LU for TN3270E ASSOCIATE, or null for any printer.
+        /// </summary>
+        public string? PrinterAssociate { get; set; }
+
+        /// <summary>
         /// Puts what was given on a stored connection, leaving the rest as it is (CONNSAVE).
         /// </summary>
         /// <param name="config">
@@ -850,6 +904,7 @@ namespace RetroTerm.Core.Configuration
             if (PrinterLinesPerPageGiven) config.PrinterLinesPerPage = PrinterLinesPerPage;
             if (PrinterTractorGiven) config.PrinterTractorPaper = PrinterTractorPaper;
             if (PrinterBandColourGiven) config.PrinterTractorColour = PrinterTractorColour;
+            if (PrinterAssociateGiven) config.PrinterAssociate = PrinterAssociate;
         }
 
         /// <summary>
@@ -872,6 +927,7 @@ namespace RetroTerm.Core.Configuration
             parameters.PrinterLinesPerPage = PrinterLinesPerPage;
             parameters.PrinterTractorPaper = PrinterTractorPaper;
             parameters.PrinterTractorColour = PrinterTractorColour;
+            parameters.PrinterAssociate = PrinterAssociate;
         }
     }
 }

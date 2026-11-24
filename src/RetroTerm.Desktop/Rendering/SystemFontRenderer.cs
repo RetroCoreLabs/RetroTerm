@@ -119,6 +119,12 @@ public class SystemFontRenderer : IFontRenderer
             geometry = null;
             DrawEdgeBars(drawingContext, cell.Codepoint, x, y, brush);
         }
+        else if (cell.CharacterSet == SystemOperatorSymbolCharacterSet)
+        {
+            // The 3270 System Operator symbol on line 25: no font has it either.
+            geometry = null;
+            DrawSystemOperatorSymbol(drawingContext, x, y, brush);
+        }
         else
         {
             geometry = cell.CharacterSet == SoftFontCharacterSet
@@ -166,6 +172,66 @@ public class SystemFontRenderer : IFontRenderer
     /// </summary>
     private const byte EdgeBarCharacterSet =
         RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.EdgeBarCharacterSet;
+
+    /// <summary>
+    /// The character-set number that marks a cell as the 3270 System Operator symbol.
+    /// </summary>
+    private const byte SystemOperatorSymbolCharacterSet =
+        RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.SystemOperatorSymbolCharacterSet;
+
+    /// <summary>
+    /// Draws the 3270 System Operator symbol: an outlined box holding a stick figure, a small
+    /// square head at the top, a crossbar for the arms, a body down the middle and two legs to
+    /// the bottom corners.
+    /// </summary>
+    /// <remarks>
+    /// The shape is the one GA23-0061-2 Appendix B p. B-2 prints (the page image, zoomed, 24
+    /// November 2026). The proportions are read off that small print, not from a stated
+    /// measure; the manual gives none. One-pixel lines snapped to whole pixels, as
+    /// <see cref="DrawEdgeBars"/> does.
+    /// </remarks>
+    /// <param name="drawingContext">
+    /// Where to draw.
+    /// </param>
+    /// <param name="x">
+    /// Left edge of the cell, in pixels.
+    /// </param>
+    /// <param name="y">
+    /// Top edge of the cell, in pixels.
+    /// </param>
+    /// <param name="brush">
+    /// The cell's foreground.
+    /// </param>
+    private void DrawSystemOperatorSymbol(DrawingContext drawingContext, double x, double y, IBrush brush)
+    {
+        double left = Math.Round(x + (_charWidth * 0.1));
+        double right = Math.Round(x + (_charWidth * 0.9));
+        double top = Math.Round(y + (_charHeight * 0.1));
+        double bottom = Math.Round(y + (_charHeight * 0.9));
+        double width = right - left;
+        double height = bottom - top;
+        double middle = Math.Round(left + (width / 2));
+
+        // The box.
+        drawingContext.FillRectangle(brush, new Rect(left, top, width, 1));
+        drawingContext.FillRectangle(brush, new Rect(left, bottom - 1, width, 1));
+        drawingContext.FillRectangle(brush, new Rect(left, top, 1, height));
+        drawingContext.FillRectangle(brush, new Rect(right - 1, top, 1, height));
+
+        // The head: a small square under the top edge.
+        double headSize = Math.Max(2, Math.Round(width * 0.3));
+        double headTop = Math.Round(top + (height * 0.12));
+        var pen = new Pen(brush, 1);
+        drawingContext.DrawRectangle(null, pen, new Rect(middle - (headSize / 2) + 0.5, headTop + 0.5, headSize - 1, headSize - 1));
+
+        // The arms across the box, the body down to the hips, the legs out to the bottom corners.
+        double arms = Math.Round(top + (height * 0.45));
+        double hips = Math.Round(top + (height * 0.65));
+        drawingContext.FillRectangle(brush, new Rect(left, arms, width, 1));
+        drawingContext.FillRectangle(brush, new Rect(middle, headTop + headSize, 1, hips - (headTop + headSize)));
+        drawingContext.DrawLine(pen, new Point(middle + 0.5, hips), new Point(left + 0.5, bottom - 1));
+        drawingContext.DrawLine(pen, new Point(middle + 0.5, hips), new Point(right - 0.5, bottom - 1));
+    }
 
     /// <summary>
     /// Draws the lines of an edge-bar cell: U+2551 a line down the left and the right edge,

@@ -73,6 +73,28 @@ namespace RetroTerm.Tests.Avalonia
         }
 
         [AvaloniaFact]
+        public void WhileTheSscpOwnsTheScreenColumnTwoDrawsTheSystemOperatorSymbol()
+        {
+            // GA23-0061-2 p. 5-35 and Appendix B p. B-2: the System Operator symbol, a stick
+            // figure in a box, in column 3 (from 1) while the SSCP-LU session owns the screen.
+            Ibm3270Emulator emulator = Screen(0);
+            emulator.Tn3270EChanged(true, "TCP00034", bindImage: true, sysReq: true);
+            emulator.Tn3270EHostMessageReceived(RetroTerm.Core.Protocols.Tn3270EHostMessage.SscpLuData, new byte[] { 0xC9, 0xD2, 0xD1 });
+
+            var cell = emulator.Buffer.GetCell(24, StatusLine3270.BoxColumn);
+            Assert.Equal(RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.SystemOperatorSymbolCharacterSet, cell.CharacterSet);
+            Assert.Equal(StatusLine3270.SystemOperatorSymbol.ToString(), cell.GetString());
+
+            using RenderedScreenshot shot = RenderedScreenshot.Capture(emulator, "ibm3270-line25-system-operator");
+            Assert.True(shot.CellHasInk(24, StatusLine3270.BoxColumn), "no ink at line 25 column 2: " + shot.SavedPath);
+
+            // 3270 data takes the screen back: My Job, the reverse-video box, again.
+            emulator.ProcessData(new byte[] { Command3270.Write, 0x02 });
+            Assert.NotEqual(RetroTerm.Core.Terminal.Emulators.TerminalEmulatorBase.SystemOperatorSymbolCharacterSet,
+                emulator.Buffer.GetCell(24, StatusLine3270.BoxColumn).CharacterSet);
+        }
+
+        [AvaloniaFact]
         public void EnterShowsXWait()
         {
             Ibm3270Emulator emulator = Screen(0);

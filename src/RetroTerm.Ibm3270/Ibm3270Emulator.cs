@@ -1516,6 +1516,17 @@ namespace RetroTerm.Ibm3270
                     StatusLine3270.OnlineColumn => CharacterAttributes.Underline,
                     _ => CharacterAttributes.None,
                 };
+
+                // The System Operator symbol (the SSCP-LU session owns the screen) is an outlined
+                // stick figure, not a reverse-video box (GA23-0061-2 p. B-2), and no font has it:
+                // the renderer draws it (TerminalEmulatorBase.SystemOperatorSymbolCharacterSet).
+                if (column == StatusLine3270.BoxColumn && line[column] == StatusLine3270.SystemOperatorSymbol)
+                {
+                    Buffer.SetCell(_statusRow, column, new TerminalCell(line[column], CharacterAttributes.None, NeutralWhite, NeutralBlack,
+                        TerminalEmulatorBase.SystemOperatorSymbolCharacterSet));
+                    continue;
+                }
+
                 Buffer.SetCell(_statusRow, column, new TerminalCell(line[column], flags, NeutralWhite, NeutralBlack));
             }
         }

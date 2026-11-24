@@ -63,8 +63,15 @@ namespace RetroTerm.Ibm3270
     /// What Hercules and TK5 actually send at the end of a job has not been measured; see
     /// docs\IBM3270-INTRODUCTION.md, "Printing".
     /// </para>
+    /// <para>
+    /// <b>TN3270E</b> (RFC 2355): the same printer takes SCS-DATA (Printer3287.ProcessScs) and
+    /// 3270-DATA, says how each record went for the RESPONSES function
+    /// (<see cref="IHostRecordOutcomeTerminal"/>), and ends a job on PRINT-EOJ, which the
+    /// connection passes on as the same end-of-job signal as Abort Output. One printer, two
+    /// transports. Built 24 November 2026 from the RFC; no real TN3270E host has sent it a job.
+    /// </para>
     /// </remarks>
-    public sealed class Ibm3287PrinterEmulator : TerminalEmulatorBase, IConnectionStatusAware, IPrintJobEndAware
+    public sealed class Ibm3287PrinterEmulator : TerminalEmulatorBase, IConnectionStatusAware, IPrintJobEndAware, ITn3270EAware, IHostRecordOutcomeTerminal
     {
         /// <summary>
         /// The terminal type a 3287 announces: the only printer name Hercules accepts ("The only
@@ -98,6 +105,10 @@ namespace RetroTerm.Ibm3270
         private DateTime _lastDataUtc;
         private string? _lastProblem;
         private int _jobNumber;
+
+        // True while the connection runs TN3270E, and the printer LU the server gave.
+        private bool _inTn3270E;
+        private string? _luName;
 
         /// <summary>
         /// Creates a printer on the system clock.
@@ -195,6 +206,74 @@ namespace RetroTerm.Ibm3270
         }
 
         /// <summary>
+        /// Gets how the last record went (3270 or SCS), for a TN3270E response.
+        /// </summary>
+        public HostRecordOutcome LastRecordOutcome => _printer.LastOutcome;
+
+        /// <summary>
+        /// Gets a value indicating whether the connection runs TN3270E.
+        /// </summary>
+        public bool InTn3270E => _inTn3270E;
+
+        /// <summary>
+        /// A printer has no keys, so it never raises this.
+        /// </summary>
+        event Tn3270EKeyHandler? ITn3270EAware.Tn3270EKeyPressed
+        {
+            add { }
+            remove { }
+        }
+
+        /// <summary>
+        /// The connection's TN3270E state changed; the status screen shows it and the printer LU.
+        /// </summary>
+        /// <param name="on">
+        /// True when TN3270E is in force.
+        /// </param>
+        /// <param name="luName">
+        /// The printer's LU name the server gave, or null.
+        /// </param>
+        /// <param name="bindImage">
+        /// Not used by a printer.
+        /// </param>
+        /// <param name="sysReq">
+        /// Not used by a printer.
+        /// </param>
+        public void Tn3270EChanged(bool on, string? luName, bool bindImage, bool sysReq)
+        {
+            _inTn3270E = on;
+            _luName = on ? luName : null;
+            Repaint();
+        }
+
+        /// <summary>
+        /// A TN3270E message that is not 3270 data: SCS-DATA is printed; anything else is not
+        /// printer data and is reported.
+        /// </summary>
+        /// <param name="kind">
+        /// What it is.
+        /// </param>
+        /// <param name="data">
+        /// Its data part.
+        /// </param>
+        public void Tn3270EHostMessageReceived(Tn3270EHostMessage kind, ReadOnlySpan<byte> data)
+        {
+            if (kind == Tn3270EHostMessage.ScsData)
+            {
+                _lastDataUtc = _utcNow();
+                _printer.ProcessScs(data);
+                Repaint();
+                return;
+            }
+
+            // The printer asks for neither BIND-IMAGE nor SYSREQ, so the connection refuses those
+            // messages before they get here; NVT text is basic TN3270E, which "refers to terminal
+            // sessions only" (RFC 2355 section 9).
+            OnProtocolError("TN3270E " + kind + " message on a printer session was not printed (" + data.Length.ToString(CultureInfo.InvariantCulture) + " bytes).");
+            Repaint();
+        }
+
+        /// <summary>
         /// Shows the connection state; a closed connection ends the job in progress.
         /// </summary>
         /// <param name="status">
@@ -216,7 +295,7 @@ namespace RetroTerm.Ibm3270
         /// </summary>
         public void EndOfJobReceived()
         {
-            EndJob("the host (telnet Abort Output)");
+            EndJob(_inTn3270E ? "the host (TN3270E PRINT-EOJ)" : "the host (telnet Abort Output)");
             Repaint();
         }
 
@@ -300,11 +379,13 @@ namespace RetroTerm.Ibm3270
                 PutLine(row, string.Empty);
             }
 
-            PutLine(0, "IBM 3287 printer   terminal type " + TerminalType + ", plain TN3270");
+            PutLine(0, "IBM 3287 printer   terminal type " + TerminalType + (_inTn3270E
+                ? ", TN3270E" + (_luName != null ? ", LU " + _luName : string.Empty)
+                : ", plain TN3270"));
             PutLine(2, "Connection: " + ConnectionText(_connection));
             PutLine(3, "State:      " + StateText());
             PutLine(4, "Output:     " + KeepEnd(_output.Description, ScreenColumns - 12));
-            PutLine(5, "Job end:    telnet Abort Output, the connection closing" + (_quietSeconds > 0
+            PutLine(5, "Job end:    " + (_inTn3270E ? "PRINT-EOJ" : "telnet Abort Output") + ", the connection closing" + (_quietSeconds > 0
                 ? ", or " + _quietSeconds.ToString(CultureInfo.InvariantCulture) + " s with no data"
                 : " (no quiet time)"));
             PutLine(7, "Problem:    " + (_lastProblem ?? "none"));

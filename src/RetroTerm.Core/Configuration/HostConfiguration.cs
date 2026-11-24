@@ -141,6 +141,12 @@ public class HostConfiguration
     public int? PrinterQuietSeconds { get; set; }
 
     /// <summary>
+    /// IBM 3287 printer connections only: the display LU whose partner printer TN3270E asks for
+    /// (RFC 2355 section 7.1.3, ASSOCIATE); null to ask for any printer.
+    /// </summary>
+    public string? PrinterAssociate { get; set; }
+
+    /// <summary>
     /// IBM 3287 printer connections, PDF only: a new sheet after this many lines as well as on a
     /// Form Feed; null for a new sheet only on a Form Feed. TK5 needs 56 (Ronny, 23 November 2026).
     /// </summary>
@@ -376,6 +382,7 @@ public class HostConfiguration
             PrinterLinesPerPage = PrinterLinesPerPage,
             PrinterTractorPaper = PrinterTractorPaper,
             PrinterTractorColour = PrinterTractorColour,
+            PrinterAssociate = PrinterAssociate,
             NewLineReceive = NewLineReceive,
             NewLineTransmit = NewLineTransmit,
             LocalEcho = LocalEcho,
@@ -430,6 +437,7 @@ public class HostConfiguration
             PrinterLinesPerPage = PrinterLinesPerPage,
             PrinterTractorPaper = PrinterTractorPaper,
             PrinterTractorColour = PrinterTractorColour,
+            PrinterAssociate = string.IsNullOrWhiteSpace(PrinterAssociate) ? null : PrinterAssociate.Trim(),
             NewLineReceive = string.IsNullOrWhiteSpace(NewLineReceive) ? "AUTO" : NewLineReceive,
             NewLineTransmit = string.IsNullOrWhiteSpace(NewLineTransmit) ? "CR" : NewLineTransmit,
             LocalEcho = LocalEcho,
