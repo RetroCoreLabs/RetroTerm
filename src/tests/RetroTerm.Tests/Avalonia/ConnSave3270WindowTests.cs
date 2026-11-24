@@ -40,6 +40,96 @@ public class ConnSave3270WindowTests
         throw new Xunit.Sdk.XunitException("no ComboBox named " + name);
     }
 
+    private static T FindNamed<T>(Window window, string name) where T : Control
+    {
+        var all = new List<ILogical>(window.GetLogicalDescendants());
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] is T control && control.Name == name)
+            {
+                return control;
+            }
+        }
+        throw new Xunit.Sdk.XunitException("no " + typeof(T).Name + " named " + name);
+    }
+
+    [AvaloniaFact]
+    public async Task ConnSaveDoubleClickAndCardReaderShowInTheWindow()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var manager = new ConfigurationManager(path);
+            var registry = new CommandRegistry();
+            ConnectionCommands.RegisterAll(registry, manager);
+            using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+            var saved = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+                .Set("name", "tk5").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+                .Set("doubleclick", "select").Set("reader_port", "3505").Set("reader_host", "reader.lab"));
+            Assert.True(saved.Success, saved.Error);
+
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "tk5")!);
+
+            window.ShowKeyboardTabForTesting();
+            Assert.Equal(ManageConnectionsWindow.DoubleClickSelectsWordText, Find(window, "DoubleClickCombo").SelectedItem);
+
+            window.ShowProtocolTabForTesting();
+            Assert.Equal("3505", FindNamed<TextBox>(window, "CardReaderPortBox").Text);
+            Assert.Equal("reader.lab", FindNamed<TextBox>(window, "CardReaderHostBox").Text);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ConnSavePrinterSettingsShowInTheWindow()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var manager = new ConfigurationManager(path);
+            var registry = new CommandRegistry();
+            ConnectionCommands.RegisterAll(registry, manager);
+            using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+            var saved = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+                .Set("name", "prt").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+                .Set("emulator", "IBM-3287-1")
+                .Set("printer_output", "Printer").Set("printer_folder", "jobs").Set("printer_delete_pdf", "true")
+                .Set("printer_quiet_seconds", "7").Set("printer_lines_per_page", "56")
+                .Set("printer_tractor", "true").Set("printer_band_colour", "Green"));
+            Assert.True(saved.Success, saved.Error);
+
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "prt")!);
+            window.ShowPrinterTabForTesting();
+
+            Assert.Equal(ManageConnectionsWindow.PrinterOutputPrinterText, Find(window, "PrinterOutputCombo").SelectedItem);
+            Assert.Equal("jobs", FindNamed<TextBox>(window, "PrinterFolderBox").Text);
+            Assert.True(FindNamed<CheckBox>(window, "PrinterDeletePdfCheck").IsChecked);
+            Assert.Equal("7", FindNamed<TextBox>(window, "PrinterQuietBox").Text);
+            Assert.Equal("56", FindNamed<TextBox>(window, "PrinterLinesPerPageBox").Text);
+            Assert.True(FindNamed<CheckBox>(window, "PrinterTractorCheck").IsChecked);
+            Assert.Equal(ManageConnectionsWindow.PrinterTractorGreenText, Find(window, "PrinterTractorColourCombo").SelectedItem);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
     [AvaloniaFact]
     public async Task ConnSaveModelAndCodePageShowInTheWindow()
     {

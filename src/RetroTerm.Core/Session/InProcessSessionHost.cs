@@ -44,7 +44,8 @@ public sealed class InProcessSessionHost : ITerminalSessionHost, IDisposable
 
         var emulator = EmulatorFactory.CreateEmulator(parameters.EmulatorType, parameters.Width, parameters.Height);
         var session = new TerminalSession(emulator, parameters.DisplayName);
-        (session.CardReaderHost, session.CardReaderPort) = ConnectionFactory.CardReaderAddress(parameters);
+        // The card reader and the double click, by the rule the desktop tab and CONNECT use.
+        Ibm3270ConnectionSettings.ApplyToSession(session, parameters);
         var connection = _connectionFactory(parameters);
 
         try

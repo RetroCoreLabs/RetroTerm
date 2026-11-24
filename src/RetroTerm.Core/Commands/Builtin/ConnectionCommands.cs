@@ -80,7 +80,7 @@ public sealed class ConnectCommand : ISessionCommand
         + "CONNECT protocol=serial port_name=COM11 baud=115200 parity=even data_bits=7";
     public bool ProducesOutput => true;
 
-    public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
+    public IReadOnlyList<CommandParameter> Parameters { get; } = Ibm3270ConnectionSettings.Join(new[]
     {
         new CommandParameter("name", CommandParameterType.String, required: false, defaultValue: null,
             "Stored connection name (CONNLIST shows them); when given, other parameters are ignored"),
@@ -111,7 +111,11 @@ public sealed class ConnectCommand : ISessionCommand
         // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
         Ibm3270ConnectionSettings.ModelParameter(),
         Ibm3270ConnectionSettings.CodePageParameter()
-    };
+    },
+    // The double click and the card reader: both work on the tab CONNECT runs in, so CONNECT
+    // takes them. The 3287 printer settings it does not (Ibm3270ConnectionSettings.PrinterArgumentNames
+    // says why).
+    Ibm3270ConnectionSettings.TabParameters());
 
     public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
     {
@@ -121,6 +125,7 @@ public sealed class ConnectCommand : ISessionCommand
         }
 
         ConnectionFactory.ConnectionParameters parameters;
+        Ibm3270Choices choices;
         var name = args.GetString("name");
         if (name != null)
         {
@@ -152,6 +157,13 @@ public sealed class ConnectCommand : ISessionCommand
                 return CommandResult.Fail("'" + Ibm3270ConnectionSettings.ModelArgument + "' is " + model
                     + " but this tab's terminal is " + session.Emulator.Profile.Name
                     + "; CONNECT keeps the tab's terminal - open a new one with terminal_open model=" + model);
+            }
+
+            // The double click and the card reader, checked against the terminal this tab has.
+            var problemChoices = Ibm3270ConnectionSettings.ReadChoices(args, protocol, session.Emulator.Profile.Name, out choices);
+            if (problemChoices != null)
+            {
+                return CommandResult.Fail(problemChoices);
             }
 
             if (protocol == ConnectionFactory.ProtocolType.Serial)
@@ -226,6 +238,7 @@ public sealed class ConnectCommand : ISessionCommand
                     EmulatorType = session.Emulator.GetType().Name,
                     CodePage = codePage
                 };
+                choices.ApplyTo(parameters);
             }
         }
 
@@ -246,6 +259,11 @@ public sealed class ConnectCommand : ISessionCommand
         {
             return CommandResult.Fail(codePageProblem);
         }
+
+        // The double click and the card reader SUBMIT sends to, given now or saved with the stored
+        // connection, by the rule the desktop tab and the headless host use. Always set, so a
+        // connection that names no card reader does not keep the one the tab had before.
+        Ibm3270ConnectionSettings.ApplyToSession(session, parameters);
 
         try
         {
@@ -380,6 +398,9 @@ public sealed class ConnShowCommand : ISessionCommand
               .Append(config.CodePage?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "37 (the terminal's default)")
               .Append('\n');
         }
+        // The double click, the card reader and the 3287 printer settings, each where it means
+        // something, by the same helper that reads them from CONNSAVE.
+        Ibm3270ConnectionSettings.Describe(config, sb);
         if (!string.IsNullOrEmpty(config.Username))
         {
             sb.Append("username: ").Append(config.Username).Append('\n');
@@ -419,7 +440,7 @@ public sealed class ConnSaveCommand : ISessionCommand
         + "CONNSAVE \"nexys\" protocol=Serial port_name=COM11 baud=115200 data_bits=7 parity=even";
     public bool ProducesOutput => true;
 
-    public IReadOnlyList<CommandParameter> Parameters { get; } = new[]
+    public IReadOnlyList<CommandParameter> Parameters { get; } = Ibm3270ConnectionSettings.Join(new[]
     {
         new CommandParameter("name", CommandParameterType.String, required: true, defaultValue: null,
             "Connection name (unique, case-insensitive)"),
@@ -463,7 +484,11 @@ public sealed class ConnSaveCommand : ISessionCommand
         // in CodePage (the code page box).
         Ibm3270ConnectionSettings.ModelParameter(),
         Ibm3270ConnectionSettings.CodePageParameter()
-    };
+    },
+    // The double click, the card reader and the 3287 printer settings, saved where the window's
+    // Keyboard, Protocol and Printer tabs read them.
+    Ibm3270ConnectionSettings.TabParameters(),
+    Ibm3270ConnectionSettings.PrinterParameters());
 
     public async Task<CommandResult> ExecuteAsync(TerminalSession session, CommandArgs args, CancellationToken cancellationToken)
     {
@@ -504,6 +529,20 @@ public sealed class ConnSaveCommand : ISessionCommand
         }
         bool modelGiven = args.Contains(Ibm3270ConnectionSettings.ModelArgument);
 
+        // The terminal the saved connection ends up with: the model or emulator given now, else
+        // the one already stored. A TN3270 one is what the protocol allows (EmulatorTypeFor),
+        // which is what decides whether the printer settings apply.
+        string? effectiveTerminal = modelGiven ? terminal3270 : args.GetString("emulator") ?? existing?.EmulatorType;
+        if (effectiveProtocol == ConnectionFactory.ProtocolType.TN3270)
+        {
+            effectiveTerminal = ConnectionFactory.EmulatorTypeFor(effectiveProtocol, effectiveTerminal);
+        }
+        var problemChoices = Ibm3270ConnectionSettings.ReadChoices(args, effectiveProtocol, effectiveTerminal, out var choices);
+        if (problemChoices != null)
+        {
+            return CommandResult.Fail(problemChoices);
+        }
+
         if (existing == null)
         {
             // The terminal's own screen unless the caller gives a size. A TDV saved from a script
@@ -529,6 +568,7 @@ public sealed class ConnSaveCommand : ISessionCommand
                 OnDisconnectScript = NullIfEmpty(args.GetString("ondisconnect")),
                 CodePage = codePage
             };
+            choices.ApplyTo(config);
 
             if (isSerial)
             {
@@ -586,6 +626,7 @@ public sealed class ConnSaveCommand : ISessionCommand
             (existing.Width, existing.Height) = EmulatorFactory.GetRecommendedSize(existing.EmulatorType);
         }
         if (codePage != null) existing.CodePage = codePage;
+        choices.ApplyTo(existing);
         if (args.Contains("username")) existing.Username = args.GetString("username");
         if (args.Contains("width")) existing.Width = args.GetInt("width", existing.Width);
         if (args.Contains("height")) existing.Height = args.GetInt("height", existing.Height);

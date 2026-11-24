@@ -97,6 +97,8 @@ public sealed class RetroTermToolProvider
             "name=<stored connection> (terminal_connlist shows them, serial included; other " +
             "parameters are then ignored), host+port for ad-hoc telnet/ssh, or " +
             "protocol=serial with port_name (+ baud, data_bits, parity, stop_bits) for ad-hoc serial.",
+            Ibm3270ConnectionSettings.Join(new[]
+            {
             Text("name", false, "Stored connection name — opens it exactly as saved, serial included; " +
                                 "every other parameter is ignored"),
             // The allowed words are declared on the argument (BUGS.md B20), so a misspelled
@@ -119,7 +121,12 @@ public sealed class RetroTermToolProvider
             // The two 3270 choices, the same declarations CONNECT and CONNSAVE use, with the
             // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
             Ibm3270ConnectionSettings.ModelParameter(),
-            Ibm3270ConnectionSettings.CodePageParameter()),
+            Ibm3270ConnectionSettings.CodePageParameter()
+            },
+            // The double click, the card reader and the 3287 printer settings: the same
+            // declarations CONNSAVE uses. The tab is new, so the printer settings apply too.
+            Ibm3270ConnectionSettings.TabParameters(),
+            Ibm3270ConnectionSettings.PrinterParameters())),
 
         new HandWrittenTool("terminal_close",
             "Close a terminal session opened with terminal_open.",
@@ -332,6 +339,7 @@ public sealed class RetroTermToolProvider
     private async Task<CallToolResult> OpenAsync(IDictionary<string, JsonElement>? args, CancellationToken ct)
     {
         ConnectionFactory.ConnectionParameters parameters;
+        Ibm3270Choices? choices = null;
 
         var name = GetString(args, "name");
         if (name != null)
@@ -362,6 +370,10 @@ public sealed class RetroTermToolProvider
         else if (Check3270(args, out var terminal3270, out var codePage) is string problem3270)
         {
             return Error("terminal_open: " + problem3270);
+        }
+        else if (CheckChoices(args, terminal3270, out choices) is string problemChoices)
+        {
+            return Error("terminal_open: " + problemChoices);
         }
         else if (ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet")
                  == ConnectionFactory.ProtocolType.Serial)
@@ -427,6 +439,7 @@ public sealed class RetroTermToolProvider
                 Username = GetString(args, "username"),
                 Password = GetString(args, "password")
             };
+            choices!.ApplyTo(parameters);
 
             // The OPCOM simulator runs inside RetroTerm and has no host to name.
             if (parameters.Host.Length == 0 && parameters.Protocol != ConnectionFactory.ProtocolType.OpcomSimulator)
@@ -450,6 +463,34 @@ public sealed class RetroTermToolProvider
             GetString(args, Ibm3270ConnectionSettings.ModelArgument),
             GetString(args, Ibm3270ConnectionSettings.CodePageArgument),
             out terminal, out codePage);
+    }
+
+    // terminal_open's double click, card reader and printer arguments, by the rule CONNECT and
+    // CONNSAVE use (Ibm3270ConnectionSettings.ReadChoices), against the terminal the open will
+    // make. The values are handed over as script arguments, as text, so the one reader sees the
+    // same thing on both surfaces; types and words are already checked against the declarations.
+    private static string? CheckChoices(IDictionary<string, JsonElement>? args, string? terminal3270, out Ibm3270Choices choices)
+    {
+        var protocol = ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet");
+        var asCommand = new CommandArgs();
+        CopyArguments(args, Ibm3270ConnectionSettings.TabParameters(), asCommand);
+        CopyArguments(args, Ibm3270ConnectionSettings.PrinterParameters(), asCommand);
+        string? terminal = protocol == ConnectionFactory.ProtocolType.TN3270
+            ? ConnectionFactory.EmulatorTypeFor(protocol, terminal3270)
+            : GetString(args, "emulator");
+        return Ibm3270ConnectionSettings.ReadChoices(asCommand, protocol, terminal, out choices);
+    }
+
+    private static void CopyArguments(IDictionary<string, JsonElement>? args, CommandParameter[] declared, CommandArgs into)
+    {
+        for (int i = 0; i < declared.Length; i++)
+        {
+            string? value = GetString(args, declared[i].Name);
+            if (value != null)
+            {
+                into.Set(declared[i].Name, value);
+            }
+        }
     }
 
     private async Task<CallToolResult> CloseAsync(IDictionary<string, JsonElement>? args)

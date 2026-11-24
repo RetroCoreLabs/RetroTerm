@@ -66,16 +66,12 @@ public sealed class TabSession : IDisposable
                 _ = Core.Configuration.Ibm3270ConnectionSettings.ApplyCodePageAsync(Session, codePage);
             }
 
-            // What a double click does on a 3270; null keeps the terminal's default (press Enter).
-            // Read on the UI thread by the canvas, so it is set here and not on the session thread.
-            if (Session.Emulator is Core.Terminal.Input.IPointerCursorTerminal pointer)
-            {
-                pointer.DoubleClickPressesEnter = value?.DoubleClickPressesEnter ?? true;
-            }
-
-            // The card reader SUBMIT sends to. One rule for every way a tab is opened, through
-            // ConnectionFactory.CardReaderAddress; no port means no reader, and SUBMIT refuses.
-            (Session.CardReaderHost, Session.CardReaderPort) = ConnectionFactory.CardReaderAddress(value);
+            // What a double click does on a 3270 (null keeps the terminal's default, press Enter;
+            // read on the UI thread by the canvas, so it is set here and not on the session
+            // thread), and the card reader SUBMIT sends to (no port means no reader, and SUBMIT
+            // refuses). One rule for every way a tab is opened: the same helper the headless host
+            // and CONNECT use.
+            Core.Configuration.Ibm3270ConnectionSettings.ApplyToSession(Session, value);
 
             // A 3287 printer connection: where its jobs go and when a job ends, from the
             // connection's Printer tab. Applied on the session thread, like the code page.
