@@ -80,7 +80,9 @@ public class TerminalSizeBoxTests
 
             Assert.Equal("IBM-3278", terminal.SelectedItem);
             Assert.Equal("132x27 (model 5)", size.SelectedItem);
-            Assert.False(size.IsEditable);
+            // Editable since 24 November 2026: the list is still the four models, and a screen
+            // larger than the model's may be typed in (ATypedSizeMakesA3278Larger... below).
+            Assert.True(size.IsEditable);
             Assert.Equal("IBM-3278-5", window.ProfileForTesting.EmulatorType);
 
             size.SelectedItem = "80x43 (model 4)";
@@ -135,6 +137,72 @@ public class TerminalSizeBoxTests
             Assert.False(saved.DoubleClickPressesEnter);
             Assert.False(saved.ToConnectionParameters().DoubleClickPressesEnter);
         });
+    }
+
+    [AvaloniaFact]
+    public void ATypedSizeMakesA3278LargerAndARefusalIsShownUnderTheBox()
+    {
+        WithWindow(window =>
+        {
+            window.LoadProfileForTesting(new HostConfiguration { Name = "big", Protocol = "TN3270", Host = "localhost", Port = 3270, EmulatorType = "IBM-3278-2" });
+            ComboBox size = Find(window, "SizeCombo");
+            TextBlock problem = FindNamed<TextBlock>(window, "SizeProblem");
+            Assert.False(problem.IsVisible);
+
+            // A larger screen keeps the model and is stored as typed.
+            size.Text = "100x50";
+            Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
+            Assert.Equal("100x50", window.ProfileForTesting.Ibm3270ScreenSize);
+            Assert.False(problem.IsVisible);
+
+            // Past the emulator's own limit: said under the box, and the stored screen stays.
+            size.Text = "128x128";
+            Assert.True(problem.IsVisible);
+            Assert.Contains("at most 16383", problem.Text, System.StringComparison.Ordinal);
+            Assert.Equal("100x50", window.ProfileForTesting.Ibm3270ScreenSize);
+
+            // A picture of the refusal under the box, to look at (images\rendered).
+            using (var frame = global::Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(window))
+            {
+                string folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(TerminalSizeBoxTests).Assembly.Location)!,
+                    "..", "..", "..", "Avalonia", "images", "rendered");
+                System.IO.Directory.CreateDirectory(folder);
+                using var file = System.IO.File.Create(System.IO.Path.Combine(folder, "manage-connections-3278-screen-refused.png"));
+                frame!.Save(file, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            }
+
+            // Narrower than the model: refused by the same rule.
+            size.Text = "70x50";
+            Assert.Contains("at least 80 columns", problem.Text, System.StringComparison.Ordinal);
+            Assert.Equal("100x50", window.ProfileForTesting.Ibm3270ScreenSize);
+
+            // A model's own size picks that model, with no larger screen.
+            size.Text = "132x27";
+            Assert.Equal("IBM-3278-5", window.ProfileForTesting.EmulatorType);
+            Assert.Null(window.ProfileForTesting.Ibm3270ScreenSize);
+            Assert.False(problem.IsVisible);
+
+            // And picking a model from the list goes back to that model's own screen.
+            size.Text = "140x40";
+            Assert.Equal("140x40", window.ProfileForTesting.Ibm3270ScreenSize);
+            size.SelectedItem = "80x43 (model 4)";
+            Assert.Equal("IBM-3278-4", window.ProfileForTesting.EmulatorType);
+            Assert.Null(window.ProfileForTesting.Ibm3270ScreenSize);
+        });
+    }
+
+    private static T FindNamed<T>(ManageConnectionsWindow window, string name) where T : Control
+    {
+        var all = new List<ILogical>(window.GetLogicalDescendants());
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] is T control && control.Name == name)
+            {
+                return control;
+            }
+        }
+
+        throw new Xunit.Sdk.XunitException("no " + typeof(T).Name + " named " + name);
     }
 
     private static void WithWindow(System.Action<ManageConnectionsWindow> test)

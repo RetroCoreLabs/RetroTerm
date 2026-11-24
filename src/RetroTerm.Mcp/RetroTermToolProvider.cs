@@ -121,7 +121,9 @@ public sealed class RetroTermToolProvider
             // The two 3270 choices, the same declarations CONNECT and CONNSAVE use, with the
             // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
             Ibm3270ConnectionSettings.ModelParameter(),
-            Ibm3270ConnectionSettings.CodePageParameter()
+            Ibm3270ConnectionSettings.CodePageParameter(),
+            // A screen larger than the model's, the same declaration CONNECT and CONNSAVE use.
+            Ibm3270ConnectionSettings.ScreenSizeParameter()
             },
             // The double click, the card reader and the 3287 printer settings: the same
             // declarations CONNSAVE uses. The tab is new, so the printer settings apply too.
@@ -375,6 +377,13 @@ public sealed class RetroTermToolProvider
         {
             return Error("terminal_open: " + problemChoices);
         }
+        else if (Ibm3270ConnectionSettings.CheckScreenSize(
+                     ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet"), terminal3270,
+                     GetString(args, Ibm3270ConnectionSettings.ScreenSizeArgument), out var screenSize) is string problemScreen)
+        {
+            // The screen size, by the rule CONNECT and CONNSAVE use: the emulator's own limits.
+            return Error("terminal_open: " + problemScreen);
+        }
         else if (ConnectionFactory.ParseProtocolType(GetString(args, "protocol") ?? "telnet")
                  == ConnectionFactory.ProtocolType.Serial)
         {
@@ -431,6 +440,7 @@ public sealed class RetroTermToolProvider
             {
                 Protocol = netProtocol,
                 CodePage = codePage,
+                Ibm3270ScreenSize = screenSize,
                 Host = GetString(args, "host") ?? string.Empty,
                 Port = GetInt(args, "port", 23),
                 EmulatorType = netEmulator,
@@ -450,7 +460,8 @@ public sealed class RetroTermToolProvider
         }
 
         var id = await _host.OpenSessionAsync(parameters, ct).ConfigureAwait(false);
-        return Ok($"sessionId: {id}\nconnected to {parameters.DisplayName} as {parameters.EmulatorType}");
+        return Ok($"sessionId: {id}\nconnected to {parameters.DisplayName} as {parameters.EmulatorType}"
+            + (parameters.Ibm3270ScreenSize != null ? $" with a {parameters.Ibm3270ScreenSize} screen" : ""));
     }
 
     // terminal_open's model and codepage, by the rule CONNECT and CONNSAVE use

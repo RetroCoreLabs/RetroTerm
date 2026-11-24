@@ -25,7 +25,9 @@ namespace RetroTerm.Core.Configuration
     /// ConnectionFactory.Ibm3278Models (the size box's models) and
     /// ConnectionFactory.Ibm3270CodePageNumbers (RetroIO's CodePage.All, the code page box).
     /// The screen size of a 3278 is its model (RFC 1576 section 4), so the model is also the
-    /// screen-size choice; width and height do not apply to one.
+    /// screen-size choice; width and height do not apply to one. A screen LARGER than the model's
+    /// is the screen_size argument (<see cref="CheckScreenSize"/>, 24 November 2026), held to the
+    /// emulator's own limits; the host is then told IBM-DYNAMIC (RFC 2355 section 7.1).
     /// </remarks>
     public static class Ibm3270ConnectionSettings
     {
@@ -65,6 +67,133 @@ namespace RetroTerm.Core.Configuration
                 "TN3270 only: the EBCDIC code page by its IBM number (277 for Denmark and Norway); "
                 + "the default is 37 (USA, Canada). One of: " + string.Join(", ", ConnectionFactory.Ibm3270CodePageNumbers),
                 allowedValues: ConnectionFactory.Ibm3270CodePageNumbers);
+        }
+
+        /// <summary>
+        /// The name of the screen size argument.
+        /// </summary>
+        public const string ScreenSizeArgument = "screen_size";
+
+        /// <summary>
+        /// The screen size argument: a 3278 screen larger than its model's, as columns x rows.
+        /// </summary>
+        /// <returns>
+        /// A new parameter description.
+        /// </returns>
+        public static CommandParameter ScreenSizeParameter()
+        {
+            return new CommandParameter(ScreenSizeArgument, CommandParameterType.String, required: false, defaultValue: null,
+                "TN3270 display only: a screen larger than the model's, as columns x rows, such as 100x50; "
+                + "the host is then told IBM-DYNAMIC and reads the size from the Query Reply. Each side at least "
+                + "the model's, at most " + MaximumScreenCells.ToString(CultureInfo.InvariantCulture)
+                + " cells; empty or the model's own size means the model's own screen (the default)");
+        }
+
+        // The emulator's cell limit, Ibm3270Emulator.MaximumCells (14-bit buffer addresses), for
+        // the help text only; the check itself is the emulator's (ConnectionFactory.CheckIbm3270ScreenSize).
+        private const int MaximumScreenCells = 0x3FFF;
+
+        /// <summary>
+        /// Checks a screen size against the protocol, the terminal and the emulator's own limits
+        /// (ConnectionFactory.CheckIbm3270ScreenSize, which asks Ibm3270Emulator.CheckScreenSize),
+        /// and works out what to store. The one rule for terminal_open, CONNECT and CONNSAVE.
+        /// </summary>
+        /// <param name="protocol">
+        /// The protocol the connection uses.
+        /// </param>
+        /// <param name="terminal">
+        /// The terminal the connection uses (a 3278 model, or IBM-3287-1), or null for the
+        /// protocol's default, the model 2.
+        /// </param>
+        /// <param name="text">
+        /// The screen_size argument, or null when it was not given.
+        /// </param>
+        /// <param name="screenSize">
+        /// What to store: such as "100x50", or null for the model's own screen (the argument was
+        /// empty, or the model's own size).
+        /// </param>
+        /// <returns>
+        /// Null when it fits, else what is wrong, naming the argument.
+        /// </returns>
+        public static string? CheckScreenSize(ConnectionFactory.ProtocolType protocol, string? terminal, string? text, out string? screenSize)
+        {
+            screenSize = null;
+            if (text == null)
+            {
+                return null;
+            }
+
+            if (protocol != ConnectionFactory.ProtocolType.TN3270)
+            {
+                return "'" + ScreenSizeArgument + "' only applies with protocol=tn3270";
+            }
+
+            if (string.Equals(terminal, ConnectionFactory.Ibm3287, StringComparison.OrdinalIgnoreCase))
+            {
+                return "'" + ScreenSizeArgument + "' is for a 3278 display, not the " + ConnectionFactory.Ibm3287 + " printer";
+            }
+
+            if (text.Trim().Length == 0)
+            {
+                return null;
+            }
+
+            string model = ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, terminal);
+            int modelNumber = model[model.Length - 1] - '0';
+            string? problem = ConnectionFactory.CheckIbm3270ScreenSize(modelNumber, text, out int columns, out int rows);
+            if (problem != null)
+            {
+                return "'" + ScreenSizeArgument + "' " + text.Trim() + " for " + model + ": " + problem;
+            }
+
+            string size = TerminalSizeChoices.Format(columns, rows);
+            screenSize = size == ModelScreen(model) ? null : size;
+            return null;
+        }
+
+        /// <summary>
+        /// A tab's 3278 written the way a connection stores it: the model's name and, when the
+        /// screen is larger than the model's, that screen. CONNECT keeps the tab's terminal, so
+        /// this is what it tells the host and what a model or screen_size it is given must match.
+        /// </summary>
+        /// <param name="terminal">
+        /// The tab's terminal.
+        /// </param>
+        /// <param name="model">
+        /// Such as "IBM-3278-2".
+        /// </param>
+        /// <param name="screenSize">
+        /// Such as "100x50", or null for the model's own screen.
+        /// </param>
+        public static void Describe(IModelScreenTerminal terminal, out string model, out string? screenSize)
+        {
+            if (terminal == null) throw new ArgumentNullException(nameof(terminal));
+            model = "IBM-3278-" + terminal.Model.ToString(CultureInfo.InvariantCulture);
+            screenSize = terminal.IsOversize ? TerminalSizeChoices.Format(terminal.AlternateScreenColumns, terminal.AlternateScreenRows) : null;
+        }
+
+        /// <summary>
+        /// A screen as a person reads it: "100x50" or "80x24 (the model's own)".
+        /// </summary>
+        /// <param name="model">
+        /// The model, such as "IBM-3278-2".
+        /// </param>
+        /// <param name="screenSize">
+        /// The larger screen, or null for the model's own.
+        /// </param>
+        /// <returns>
+        /// The text.
+        /// </returns>
+        public static string ScreenText(string model, string? screenSize)
+        {
+            return screenSize ?? ModelScreen(model) + " (the model's own)";
+        }
+
+        // A 3278 model's own screen, columns x rows, from the model table.
+        private static string ModelScreen(string model)
+        {
+            int index = Array.IndexOf(ConnectionFactory.Ibm3278Models, model);
+            return index < 0 ? string.Empty : ConnectionFactory.Ibm3278ModelSizes[index];
         }
 
         /// <summary>
@@ -547,6 +676,18 @@ namespace RetroTerm.Core.Configuration
 
             if (isTn3270 && !isPrinter)
             {
+                // The screen the host gets on Erase/Write Alternate, and the name it is told.
+                string model = ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, config.EmulatorType);
+                if (string.IsNullOrWhiteSpace(config.Ibm3270ScreenSize))
+                {
+                    sb.Append("screen: ").Append(ModelScreen(model)).Append(" (the model's own)\n");
+                }
+                else
+                {
+                    sb.Append("screen: ").Append(config.Ibm3270ScreenSize!.Trim())
+                      .Append(" (larger than the model's ").Append(ModelScreen(model)).Append(", announced as IBM-DYNAMIC)\n");
+                }
+
                 sb.Append("double click: ")
                   .Append(config.DoubleClickPressesEnter == false ? DoubleClickSelect + " (select the word)" : DoubleClickEnter + " (move the cursor there and press Enter)")
                   .Append('\n');

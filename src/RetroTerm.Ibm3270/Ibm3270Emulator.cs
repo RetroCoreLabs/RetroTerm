@@ -43,7 +43,7 @@ namespace RetroTerm.Ibm3270
     /// 80 to the host.
     /// </para>
     /// </remarks>
-    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware, IRuledRowTerminal, IHostRecordOutcomeTerminal
+    public sealed class Ibm3270Emulator : TerminalEmulatorBase, ILocalKeyboard, INamedKeyTerminal, IHasOnScreenKeyboards, IConnectionStatusAware, IBreakSource, IStatusLineTerminal, IPointerCursorTerminal, IFieldPaste, IFieldScreen, IHostFileTransfer, ICodePageTerminal, ITn3270EAware, IRuledRowTerminal, IHostRecordOutcomeTerminal, IModelScreenTerminal
     {
         // The 3279 colours as x3270 draws them in RGB mode: Common\c3270\cscreen.c, rgbmap (the
         // table wc3270 also takes its blue from, remap_blue in wc3270\screen.c). Fixed RGB, not
@@ -164,7 +164,7 @@ namespace RetroTerm.Ibm3270
             _alternateColumns = alternateColumns;
             _alternateRows = alternateRows;
             _statusRow = alternateRows;
-            TerminalType = IsOversize ? DynamicTerminalType : TerminalTypeFor(model);
+            TerminalType = TerminalTypeFor(model, alternateColumns, alternateRows);
             _profile = new TerminalProfile(
                 name: TerminalType,
                 primaryDeviceAttributes: Array.Empty<byte>(),
@@ -212,26 +212,82 @@ namespace RetroTerm.Ibm3270
         /// </summary>
         public bool IsOversize => _alternateColumns != AlternateColumns(Model) || _alternateRows != AlternateRows(Model);
 
-        // Refuses a size outside x3270's limits (see the constructor), naming the limit, and
-        // gives back the columns for the base constructor.
-        private static int CheckedColumns(int model, int columns, int rows)
+        /// <summary>
+        /// Checks an alternate screen size against x3270's limits (see the three-argument
+        /// constructor): each dimension at least the model's, and at most
+        /// <see cref="MaximumCells"/> cells. The ONE rule: the constructor refuses by it, and the
+        /// screen_size argument of terminal_open, CONNECT and CONNSAVE and the Manage
+        /// Connections size box are checked by it (through ConnectionFactory, by type name).
+        /// </summary>
+        /// <param name="model">
+        /// The model: 2, 3, 4 or 5.
+        /// </param>
+        /// <param name="columns">
+        /// Columns of the alternate screen.
+        /// </param>
+        /// <param name="rows">
+        /// Rows of the alternate screen.
+        /// </param>
+        /// <returns>
+        /// Null when the size can be built, else what is wrong, naming the limit.
+        /// </returns>
+        public static string? CheckScreenSize(int model, int columns, int rows)
         {
             int modelColumns = AlternateColumns(model);
             int modelRows = AlternateRows(model);
             if (columns < modelColumns)
             {
-                throw new ArgumentOutOfRangeException(nameof(columns), columns, "a model " + model + " screen has at least " + modelColumns + " columns");
+                return "a model " + model + " screen has at least " + modelColumns + " columns, got " + columns;
             }
 
             if (rows < modelRows)
             {
-                throw new ArgumentOutOfRangeException(nameof(rows), rows, "a model " + model + " screen has at least " + modelRows + " rows");
+                return "a model " + model + " screen has at least " + modelRows + " rows, got " + rows;
             }
 
             if ((long)columns * rows > MaximumCells)
             {
-                throw new ArgumentOutOfRangeException(nameof(columns), columns + "x" + rows,
-                    "at most " + MaximumCells + " cells: 14-bit buffer addresses reach no further, and 16-bit ones need Create Partition, which is not built (GA23-0059-4 p. D-1)");
+                return columns + "x" + rows + " is " + ((long)columns * rows) + " cells, and a screen has at most " + MaximumCells
+                    + ": 14-bit buffer addresses reach no further, and 16-bit ones need Create Partition, which is not built (GA23-0059-4 p. D-1)";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The TERMINAL-TYPE a model with this alternate screen announces: the model's name
+        /// (<see cref="TerminalTypeFor(int)"/>) when the screen is the model's own, else
+        /// <see cref="DynamicTerminalType"/>. The constructor sets <see cref="TerminalType"/> from
+        /// this, and ConnectionFactory builds the TN3270 connection's name from it, so the name
+        /// on the wire and the screen the host gets cannot disagree.
+        /// </summary>
+        /// <param name="model">
+        /// The model: 2, 3, 4 or 5.
+        /// </param>
+        /// <param name="columns">
+        /// Columns of the alternate screen.
+        /// </param>
+        /// <param name="rows">
+        /// Rows of the alternate screen.
+        /// </param>
+        /// <returns>
+        /// Such as "IBM-3278-2-E" or "IBM-DYNAMIC".
+        /// </returns>
+        public static string TerminalTypeFor(int model, int columns, int rows)
+        {
+            return columns == AlternateColumns(model) && rows == AlternateRows(model)
+                ? TerminalTypeFor(model)
+                : DynamicTerminalType;
+        }
+
+        // Refuses a size outside x3270's limits (CheckScreenSize), naming the limit, and gives
+        // back the columns for the base constructor.
+        private static int CheckedColumns(int model, int columns, int rows)
+        {
+            string? problem = CheckScreenSize(model, columns, rows);
+            if (problem != null)
+            {
+                throw new ArgumentOutOfRangeException(nameof(columns), columns + "x" + rows, problem);
             }
 
             return columns;

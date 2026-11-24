@@ -85,6 +85,10 @@ public partial class ManageConnectionsWindow : Window
     // True while RefreshSizeBox refills the size box, so its own selections are not written back.
     private bool _refreshingSizeBox;
 
+    // Under the size box: why a size typed for a 3278 was not taken (the emulator's own limits,
+    // TerminalSizeChoices.Read3278Size), so a refusal is said on screen rather than dropped.
+    private TextBlock? _sizeProblem;
+
     /// <summary>
     /// Whether this connection follows the window or keeps the size above.
     /// </summary>
@@ -304,6 +308,15 @@ public partial class ManageConnectionsWindow : Window
         _terminalPanel.Children.Add(CreateLabeledComboBox("Terminal Size", out _sizeCombo,
             TerminalSizeChoices.AnySizeShortcuts));
         if (_sizeCombo != null) _sizeCombo.Name = "SizeCombo";
+        _sizeProblem = new TextBlock
+        {
+            Name = "SizeProblem",
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.Parse("#E5A50A")),
+            IsVisible = false,
+        };
+        _terminalPanel.Children.Add(_sizeProblem);
         if (_emulatorCombo != null) _emulatorCombo.Name = "EmulatorCombo";
         // Straight after the size, because it says what that size MEANS: a fixed connection keeps
         // it, and one following the window overrides it on the first arrange. The choices come from
@@ -391,11 +404,27 @@ public partial class ManageConnectionsWindow : Window
             // A typed size (only possible where the box is editable): kept when it is a size, held
             // to the limits in TerminalSizeChoices.TryParse; anything else leaves the stored size.
             // Watched through the property, because TextChanged does not fire on a set from code.
+            // On a 3278 the typed size is a screen larger than the model's, held to the emulator's
+            // own limits (TerminalSizeChoices.Read3278Size); a refusal is shown under the box and
+            // the stored screen stays as it was.
             _sizeCombo.PropertyChanged += (_, e) =>
             {
                 if (e.Property != ComboBox.TextProperty || _refreshingSizeBox || !_sizeCombo.IsEditable) return;
+                var profile = _viewModel.CurrentProfile;
+                if (TerminalSizeChoices.Is3278(profile.EmulatorType))
+                {
+                    string? problem = TerminalSizeChoices.Read3278Size(_sizeCombo.Text, profile.EmulatorType, out string model, out string? screen);
+                    ShowSizeProblem(problem);
+                    if (problem == null)
+                    {
+                        // The model first: setting it clears the larger screen, which then goes back.
+                        profile.EmulatorType = model;
+                        profile.Ibm3270ScreenSize = screen;
+                    }
+                    return;
+                }
                 if (TerminalSizeChoices.TryParse(_sizeCombo.Text, out int columns, out int rows))
-                    _viewModel.CurrentProfile.Size = TerminalSizeChoices.Format(columns, rows);
+                    profile.Size = TerminalSizeChoices.Format(columns, rows);
             };
         }
         if (_screenSizeModeCombo != null)
@@ -1747,8 +1776,14 @@ public partial class ManageConnectionsWindow : Window
         {
             string[] items = TerminalSizeChoices.For(terminal);
             _sizeCombo.ItemsSource = items;
-            _sizeCombo.IsEditable = TerminalSizeChoices.AllowsAnySize(terminal);
-            string wanted = TerminalSizeChoices.LabelFor3278(terminal) ?? _viewModel.CurrentProfile.Size;
+            // A 3278 lists its four models and also takes a larger screen typed in.
+            _sizeCombo.IsEditable = TerminalSizeChoices.AcceptsTypedSize(terminal);
+            ToolTip.SetTip(_sizeCombo, TerminalSizeChoices.Is3278(terminal)
+                ? "Pick a model, or type a larger screen such as 100x50 (the host is then told IBM-DYNAMIC)"
+                : null);
+            ShowSizeProblem(null);
+            string wanted = (TerminalSizeChoices.Is3278(terminal) ? _viewModel.CurrentProfile.Ibm3270ScreenSize : null)
+                ?? TerminalSizeChoices.LabelFor3278(terminal) ?? _viewModel.CurrentProfile.Size;
             _sizeCombo.SelectedItem = System.Array.IndexOf(items, wanted) >= 0 ? wanted : null;
             if (_sizeCombo.IsEditable)
                 _sizeCombo.Text = wanted;
@@ -1759,6 +1794,14 @@ public partial class ManageConnectionsWindow : Window
         {
             _refreshingSizeBox = false;
         }
+    }
+
+    // Shows why a typed size was refused under the size box, or hides the line.
+    private void ShowSizeProblem(string? problem)
+    {
+        if (_sizeProblem == null) return;
+        _sizeProblem.Text = problem ?? string.Empty;
+        _sizeProblem.IsVisible = problem != null;
     }
 
     private void SetProtocolRadio(string protocol)

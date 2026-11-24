@@ -45,6 +45,8 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     private bool? _snapshotBackspaceSendsDel;
     private int? _snapshotCodePage;
     private int? _codePage;
+    private string? _snapshotIbm3270ScreenSize;
+    private string? _ibm3270ScreenSize;
     private bool? _snapshotDoubleClickPressesEnter;
     private bool? _doubleClickPressesEnter;
     private string? _snapshotCardReaderHost;
@@ -164,6 +166,9 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 _emulatorType = value;
                 var (width, height) = EmulatorFactory.GetRecommendedSize(value);
                 Size = $"{width}x{height}";
+                // A larger 3278 screen belongs to the model it was typed for; another terminal or
+                // another model starts on its own screen. The size box sets it again after this.
+                Ibm3270ScreenSize = null;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsDirty));
             }
@@ -317,6 +322,16 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
     {
         get => _codePage;
         set { if (_codePage != value) { _codePage = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
+    }
+
+    /// <summary>
+    /// The screen of a 3278 connection when it is larger than its model's ("100x50"), or null for
+    /// the model's own. Typed into the size box; checked there by TerminalSizeChoices.Read3278Size.
+    /// </summary>
+    public string? Ibm3270ScreenSize
+    {
+        get => _ibm3270ScreenSize;
+        set { if (_ibm3270ScreenSize != value) { _ibm3270ScreenSize = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); } }
     }
 
     /// <summary>
@@ -541,6 +556,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
                 || _onDisconnectScript != _snapshotOnDisconnectScript
                 || _backspaceSendsDel != _snapshotBackspaceSendsDel
                 || _codePage != _snapshotCodePage
+                || _ibm3270ScreenSize != _snapshotIbm3270ScreenSize
                 || _doubleClickPressesEnter != _snapshotDoubleClickPressesEnter
                 || _cardReaderHost != _snapshotCardReaderHost
                 || _cardReaderPort != _snapshotCardReaderPort
@@ -601,6 +617,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _onDisconnectScript = config.OnDisconnectScript;
         _backspaceSendsDel = config.BackspaceSendsDel;
         _codePage = config.CodePage;
+        _ibm3270ScreenSize = config.Ibm3270ScreenSize;
         _doubleClickPressesEnter = config.DoubleClickPressesEnter;
         _cardReaderHost = config.CardReaderHost;
         _cardReaderPort = config.CardReaderPort;
@@ -692,6 +709,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
+            Ibm3270ScreenSize = _ibm3270ScreenSize,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
             CardReaderHost = string.IsNullOrWhiteSpace(_cardReaderHost) ? null : _cardReaderHost.Trim(),
             CardReaderPort = _cardReaderPort,
@@ -745,6 +763,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
             Language = _language,
             BackspaceSendsDel = _backspaceSendsDel,
             CodePage = _codePage,
+            Ibm3270ScreenSize = _ibm3270ScreenSize,
             DoubleClickPressesEnter = _doubleClickPressesEnter,
             CardReaderHost = string.IsNullOrWhiteSpace(_cardReaderHost) ? null : _cardReaderHost.Trim(),
             CardReaderPort = _cardReaderPort,
@@ -804,6 +823,7 @@ public class ConnectionProfileViewModel : INotifyPropertyChanged
         _snapshotLanguage = _language;
         _snapshotBackspaceSendsDel = _backspaceSendsDel;
         _snapshotCodePage = _codePage;
+        _snapshotIbm3270ScreenSize = _ibm3270ScreenSize;
         _snapshotDoubleClickPressesEnter = _doubleClickPressesEnter;
         _snapshotCardReaderHost = _cardReaderHost;
         _snapshotCardReaderPort = _cardReaderPort;

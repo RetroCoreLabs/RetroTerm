@@ -86,6 +86,15 @@ public class HostConfiguration
     public int? CodePage { get; set; }
 
     /// <summary>
+    /// The screen of a 3278 connection when it is larger than its model's, as columns x rows
+    /// ("100x50"), or null for the model's own. Such a screen announces IBM-DYNAMIC to the host
+    /// (RFC 2355 section 7.1) and gives its size in the Query Reply. The limits are the emulator's
+    /// (Ibm3270Emulator.CheckScreenSize: each dimension at least the model's, at most 16383 cells).
+    /// Ignored by every other terminal.
+    /// </summary>
+    public string? Ibm3270ScreenSize { get; set; }
+
+    /// <summary>
     /// What a double click on a 3270 screen does: true or null moves the cursor there and presses
     /// Enter (as IBM's tnz does), false selects the word (as wc3270 and x3270 do). Ronny,
     /// 23 November 2026: a setting per connection. Ignored by every other terminal.
@@ -356,6 +365,7 @@ public class HostConfiguration
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
+            Ibm3270ScreenSize = Ibm3270ScreenSize,
             DoubleClickPressesEnter = DoubleClickPressesEnter,
             CardReaderHost = CardReaderHost,
             CardReaderPort = CardReaderPort,
@@ -409,6 +419,7 @@ public class HostConfiguration
             BackspaceSendsDel = BackspaceSendsDel,
             DeleteSendsDel = DeleteSendsDel,
             CodePage = CodePage,
+            Ibm3270ScreenSize = string.IsNullOrWhiteSpace(Ibm3270ScreenSize) ? null : Ibm3270ScreenSize.Trim(),
             DoubleClickPressesEnter = DoubleClickPressesEnter,
             CardReaderHost = string.IsNullOrWhiteSpace(CardReaderHost) ? null : CardReaderHost.Trim(),
             CardReaderPort = CardReaderPort,

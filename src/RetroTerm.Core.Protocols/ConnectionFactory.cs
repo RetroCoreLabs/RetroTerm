@@ -164,6 +164,14 @@ public static class ConnectionFactory
         public int? CodePage { get; set; }
 
         /// <summary>
+        /// The screen of a 3278 connection when it is larger than its model's, as columns x rows
+        /// ("100x50"), or null for the model's own. A larger screen announces IBM-DYNAMIC (RFC 2355
+        /// section 7.1) instead of the model's name. Checked by
+        /// <see cref="CheckIbm3270ScreenSize"/>.
+        /// </summary>
+        public string? Ibm3270ScreenSize { get; set; }
+
+        /// <summary>
         /// What a double click does on a 3270: null or true presses Enter, false selects the word.
         /// </summary>
         public bool? DoubleClickPressesEnter { get; set; }
@@ -656,7 +664,7 @@ public static class ConnectionFactory
         {
             ProtocolType.Telnet => CreateTelnetConnection(parameters.Host, parameters.Port, parameters.EmulatorType),
             ProtocolType.SSH => CreateSSHConnection(parameters.Host, parameters.Port, parameters.Username, parameters.Password, parameters.EmulatorType),
-            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port, EmulatorTypeFor(ProtocolType.TN3270, parameters.EmulatorType)),
+            ProtocolType.TN3270 => CreateTn3270Connection(parameters.Host, parameters.Port, EmulatorTypeFor(ProtocolType.TN3270, parameters.EmulatorType), parameters.Ibm3270ScreenSize),
             ProtocolType.Serial => CreateSerialConnection(parameters),
             ProtocolType.Gateway => throw new InvalidOperationException("Gateway connections are created directly via GatewayConnection, not through the factory."),
             ProtocolType.OpcomSimulator => CreateOpcomSimulatorConnection(),
@@ -858,7 +866,7 @@ public static class ConnectionFactory
     /// the RetroIO 3270 packages) and this layer must not depend on them. Pair it with the emulator
     /// of the same model, which expects one whole 3270 record per DataReceived.
     /// </summary>
-    private static IConnection CreateTn3270Connection(string host, int port, string emulatorType)
+    private static IConnection CreateTn3270Connection(string host, int port, string emulatorType, string? screenSize)
     {
         var type = Type.GetType("RetroTerm.Ibm3270.Tn3270Connection, RetroTerm.Ibm3270");
         var emulator = Type.GetType("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270");
@@ -876,11 +884,106 @@ public static class ConnectionFactory
 
         // The name sent to the host comes from Ibm3270Emulator.TerminalTypeFor, the ONE place that
         // builds it, so the name and the screen size cannot disagree. Typing "-E" here as well is
-        // how the -E fix of 22 November 2026 first failed to reach the wire.
+        // how the -E fix of 22 November 2026 first failed to reach the wire. A screen larger than
+        // the model's goes through the same method (its three-number form), which answers
+        // IBM-DYNAMIC: the name the emulator built for that size announces as its TerminalType.
         int model = emulatorType[emulatorType.Length - 1] - '0';
-        string terminalType = (string)emulator.GetMethod("TerminalTypeFor")!.Invoke(null, new object[] { model })!;
+        string terminalType;
+        if (screenSize != null)
+        {
+            string? problem = CheckIbm3270ScreenSize(model, screenSize, out int columns, out int rows);
+            if (problem != null)
+            {
+                throw new ArgumentException("screen size " + screenSize + ": " + problem, nameof(screenSize));
+            }
+
+            terminalType = (string)emulator.GetMethod("TerminalTypeFor", new[] { typeof(int), typeof(int), typeof(int) })!
+                .Invoke(null, new object[] { model, columns, rows })!;
+        }
+        else
+        {
+            terminalType = (string)emulator.GetMethod("TerminalTypeFor", new[] { typeof(int) })!.Invoke(null, new object[] { model })!;
+        }
+
         return Activator.CreateInstance(type, host, port, terminalType) as IConnection
             ?? throw new InvalidOperationException("Failed to create Tn3270Connection instance");
+    }
+
+    /// <summary>
+    /// Reads a screen size written as columns x rows ("100x50"): two whole numbers joined by an x
+    /// or an X, spaces around the numbers allowed. Only the form is checked here; what sizes a
+    /// terminal takes is that terminal's rule.
+    /// </summary>
+    /// <param name="text">
+    /// The text.
+    /// </param>
+    /// <param name="columns">
+    /// The columns, when the text is a size.
+    /// </param>
+    /// <param name="rows">
+    /// The rows, when the text is a size.
+    /// </param>
+    /// <returns>
+    /// False when the text is not in that form.
+    /// </returns>
+    public static bool TryReadScreenSize(string? text, out int columns, out int rows)
+    {
+        columns = 0;
+        rows = 0;
+        if (text == null || text.Trim().Length == 0)
+        {
+            return false;
+        }
+
+        int x = text.IndexOfAny(new[] { 'x', 'X' });
+        if (x < 0)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> left = text.AsSpan(0, x).Trim();
+        ReadOnlySpan<char> right = text.AsSpan(x + 1).Trim();
+        return int.TryParse(left, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out columns)
+            && int.TryParse(right, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out rows);
+    }
+
+    /// <summary>
+    /// Checks a 3278 screen size against the emulator's own limits, Ibm3270Emulator.CheckScreenSize
+    /// (each dimension at least the model's, at most 16383 cells), read by type name for the same
+    /// reason as <see cref="CreateTn3270Connection"/>. The one rule for terminal_open, CONNECT,
+    /// CONNSAVE, the Manage Connections size box and the connection itself.
+    /// </summary>
+    /// <param name="model">
+    /// The model: 2, 3, 4 or 5.
+    /// </param>
+    /// <param name="text">
+    /// The size as columns x rows.
+    /// </param>
+    /// <param name="columns">
+    /// The columns, when the text is a size.
+    /// </param>
+    /// <param name="rows">
+    /// The rows, when the text is a size.
+    /// </param>
+    /// <returns>
+    /// Null when the emulator can build that screen, else what is wrong.
+    /// </returns>
+    public static string? CheckIbm3270ScreenSize(int model, string? text, out int columns, out int rows)
+    {
+        if (!TryReadScreenSize(text, out columns, out rows))
+        {
+            return "a screen size is columns x rows, such as 100x50, got '" + text + "'";
+        }
+
+        var emulator = Type.GetType("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270");
+        var check = emulator?.GetMethod("CheckScreenSize");
+        if (check == null)
+        {
+            // Without the emulator there is no rule to check by, so nothing is accepted unchecked.
+            return "the 3270 terminal (RetroTerm.Ibm3270) is not loaded, so no screen size can be checked";
+        }
+
+        return (string?)check.Invoke(null, new object[] { model, columns, rows });
     }
 
     private static IConnection CreateTelnetConnection(string host, int port, string emulatorType = "VT100")

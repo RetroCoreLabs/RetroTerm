@@ -142,6 +142,82 @@ namespace RetroTerm.Core.Configuration
         }
 
         /// <summary>
+        /// Whether a size may be typed into the size box for a terminal type: any terminal that
+        /// takes any size (<see cref="AllowsAnySize"/>), and a 3278, whose screen may be made
+        /// larger than its model's (Ibm3270Emulator's three-argument constructor). For a 3278
+        /// the list is still the four models; a typed size is read by <see cref="Read3278Size"/>.
+        /// </summary>
+        /// <param name="emulatorType">
+        /// The terminal type, as a connection stores it.
+        /// </param>
+        /// <returns>
+        /// True when the box should be editable.
+        /// </returns>
+        public static bool AcceptsTypedSize(string emulatorType)
+        {
+            return AllowsAnySize(emulatorType) || Is3278(emulatorType);
+        }
+
+        /// <summary>
+        /// Reads what was typed or picked in a 3278's size box: a model entry picks that model;
+        /// a size that is exactly a model's own screen picks that model; any other size is a
+        /// screen larger than the current model's, checked by the emulator's own limits
+        /// (ConnectionFactory.CheckIbm3270ScreenSize).
+        /// </summary>
+        /// <param name="text">
+        /// The text in the box.
+        /// </param>
+        /// <param name="currentModel">
+        /// The model the connection has now, IBM-3278-2 to IBM-3278-5; a larger screen keeps it.
+        /// </param>
+        /// <param name="model">
+        /// The model to store.
+        /// </param>
+        /// <param name="screenSize">
+        /// The screen to store, such as "100x50", or null for the model's own.
+        /// </param>
+        /// <returns>
+        /// Null when the text is a screen this terminal can have, else why not.
+        /// </returns>
+        public static string? Read3278Size(string? text, string currentModel, out string model, out string? screenSize)
+        {
+            model = ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, currentModel);
+            screenSize = null;
+
+            string? picked = ModelFor(text);
+            if (picked != null)
+            {
+                model = picked;
+                return null;
+            }
+
+            if (!ConnectionFactory.TryReadScreenSize(text, out int columns, out int rows))
+            {
+                return "a screen size is columns x rows, such as 100x50";
+            }
+
+            string typed = Format(columns, rows);
+            for (int i = 0; i < ConnectionFactory.Ibm3278ModelSizes.Length; i++)
+            {
+                if (ConnectionFactory.Ibm3278ModelSizes[i] == typed)
+                {
+                    model = ConnectionFactory.Ibm3278Models[i];
+                    return null;
+                }
+            }
+
+            int modelNumber = model[model.Length - 1] - '0';
+            string? problem = ConnectionFactory.CheckIbm3270ScreenSize(modelNumber, typed, out _, out _);
+            if (problem != null)
+            {
+                return problem;
+            }
+
+            screenSize = typed;
+            return null;
+        }
+
+        /// <summary>
         /// The size-box entry for a 3278 model.
         /// </summary>
         /// <param name="emulatorType">
@@ -203,23 +279,8 @@ namespace RetroTerm.Core.Configuration
         /// </returns>
         public static bool TryParse(string? text, out int columns, out int rows)
         {
-            columns = 0;
-            rows = 0;
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return false;
-            }
-
-            int x = text.IndexOfAny(new[] { 'x', 'X' });
-            if (x < 0)
-            {
-                return false;
-            }
-
-            ReadOnlySpan<char> left = text.AsSpan(0, x).Trim();
-            ReadOnlySpan<char> right = text.AsSpan(x + 1).Trim();
-            if (!int.TryParse(left, NumberStyles.None, CultureInfo.InvariantCulture, out columns)
-                || !int.TryParse(right, NumberStyles.None, CultureInfo.InvariantCulture, out rows))
+            // The form is read by the one reader the 3278 screen size uses too.
+            if (!ConnectionFactory.TryReadScreenSize(text, out columns, out rows))
             {
                 return false;
             }

@@ -42,7 +42,9 @@ public sealed class InProcessSessionHost : ITerminalSessionHost, IDisposable
     {
         if (parameters == null) throw new ArgumentNullException(nameof(parameters));
 
-        var emulator = EmulatorFactory.CreateEmulator(parameters.EmulatorType, parameters.Width, parameters.Height);
+        // The connection's terminal, with a 3278's larger screen when it has one, by the same
+        // factory method the desktop tab uses.
+        var emulator = EmulatorFactory.CreateForConnection(parameters);
         var session = new TerminalSession(emulator, parameters.DisplayName);
         // The card reader and the double click, by the rule the desktop tab and CONNECT use.
         Ibm3270ConnectionSettings.ApplyToSession(session, parameters);

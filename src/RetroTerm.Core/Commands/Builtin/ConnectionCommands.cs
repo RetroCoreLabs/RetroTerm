@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using RetroTerm.Core.Configuration;
 using RetroTerm.Core.Protocols;
 using RetroTerm.Core.Session;
+using RetroTerm.Core.Terminal.Input;
 
 namespace RetroTerm.Core.Commands.Builtin;
 
@@ -110,7 +111,11 @@ public sealed class ConnectCommand : ISessionCommand
         // The 3270 choices, declared once for CONNECT, CONNSAVE and terminal_open with the
         // words of the tables the Manage Connections window uses (Ibm3270ConnectionSettings).
         Ibm3270ConnectionSettings.ModelParameter(),
-        Ibm3270ConnectionSettings.CodePageParameter()
+        Ibm3270ConnectionSettings.CodePageParameter(),
+        // A 3278's screen is fixed when its terminal is built, and CONNECT keeps the tab's
+        // terminal, so CONNECT takes screen_size only to check it: the tab's own screen is
+        // accepted, any other is refused by name and terminal_open screen_size=... makes it.
+        Ibm3270ConnectionSettings.ScreenSizeParameter()
     },
     // The double click and the card reader: both work on the tab CONNECT runs in, so CONNECT
     // takes them. The 3287 printer settings it does not (Ibm3270ConnectionSettings.PrinterArgumentNames
@@ -135,6 +140,25 @@ public sealed class ConnectCommand : ISessionCommand
                 return CommandResult.Fail($"no stored connection named '{name}' — CONNLIST shows them");
             }
             parameters = config.ToConnectionParameters();
+
+            // A stored 3270 connection on a tab that already is a 3278: the tab's terminal is
+            // kept, so the stored model and screen must be the tab's, or the host would be told
+            // one screen and given another.
+            if (parameters.Protocol == ConnectionFactory.ProtocolType.TN3270 && session.Emulator is IModelScreenTerminal tabTerminal)
+            {
+                Ibm3270ConnectionSettings.Describe(tabTerminal, out var tabModel, out var tabScreen);
+                string storedModel = ConnectionFactory.EmulatorTypeFor(ConnectionFactory.ProtocolType.TN3270, parameters.EmulatorType);
+                string? storedScreen = parameters.Ibm3270ScreenSize;
+                if (!string.Equals(storedModel, ConnectionFactory.Ibm3287, StringComparison.OrdinalIgnoreCase)
+                    && (storedModel != tabModel || storedScreen != tabScreen))
+                {
+                    return CommandResult.Fail("stored connection '" + name + "' is " + storedModel + " with a "
+                        + Ibm3270ConnectionSettings.ScreenText(storedModel, storedScreen) + " screen, but this tab's terminal is "
+                        + tabModel + " with a " + Ibm3270ConnectionSettings.ScreenText(tabModel, tabScreen)
+                        + " screen; CONNECT keeps the tab's terminal - open it with terminal_open name=" + name);
+                }
+            }
+
             config.MarkAsUsed();
             await _manager.SaveAsync().ConfigureAwait(false);
         }
@@ -157,6 +181,40 @@ public sealed class ConnectCommand : ISessionCommand
                 return CommandResult.Fail("'" + Ibm3270ConnectionSettings.ModelArgument + "' is " + model
                     + " but this tab's terminal is " + session.Emulator.Profile.Name
                     + "; CONNECT keeps the tab's terminal - open a new one with terminal_open model=" + model);
+            }
+
+            // screen_size: by the emulator's own limits, then against the screen this tab has.
+            // Its terminal is kept and a 3278's screen is fixed when it is built.
+            var tab3278 = session.Emulator as IModelScreenTerminal;
+            string? tabModel = null;
+            string? tabScreen = null;
+            if (tab3278 != null)
+            {
+                Ibm3270ConnectionSettings.Describe(tab3278, out tabModel, out tabScreen);
+            }
+            var problemScreen = Ibm3270ConnectionSettings.CheckScreenSize(protocol, model ?? tabModel,
+                args.GetString(Ibm3270ConnectionSettings.ScreenSizeArgument), out var screen);
+            if (problemScreen != null)
+            {
+                return CommandResult.Fail(problemScreen);
+            }
+            if (args.Contains(Ibm3270ConnectionSettings.ScreenSizeArgument))
+            {
+                string wantedModel = ConnectionFactory.EmulatorTypeFor(protocol, model ?? tabModel);
+                if (tab3278 == null)
+                {
+                    return CommandResult.Fail("'" + Ibm3270ConnectionSettings.ScreenSizeArgument + "' needs a 3278 tab, and this tab's terminal is "
+                        + session.Emulator.Profile.Name + "; open one with terminal_open protocol=tn3270 "
+                        + Ibm3270ConnectionSettings.ScreenSizeArgument + "=" + args.GetString(Ibm3270ConnectionSettings.ScreenSizeArgument));
+                }
+                if (screen != tabScreen)
+                {
+                    return CommandResult.Fail("'" + Ibm3270ConnectionSettings.ScreenSizeArgument + "' is "
+                        + Ibm3270ConnectionSettings.ScreenText(wantedModel, screen) + " but this tab's screen is "
+                        + Ibm3270ConnectionSettings.ScreenText(tabModel!, tabScreen)
+                        + "; CONNECT keeps the tab's terminal - open a new one with terminal_open "
+                        + Ibm3270ConnectionSettings.ScreenSizeArgument + "=" + args.GetString(Ibm3270ConnectionSettings.ScreenSizeArgument));
+                }
             }
 
             // The double click and the card reader, checked against the terminal this tab has.
@@ -239,6 +297,16 @@ public sealed class ConnectCommand : ISessionCommand
                     CodePage = codePage
                 };
                 choices.ApplyTo(parameters);
+
+                // On a 3278 tab the host is told what the tab really is: its model and, when it
+                // is larger, its screen (IBM-DYNAMIC). Until 24 November 2026 the type name above
+                // ("Ibm3270Emulator") reached ConnectionFactory.EmulatorTypeFor, which made it a
+                // model 2, so a model 5 tab announced IBM-3278-2-E.
+                if (protocol == ConnectionFactory.ProtocolType.TN3270 && tabModel != null)
+                {
+                    parameters.EmulatorType = tabModel;
+                    parameters.Ibm3270ScreenSize = tabScreen;
+                }
             }
         }
 
@@ -285,6 +353,14 @@ public sealed class ConnectCommand : ISessionCommand
     // model is that name without the two-character suffix.
     private static bool IsTerminal(TerminalSession session, string model)
     {
+        // A screen larger than the model's announces IBM-DYNAMIC, which names no model, so the
+        // model is read from the terminal itself when it can say.
+        if (session.Emulator is IModelScreenTerminal terminal)
+        {
+            Ibm3270ConnectionSettings.Describe(terminal, out var tabModel, out _);
+            return string.Equals(tabModel, model, StringComparison.OrdinalIgnoreCase);
+        }
+
         string name = session.Emulator.Profile.Name;
         return string.Equals(name, model, StringComparison.OrdinalIgnoreCase)
             || (name.Length == model.Length + 2 && name.StartsWith(model + "-", StringComparison.OrdinalIgnoreCase));
@@ -483,7 +559,10 @@ public sealed class ConnSaveCommand : ISessionCommand
         // Connections window reads them: the model in EmulatorType (the size box), the code page
         // in CodePage (the code page box).
         Ibm3270ConnectionSettings.ModelParameter(),
-        Ibm3270ConnectionSettings.CodePageParameter()
+        Ibm3270ConnectionSettings.CodePageParameter(),
+        // A screen larger than the model's, saved where the window's size box reads it
+        // (Ibm3270ScreenSize).
+        Ibm3270ConnectionSettings.ScreenSizeParameter()
     },
     // The double click, the card reader and the 3287 printer settings, saved where the window's
     // Keyboard, Protocol and Printer tabs read them.
@@ -543,6 +622,15 @@ public sealed class ConnSaveCommand : ISessionCommand
             return CommandResult.Fail(problemChoices);
         }
 
+        // screen_size: by the emulator's own limits, for the model the saved connection ends up with.
+        var problemScreen = Ibm3270ConnectionSettings.CheckScreenSize(effectiveProtocol, effectiveTerminal,
+            args.GetString(Ibm3270ConnectionSettings.ScreenSizeArgument), out var screen);
+        if (problemScreen != null)
+        {
+            return CommandResult.Fail(problemScreen);
+        }
+        bool screenGiven = args.Contains(Ibm3270ConnectionSettings.ScreenSizeArgument);
+
         if (existing == null)
         {
             // The terminal's own screen unless the caller gives a size. A TDV saved from a script
@@ -566,7 +654,8 @@ public sealed class ConnSaveCommand : ISessionCommand
                 IsFavorite = args.GetBool("favorite", false),
                 OnConnectScript = NullIfEmpty(args.GetString("onconnect")),
                 OnDisconnectScript = NullIfEmpty(args.GetString("ondisconnect")),
-                CodePage = codePage
+                CodePage = codePage,
+                Ibm3270ScreenSize = screen
             };
             choices.ApplyTo(config);
 
@@ -626,6 +715,18 @@ public sealed class ConnSaveCommand : ISessionCommand
             (existing.Width, existing.Height) = EmulatorFactory.GetRecommendedSize(existing.EmulatorType);
         }
         if (codePage != null) existing.CodePage = codePage;
+
+        // A larger screen belongs to the model it was given for: a new model or terminal without
+        // a screen_size goes back to its own screen, as the window's size box does. Kept, a
+        // 100x50 saved for a model 2 would be one a model 5 (132 columns) cannot have.
+        if (screenGiven)
+        {
+            existing.Ibm3270ScreenSize = screen;
+        }
+        else if (modelGiven || args.Contains("emulator"))
+        {
+            existing.Ibm3270ScreenSize = null;
+        }
         choices.ApplyTo(existing);
         if (args.Contains("username")) existing.Username = args.GetString("username");
         if (args.Contains("width")) existing.Width = args.GetInt("width", existing.Width);

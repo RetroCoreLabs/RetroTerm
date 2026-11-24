@@ -162,6 +162,254 @@ public sealed class Ibm3270ConnectionChoiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TerminalOpenScreenSizeAnnouncesDynamicAndGetsThatScreenOnEraseWriteAlternate()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var host = new FakeTn3270Host(listener);
+        Task running = host.RunAsync(TestContext.Current.CancellationToken);
+
+        using var sessions = new InProcessSessionHost();
+        var result = await Provider(sessions).CallToolAsync("terminal_open",
+            Args(("protocol", "tn3270"), ("host", "127.0.0.1"), ("port", port), ("screen_size", "100x50")),
+            TestContext.Current.CancellationToken);
+        Assert.NotEqual(true, result.IsError);
+        Assert.Contains("as IBM-3278-2 with a 100x50 screen", Text(result), StringComparison.Ordinal);
+
+        // What the host received in TERMINAL-TYPE IS, measured on the wire: the name the
+        // emulator itself announces for that screen.
+        var session = sessions.GetSession(SessionId(result))!;
+        var emulator = Assert.IsType<Ibm3270Emulator>(session.Emulator);
+        Assert.Equal(Ibm3270Emulator.DynamicTerminalType, emulator.TerminalType);
+        Assert.Equal(emulator.TerminalType, await host.TerminalType.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+
+        // The bytes cross a real socket, so FlushAsync cannot see them: poll with a deadline.
+        (int Rows, int Columns) size = (0, 0);
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            size = await session.RunOnSessionThreadAsync(() => (emulator.Display.Rows, emulator.Display.Columns));
+            if (size.Rows == 50)
+            {
+                break;
+            }
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal((50, 100), size);
+        await sessions.CloseSessionAsync(SessionId(result));
+        await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AScreenSizeThatIsTheModelsOwnOpensThePlainModel()
+    {
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        using var sessions = new InProcessSessionHost(p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        var result = await Provider(sessions).CallToolAsync("terminal_open",
+            Args(("protocol", "tn3270"), ("host", "test-host"), ("model", "IBM-3278-5"), ("screen_size", "132x27")),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(true, result.IsError);
+        var emulator = Assert.IsType<Ibm3270Emulator>(sessions.GetSession(SessionId(result))!.Emulator);
+        Assert.False(emulator.IsOversize);
+        Assert.Equal("IBM-3278-5-E", emulator.TerminalType);
+        Assert.Null(Assert.Single(opened).Ibm3270ScreenSize);
+    }
+
+    [Theory]
+    [InlineData("IBM-3278-2", "70x24", "'screen_size' 70x24 for IBM-3278-2: a model 2 screen has at least 80 columns, got 70")]
+    [InlineData("IBM-3278-4", "80x40", "'screen_size' 80x40 for IBM-3278-4: a model 4 screen has at least 43 rows, got 40")]
+    [InlineData("IBM-3278-5", "100x50", "'screen_size' 100x50 for IBM-3278-5: a model 5 screen has at least 132 columns, got 100")]
+    [InlineData("IBM-3278-2", "128x128", "'screen_size' 128x128 for IBM-3278-2: 128x128 is 16384 cells, and a screen has at most 16383")]
+    [InlineData("IBM-3278-2", "big", "'screen_size' big for IBM-3278-2: a screen size is columns x rows, such as 100x50, got 'big'")]
+    public async Task AScreenOutsideTheEmulatorsLimitsIsRefusedByNameAndNothingOpens(string model, string screen, string expected)
+    {
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        using var sessions = new InProcessSessionHost(p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        var result = await Provider(sessions).CallToolAsync("terminal_open",
+            Args(("protocol", "tn3270"), ("host", "test-host"), ("model", model), ("screen_size", screen)),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsError ?? false);
+        Assert.StartsWith("terminal_open: " + expected, Text(result), StringComparison.Ordinal);
+        Assert.Empty(opened);
+    }
+
+    [Theory]
+    [InlineData("telnet", null, "'screen_size' only applies with protocol=tn3270")]
+    [InlineData("tn3270", "IBM-3287-1", "'screen_size' is for a 3278 display, not the IBM-3287-1 printer")]
+    public async Task AScreenSizeIsRefusedOffA3278(string protocol, string? emulator, string expected)
+    {
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        using var sessions = new InProcessSessionHost(p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        var args = emulator == null
+            ? Args(("protocol", protocol), ("host", "test-host"), ("screen_size", "100x50"))
+            : Args(("protocol", protocol), ("host", "test-host"), ("emulator", emulator), ("screen_size", "100x50"));
+        var result = await Provider(sessions).CallToolAsync("terminal_open", args, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsError ?? false);
+        Assert.Equal("terminal_open: " + expected, Text(result));
+        Assert.Empty(opened);
+    }
+
+    [Fact]
+    public async Task ConnSaveStoresTheScreenConnShowSaysItAndANewModelDropsIt()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        var registry = new CommandRegistry();
+        ConnectionCommands.RegisterAll(registry, manager);
+        using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+
+        var created = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "big").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+            .Set("screen_size", "100 X 50"), TestContext.Current.CancellationToken);
+        Assert.True(created.Success, created.Error);
+        var saved = ConnectionCommands.FindByName(manager, "big")!;
+        Assert.Equal("IBM-3278-2", saved.EmulatorType);
+        Assert.Equal("100x50", saved.Ibm3270ScreenSize);
+
+        var shown = await registry.ExecuteAsync("CONNSHOW", session, new CommandArgs().Set("name", "big"), TestContext.Current.CancellationToken);
+        Assert.Contains("screen: 100x50 (larger than the model's 80x24, announced as IBM-DYNAMIC)", shown.Output, StringComparison.Ordinal);
+
+        // Refused for the model it would be saved with, and nothing changes.
+        var refused = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "big").Set("screen_size", "100x20"), TestContext.Current.CancellationToken);
+        Assert.False(refused.Success);
+        Assert.Equal("'screen_size' 100x20 for IBM-3278-2: a model 2 screen has at least 24 rows, got 20", refused.Error);
+        Assert.Equal("100x50", saved.Ibm3270ScreenSize);
+
+        // A new model goes back to its own screen, as the window's size box does.
+        var model5 = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "big").Set("model", "IBM-3278-5"), TestContext.Current.CancellationToken);
+        Assert.True(model5.Success, model5.Error);
+        Assert.Null(saved.Ibm3270ScreenSize);
+        shown = await registry.ExecuteAsync("CONNSHOW", session, new CommandArgs().Set("name", "big"), TestContext.Current.CancellationToken);
+        Assert.Contains("screen: 132x27 (the model's own)", shown.Output, StringComparison.Ordinal);
+
+        // Given again, then cleared with an empty value.
+        Assert.True((await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "big").Set("screen_size", "140x40"), TestContext.Current.CancellationToken)).Success);
+        Assert.Equal("140x40", saved.Ibm3270ScreenSize);
+        Assert.True((await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+            .Set("name", "big").Set("screen_size", ""), TestContext.Current.CancellationToken)).Success);
+        Assert.Null(saved.Ibm3270ScreenSize);
+    }
+
+    [Fact]
+    public async Task ConnectTellsTheHostTheTabsOwnScreenAndRefusesAnother()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        using var session = new TerminalSession(new Ibm3270Emulator(2, 100, 50), "test");
+
+        var refused = await registry.ExecuteAsync("CONNECT", session, new CommandArgs()
+            .Set("protocol", "tn3270").Set("host", "test-host").Set("screen_size", "120x50"), TestContext.Current.CancellationToken);
+        Assert.False(refused.Success);
+        Assert.Equal("'screen_size' is 120x50 but this tab's screen is 100x50; CONNECT keeps the tab's terminal - "
+            + "open a new one with terminal_open screen_size=120x50", refused.Error);
+        Assert.Empty(opened);
+
+        // The tab's own screen is accepted, and the host is told what the tab is.
+        var connected = await registry.ExecuteAsync("CONNECT", session, new CommandArgs()
+            .Set("protocol", "tn3270").Set("host", "test-host").Set("screen_size", "100x50"), TestContext.Current.CancellationToken);
+        Assert.True(connected.Success, connected.Error);
+        var parameters = Assert.Single(opened);
+        Assert.Equal("IBM-3278-2", parameters.EmulatorType);
+        Assert.Equal("100x50", parameters.Ibm3270ScreenSize);
+    }
+
+    [Fact]
+    public async Task ConnectOnAModel5TabTellsTheHostModel5()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+        using var session = new TerminalSession(new Ibm3270Emulator(5), "test");
+
+        var connected = await registry.ExecuteAsync("CONNECT", session, new CommandArgs()
+            .Set("protocol", "tn3270").Set("host", "test-host"), TestContext.Current.CancellationToken);
+        Assert.True(connected.Success, connected.Error);
+
+        // Before 24 November 2026 this was the class name, which the factory read as a model 2.
+        var parameters = Assert.Single(opened);
+        Assert.Equal("IBM-3278-5", parameters.EmulatorType);
+        Assert.Null(parameters.Ibm3270ScreenSize);
+    }
+
+    [Fact]
+    public async Task ConnectByNameRefusesAStoredScreenTheTabDoesNotHave()
+    {
+        var manager = new ConfigurationManager(_tempConfig);
+        await manager.AddAsync(new HostConfiguration
+        {
+            Name = "big",
+            Protocol = "TN3270",
+            Host = "test-host",
+            Port = 3270,
+            EmulatorType = "IBM-3278-2",
+            Ibm3270ScreenSize = "100x50"
+        });
+        var registry = new CommandRegistry();
+        var opened = new List<ConnectionFactory.ConnectionParameters>();
+        ConnectionCommands.RegisterAll(registry, manager, p =>
+        {
+            opened.Add(p);
+            return new InMemoryConnection();
+        });
+
+        using var plain = new TerminalSession(new Ibm3270Emulator(2), "test");
+        var refused = await registry.ExecuteAsync("CONNECT", plain, new CommandArgs().Set("name", "big"), TestContext.Current.CancellationToken);
+        Assert.False(refused.Success);
+        Assert.Equal("stored connection 'big' is IBM-3278-2 with a 100x50 screen, but this tab's terminal is IBM-3278-2 with a "
+            + "80x24 (the model's own) screen; CONNECT keeps the tab's terminal - open it with terminal_open name=big", refused.Error);
+        Assert.Empty(opened);
+
+        using var large = new TerminalSession(new Ibm3270Emulator(2, 100, 50), "test");
+        var connected = await registry.ExecuteAsync("CONNECT", large, new CommandArgs().Set("name", "big"), TestContext.Current.CancellationToken);
+        Assert.True(connected.Success, connected.Error);
+        Assert.Equal("100x50", Assert.Single(opened).Ibm3270ScreenSize);
+    }
+
+    [Fact]
+    public void ATabKeepsItsTerminalOnlyWhenTheModelAndScreenAreTheSame()
+    {
+        var model2 = new Ibm3270Emulator(2);
+        Assert.False(EmulatorFactory.NeedsNewEmulator(model2, new Ibm3270Emulator(2)));
+        Assert.True(EmulatorFactory.NeedsNewEmulator(model2, new Ibm3270Emulator(5)));
+        Assert.True(EmulatorFactory.NeedsNewEmulator(model2, new Ibm3270Emulator(2, 100, 50)));
+        Assert.False(EmulatorFactory.NeedsNewEmulator(new Ibm3270Emulator(2, 100, 50), new Ibm3270Emulator(2, 100, 50)));
+
+        // Every other terminal is decided by its class alone, as before.
+        Assert.False(EmulatorFactory.NeedsNewEmulator(
+            new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), new RetroTerm.Core.Terminal.Emulators.VT100Emulator(132, 43)));
+    }
+
+    [Fact]
     public async Task TerminalOpenWithACodePageOpensTheTerminalOnIt()
     {
         using var sessions = new InProcessSessionHost(_ => new InMemoryConnection());

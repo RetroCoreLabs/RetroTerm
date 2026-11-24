@@ -131,6 +131,70 @@ public class ConnSave3270WindowTests
     }
 
     [AvaloniaFact]
+    public async Task ALargerScreenRoundTripsThroughCommandWindowFileAndTerminal()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RetroTermConnSave3270-" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            // Saved by the command, as a script or an MCP call saves it.
+            var manager = new ConfigurationManager(path);
+            var registry = new CommandRegistry();
+            ConnectionCommands.RegisterAll(registry, manager);
+            using var session = new TerminalSession(new RetroTerm.Core.Terminal.Emulators.VT100Emulator(80, 24), "test");
+            var saved = await registry.ExecuteAsync("CONNSAVE", session, new CommandArgs()
+                .Set("name", "big").Set("protocol", "tn3270").Set("host", "localhost").Set("port", "3270")
+                .Set("screen_size", "100x50"));
+            Assert.True(saved.Success, saved.Error);
+
+            // Read back by the window: the 3278 family, model 2, and the larger screen in the box.
+            var reread = new ConfigurationManager(path);
+            await reread.LoadAsync();
+            var window = new ManageConnectionsWindow(reread);
+            window.LoadProfileForTesting(ConnectionCommands.FindByName(reread, "big")!);
+            window.ShowTerminalTabForTesting();
+            window.Show();
+            ComboBox size = Find(window, "SizeCombo");
+            Assert.Equal("IBM-3278", Find(window, "EmulatorCombo").SelectedItem);
+            Assert.True(size.IsEditable);
+            Assert.Equal("100x50", size.Text);
+            Assert.Equal("IBM-3278-2", window.ProfileForTesting.EmulatorType);
+            Assert.Equal("100x50", window.ProfileForTesting.Ibm3270ScreenSize);
+
+            // Changed in the window and saved to the file.
+            size.Text = "120x60";
+            Assert.True(window.ProfileForTesting.IsDirty);
+            await reread.UpdateAsync(window.ProfileForTesting.ToHostConfiguration());
+
+            // A picture of the Terminal tab, to look at (images\rendered).
+            using (var frame = global::Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(window))
+            {
+                string folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(ConnSave3270WindowTests).Assembly.Location)!,
+                    "..", "..", "..", "Avalonia", "images", "rendered");
+                System.IO.Directory.CreateDirectory(folder);
+                using var file = System.IO.File.Create(System.IO.Path.Combine(folder, "manage-connections-3278-larger-screen.png"));
+                frame!.Save(file, global::Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            }
+            window.Close();
+
+            // The file carries it, and the terminal built from it is that screen.
+            var again = new ConfigurationManager(path);
+            await again.LoadAsync();
+            var stored = ConnectionCommands.FindByName(again, "big")!;
+            Assert.Equal("120x60", stored.Ibm3270ScreenSize);
+            var emulator = Assert.IsType<RetroTerm.Ibm3270.Ibm3270Emulator>(EmulatorFactory.CreateForConnection(stored.ToConnectionParameters()));
+            Assert.Equal((120, 60), (emulator.AlternateScreenColumns, emulator.AlternateScreenRows));
+            Assert.Equal(RetroTerm.Ibm3270.Ibm3270Emulator.DynamicTerminalType, emulator.TerminalType);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ConnSaveModelAndCodePageShowInTheWindow()
     {
         // A configuration file of its own in %TEMP%, never the user's real one.

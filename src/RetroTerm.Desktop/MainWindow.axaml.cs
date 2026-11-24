@@ -531,6 +531,14 @@ public partial class MainWindow : Window
         if (emulator is not TerminalEmulatorBase emulatorBase)
             throw new InvalidOperationException($"Failed to create emulator: {emulatorType}");
 
+        return CreateTab(emulatorType, emulatorBase);
+    }
+
+    // A tab around a terminal already built: the connect paths build theirs from the whole
+    // connection (EmulatorFactory.CreateForConnection(parameters)), which carries what the type name
+    // alone does not, such as a 3278's larger screen.
+    private TabSession CreateTab(string emulatorType, TerminalEmulatorBase emulatorBase)
+    {
         // 2. Create session
         var session = new TerminalSession(emulatorBase, "RetroTerm");
 
@@ -2435,7 +2443,7 @@ public partial class MainWindow : Window
             var newEmulator = CreateEmulatorFromParameters(parameters);
 
             if (newEmulator != null && newEmulator is TerminalEmulatorBase newEmulatorBase &&
-                newEmulatorBase.GetType() != tab.Session.Emulator.GetType())
+                EmulatorFactory.NeedsNewEmulator(tab.Session.Emulator, newEmulatorBase))
             {
                 ApplicationLogger.Log($"[MainWindow.ConnectToHost] Replacing emulator from {tab.Session.Emulator.GetType().Name} to {newEmulatorBase.GetType().Name}");
 
@@ -2457,7 +2465,7 @@ public partial class MainWindow : Window
                 tab.Dispose();
 
                 // Create fresh tab with the right emulator
-                tab = CreateTab(parameters.EmulatorType, parameters.Width, parameters.Height);
+                tab = CreateTab(parameters.EmulatorType, newEmulatorBase);
             }
             else
             {
@@ -2560,7 +2568,7 @@ public partial class MainWindow : Window
             // Replace emulator if needed
             var newEmulator = CreateEmulatorFromParameters(parameters);
             if (newEmulator != null && newEmulator is TerminalEmulatorBase newEmulatorBase &&
-                newEmulatorBase.GetType() != tab.Session.Emulator.GetType())
+                EmulatorFactory.NeedsNewEmulator(tab.Session.Emulator, newEmulatorBase))
             {
                 bool wasActive = (tab == _activeTab);
                 _tabs.Remove(tab);
@@ -2578,7 +2586,7 @@ public partial class MainWindow : Window
                 }
                 tab.Dispose();
 
-                tab = CreateTab(parameters.EmulatorType, parameters.Width, parameters.Height);
+                tab = CreateTab(parameters.EmulatorType, newEmulatorBase);
             }
             else
             {
@@ -2813,7 +2821,7 @@ public partial class MainWindow : Window
             // Replace emulator if needed
             var newEmulator = CreateEmulatorFromParameters(parameters);
             if (newEmulator != null && newEmulator is TerminalEmulatorBase newEmulatorBase &&
-                newEmulatorBase.GetType() != tab.Session.Emulator.GetType())
+                EmulatorFactory.NeedsNewEmulator(tab.Session.Emulator, newEmulatorBase))
             {
                 bool wasActive = (tab == _activeTab);
                 _tabs.Remove(tab);
@@ -2830,7 +2838,7 @@ public partial class MainWindow : Window
                     catch { /* ignore */ }
                 }
                 tab.Dispose();
-                tab = CreateTab(parameters.EmulatorType, parameters.Width, parameters.Height);
+                tab = CreateTab(parameters.EmulatorType, newEmulatorBase);
             }
             else
             {
@@ -3972,7 +3980,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            var emulator = EmulatorFactory.CreateEmulator(parameters.EmulatorType, parameters.Width, parameters.Height);
+            // The connection's terminal, with a 3278's larger screen when it has one.
+            var emulator = EmulatorFactory.CreateForConnection(parameters);
             return emulator as ITerminalEmulator;
         }
         catch (Exception ex)

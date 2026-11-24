@@ -9,6 +9,7 @@ using System;
 using RetroTerm.Core.Terminal.Emulators;
 using RetroTerm.Core.Terminal.Emulators.TDV;
 using RetroTerm.Core.Terminal.Emulators.Tektronix;
+using RetroTerm.Core.Terminal.Input;
 using RetroTerm.Core.Terminal.Profiles;
 
 namespace RetroTerm.Core.Configuration;
@@ -105,18 +106,81 @@ public static class EmulatorFactory
             // The IBM 3278 models 2 to 5. The class lives in RetroTerm.Ibm3270, which is net10.0
             // because the RetroIO 3270 packages are, so Core (netstandard2.1) cannot name it and
             // loads it by type name. It ignores the size settings: the model fixes the size (24 x 80,
-            // 32 x 80, 43 x 80, 27 x 132), and it needs a TN3270 connection, which hands over whole
+            // 32 x 80, 43 x 80, 27 x 132) unless the connection has a larger screen of its own
+            // (Ibm3270ScreenSize, which then announces IBM-DYNAMIC), and it needs a TN3270 connection, which hands over whole
             // records.
-            "IBM-3278-2" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 2),
-            "IBM-3278-3" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 3),
-            "IBM-3278-4" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 4),
-            "IBM-3278-5" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270", 5),
+            "IBM-3278-2" => Create3278(2, configuration.Ibm3270ScreenSize),
+            "IBM-3278-3" => Create3278(3, configuration.Ibm3270ScreenSize),
+            "IBM-3278-4" => Create3278(4, configuration.Ibm3270ScreenSize),
+            "IBM-3278-5" => Create3278(5, configuration.Ibm3270ScreenSize),
 
             // The IBM 3287 printer: a TN3270 connection that answers IBM-3287-1 and prints what the
             // host writes; its tab shows the printer's state, not a host screen.
             "IBM-3287-1" => CreateByTypeName("RetroTerm.Ibm3270.Ibm3287PrinterEmulator, RetroTerm.Ibm3270"),
             _ => throw new NotSupportedException($"Emulator type '{configuration.EmulatorType}' is not supported")
         };
+    }
+
+    /// <summary>
+    /// Creates the terminal a connection asks for: its type, its size and, for a 3278, its
+    /// larger screen when it has one. Every way of opening a connection builds its terminal here
+    /// (the desktop tab, the headless session host), so a screen saved with a connection cannot
+    /// reach one of them and not the other.
+    /// </summary>
+    /// <param name="parameters">
+    /// The connection.
+    /// </param>
+    /// <returns>
+    /// The emulator.
+    /// </returns>
+    public static TerminalEmulatorBase CreateForConnection(RetroTerm.Core.Protocols.ConnectionFactory.ConnectionParameters parameters)
+    {
+        if (parameters == null) throw new ArgumentNullException(nameof(parameters));
+        return CreateEmulator(new HostConfiguration
+        {
+            EmulatorType = parameters.EmulatorType,
+            Width = parameters.Width,
+            Height = parameters.Height,
+            Ibm3270ScreenSize = parameters.Ibm3270ScreenSize
+        });
+    }
+
+    /// <summary>
+    /// Whether a tab's terminal must be replaced to become the one a connection asks for, or can
+    /// be kept and reset.
+    /// </summary>
+    /// <remarks>
+    /// A different class always needs a new one. So does a terminal whose screen is fixed when it
+    /// is built (<see cref="IModelScreenTerminal"/>, the 3278) when the model or the screen
+    /// differs: a reset keeps the screen, and until 24 November 2026 the desktop compared the
+    /// class alone, so a model 2 tab reused for a model 5 connection kept its 80 x 24 screen.
+    /// </remarks>
+    /// <param name="current">
+    /// The terminal the tab has.
+    /// </param>
+    /// <param name="wanted">
+    /// The terminal the connection asks for.
+    /// </param>
+    /// <returns>
+    /// True when the tab needs the new terminal.
+    /// </returns>
+    public static bool NeedsNewEmulator(TerminalEmulatorBase current, TerminalEmulatorBase wanted)
+    {
+        if (current == null) throw new ArgumentNullException(nameof(current));
+        if (wanted == null) throw new ArgumentNullException(nameof(wanted));
+        if (current.GetType() != wanted.GetType())
+        {
+            return true;
+        }
+
+        if (current is IModelScreenTerminal have && wanted is IModelScreenTerminal want)
+        {
+            return have.Model != want.Model
+                || have.AlternateScreenColumns != want.AlternateScreenColumns
+                || have.AlternateScreenRows != want.AlternateScreenRows;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -342,6 +406,29 @@ public static class EmulatorFactory
             ?? throw new InvalidOperationException($"Emulator type '{assemblyQualifiedName}' not found. Is its assembly shipped with the app?");
         return Activator.CreateInstance(type) as TerminalEmulatorBase
             ?? throw new InvalidOperationException($"'{assemblyQualifiedName}' is not a TerminalEmulatorBase.");
+    }
+
+    // A 3278 of a model: the model's own screen, or a larger one, held to the emulator's own
+    // limits (ConnectionFactory.CheckIbm3270ScreenSize) and refused by name before the
+    // constructor is reached, so the reason is not buried in a TargetInvocationException.
+    private static TerminalEmulatorBase Create3278(int model, string? screenSize)
+    {
+        const string name = "RetroTerm.Ibm3270.Ibm3270Emulator, RetroTerm.Ibm3270";
+        if (string.IsNullOrWhiteSpace(screenSize))
+        {
+            return CreateByTypeName(name, model);
+        }
+
+        string? problem = RetroTerm.Core.Protocols.ConnectionFactory.CheckIbm3270ScreenSize(model, screenSize, out int columns, out int rows);
+        if (problem != null)
+        {
+            throw new ArgumentException("screen size " + screenSize + ": " + problem, nameof(screenSize));
+        }
+
+        var type = Type.GetType(name)
+            ?? throw new InvalidOperationException($"Emulator type '{name}' not found. Is its assembly shipped with the app?");
+        return Activator.CreateInstance(type, model, columns, rows) as TerminalEmulatorBase
+            ?? throw new InvalidOperationException($"'{name}' is not a TerminalEmulatorBase.");
     }
 
     private static TerminalEmulatorBase CreateByTypeName(string assemblyQualifiedName, int model)
