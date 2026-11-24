@@ -101,12 +101,20 @@ clean-room rewrite in C#.
 - [ ] Large 3270 screens, what is left (the setting itself is built, 24 November 2026: `screen_size` on terminal_open, CONNECT, CONNSAVE, shown by CONNSHOW, stored as `Ibm3270ScreenSize`, typed into the Terminal Size box in Manage Connections, held to `Ibm3270Emulator.CheckScreenSize`; the host is told IBM-DYNAMIC):
   - [ ] Ronny's decision: should the window size pick the 3270 screen size? (queued, not started)
   - [ ] Try a large screen against TK5 by hand (only the fake host in `Ibm3270ConnectionChoiceTests` has seen IBM-DYNAMIC from RetroTerm; whether TK5's VTAM takes it is not measured)
-- [ ] Screens above 16 383 cells: need 16-bit buffer addresses, which GA23-0059-4 selects ONLY through Create Partition (A-MODE, p. 5-10; implicit partition 0 is always 12/14-bit, p. 4-4, D-1). Means building explicit partitions in RetroIO first; s3270 4.5 refuses such a screen too ("Exceeds protocol limit")
+- [ ] Screens above 16 383 cells: 16-bit addressing now works inside an explicit partition (RetroIO, 24 November 2026, 3270-DATA-STREAM.md 13.3), but implicit partition 0 is always 12/14-bit (p. 4-4, D-1), so the session's own screen size stays at most 16 383 cells; s3270 4.5 refuses such a screen too ("Exceeds protocol limit")
+- [ ] Partitions, what RetroIO still lacks (3270-DATA-STREAM.md 13.3):
+  - [ ] Scrolling: presentation space larger than the viewport, window origin, RS/CS, Set Window Origin X'0B', Modify Partition X'0F0A' (refused out loud today)
+  - [ ] PWAIT, System Lock and Enter Inhibit per partition, saved and raised by Activate and Destroy (the keyboard lock is one for the whole display)
+  - [ ] The jump-partition key (p. 2-5)
+  - [ ] Reject an enter action in retry-read state (p. 3-17)
+  - [ ] Text partitions, protected partitions, presentation-space copy (refused out loud today)
+- [ ] RetroTerm: draw every partition in its viewport (today only the active one is drawn, through the display getters); `GetPartition` and `TryGetScreenPosition` are there for it
+- [ ] RetroTerm's `Ibm3270QueryReplyTests` pin the old Usable Area bytes (ADDR X'01', BUFFSZ) and the old reply list; they go red against the new RetroIO package (ADDR X'03', BUFFSZ 0, Alphanumeric Partitions and Field Outlining replies added) and must be updated to the manual's values
 - [ ] APL / graphic-escape characters (code page 310). Measured on Windows 24 November 2026 (EBCDIC.md "What RetroTerm draws for code page 310"): the 3270 draws with Consolas, not Lucida Console; Consolas has 86 of the 136 characters (every box piece and block), the other 50 APL symbols are filled in from Segoe UI Symbol at that font's own size. What is left:
   - [ ] Which font fills the 50 in on Linux and macOS (not measured; no Segoe UI Symbol there)
   - [ ] The 50 Segoe UI Symbol glyphs sit at a different size and weight than the Consolas letters beside them - look at `ibm3270-cp310-table.png` with Ronny and decide whether that is good enough or needs our own font (see the "own font" item below)
   - [ ] X'81' and X'82', the double bars, are drawn as blanks (BUGS.md B24)
-- [ ] Field outlining (X'C2', p. 4-19, 4-20) is kept by RetroIO but not drawn; drawing it also needs the Field Outlining query reply (p. 6-49) sent, which RetroIO does not send today
+- [ ] Field outlining (X'C2', p. 4-19, 4-20) is kept by RetroIO and the Field Outlining query reply (p. 6-49) is sent (24 November 2026; VPOS and HPOS come from `OutlineVerticalPosition` / `OutlineHorizontalPosition`, defaults 0 and 15); RetroTerm still has to draw the lines and set those two to where it draws them
 - [ ] Virtual keyboard: 3270 layout with ALT key combinations for keys a PC keyboard lacks, the same way the TDV one works
 - [ ] From tnz's feature list (its README, lines 103-108):
   - [ ] Alt+letter opens ISPF menus. CLASHES with the plan to use ALT combinations for 3270 keys a PC lacks — decide the split when the keyboard document (A5) is written
